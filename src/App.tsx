@@ -25,6 +25,7 @@ const App = () => (
             <Route path="/projetos" element={<ProjectsPage />} />
             <Route path="/solicitacoes" element={<SolicitacoesPage />} />
             <Route path="/solicitacoes/:id" element={<SolicitacaoFormPage />} />
+            <Route path="/base-dados" element={<BaseDadosPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AppLayout>
