@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useAppStore } from '@/store/useAppStore';
-import { Solicitacao, SolicitacaoStatus } from '@/types';
+import { useSolicitacoes, useProjects } from '@/hooks/useSupabaseData';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -11,6 +10,8 @@ import { Plus, Search, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { formatBRL } from '@/lib/formatCurrency';
 
+type SolicitacaoStatus = 'Aberta' | 'Aprovada' | 'Finalizada';
+
 const statusColors: Record<SolicitacaoStatus, string> = {
   Aberta: 'bg-warning text-warning-foreground',
   Aprovada: 'bg-info text-info-foreground',
@@ -18,7 +19,8 @@ const statusColors: Record<SolicitacaoStatus, string> = {
 };
 
 export default function SolicitacoesPage() {
-  const { solicitacoes, projects } = useAppStore();
+  const { data: solicitacoes = [] } = useSolicitacoes();
+  const { data: projects = [] } = useProjects();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -29,10 +31,10 @@ export default function SolicitacoesPage() {
     if (orderFilter === 'abertas' && s.status === 'Finalizada') return false;
     if (orderFilter === 'finalizadas' && s.status !== 'Finalizada') return false;
     if (statusFilter !== 'all' && s.status !== statusFilter) return false;
-    if (projetoFilter !== 'all' && s.projetoId !== projetoFilter) return false;
+    if (projetoFilter !== 'all' && s.projeto_id !== projetoFilter) return false;
     if (search) {
       const q = search.toLowerCase();
-      const proj = projects.find(p => p.id === s.projetoId);
+      const proj = projects.find(p => p.id === s.projeto_id);
       return s.numero.toLowerCase().includes(q) ||
         s.motivo.toLowerCase().includes(q) ||
         s.erp.toLowerCase().includes(q) ||
@@ -104,19 +106,22 @@ export default function SolicitacoesPage() {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhuma solicitação encontrada</TableCell></TableRow>
-                ) : filtered.map(s => (
-                  <TableRow key={s.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/solicitacoes/${s.id}`)}>
-                    <TableCell className="font-mono font-medium">{s.numero}</TableCell>
-                    <TableCell className="max-w-xs truncate">{getProjetoNome(s.projetoId)}</TableCell>
-                    <TableCell><Badge className={statusColors[s.status]}>{s.status}</Badge></TableCell>
-                    <TableCell className="max-w-xs truncate">{s.motivo}</TableCell>
-                    <TableCell className="text-muted-foreground">{s.dataSolicitacao}</TableCell>
-                    <TableCell className="text-center">{s.itens.length}</TableCell>
-                    <TableCell className="font-mono">{s.erp || '-'}</TableCell>
-                    <TableCell className="text-right font-mono">{formatBRL(s.itens.reduce((a, i) => a + i.custoTotal, 0))}</TableCell>
-                    <TableCell><Button variant="ghost" size="icon"><Eye className="h-4 w-4" /></Button></TableCell>
-                  </TableRow>
-                ))}
+                ) : filtered.map(s => {
+                  const itens = s.solicitacao_itens || [];
+                  return (
+                    <TableRow key={s.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/solicitacoes/${s.id}`)}>
+                      <TableCell className="font-mono font-medium">{s.numero}</TableCell>
+                      <TableCell className="max-w-xs truncate">{getProjetoNome(s.projeto_id)}</TableCell>
+                      <TableCell><Badge className={statusColors[s.status as SolicitacaoStatus] || ''}>{s.status}</Badge></TableCell>
+                      <TableCell className="max-w-xs truncate">{s.motivo}</TableCell>
+                      <TableCell className="text-muted-foreground">{s.data_solicitacao}</TableCell>
+                      <TableCell className="text-center">{itens.length}</TableCell>
+                      <TableCell className="font-mono">{s.erp || '-'}</TableCell>
+                      <TableCell className="text-right font-mono">{formatBRL(itens.reduce((a: number, i: any) => a + (i.custo_total || 0), 0))}</TableCell>
+                      <TableCell><Button variant="ghost" size="icon"><Eye className="h-4 w-4" /></Button></TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>

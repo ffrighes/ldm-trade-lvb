@@ -1,7 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useAppStore } from '@/store/useAppStore';
-import { SolicitacaoItem, SolicitacaoStatus } from '@/types';
+import { useMaterials, useProjects, useSolicitacao, useAddSolicitacao, useUpdateSolicitacao } from '@/hooks/useSupabaseData';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,32 +12,73 @@ import { Plus, Trash2, ArrowLeft, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatBRL } from '@/lib/formatCurrency';
 
-const emptyItem = (): SolicitacaoItem => ({
-  id: `item-${Date.now()}-${Math.random()}`,
-  materialId: '',
+interface FormItem {
+  key: string;
+  material_id: string | null;
+  descricao: string;
+  bitola: string;
+  quantidade: number;
+  unidade: string;
+  custo_unitario: number;
+  custo_total: number;
+}
+
+const emptyItem = (): FormItem => ({
+  key: `item-${Date.now()}-${Math.random()}`,
+  material_id: null,
   descricao: '',
   bitola: '',
   quantidade: 1,
   unidade: 'un',
-  custoUnitario: 0,
-  custoTotal: 0,
+  custo_unitario: 0,
+  custo_total: 0,
 });
 
 export default function SolicitacaoFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { projects, materials, solicitacoes, addSolicitacao, updateSolicitacao } = useAppStore();
+  const { data: projects = [] } = useProjects();
+  const { data: materials = [] } = useMaterials();
+  const { data: existing } = useSolicitacao(id);
+  const addSolicitacao = useAddSolicitacao();
+  const updateSolicitacao = useUpdateSolicitacao();
 
-  const existing = id && id !== 'nova' ? solicitacoes.find(s => s.id === id) : null;
+  const isNew = !id || id === 'nova';
 
-  const [projetoId, setProjetoId] = useState(existing?.projetoId || '');
-  const [motivo, setMotivo] = useState(existing?.motivo || '');
-  const [dataSolicitacao, setDataSolicitacao] = useState(existing?.dataSolicitacao || new Date().toISOString().split('T')[0]);
-  const [revisao, setRevisao] = useState(existing?.revisao || '');
-  const [erp, setErp] = useState(existing?.erp || '');
-  const [notas, setNotas] = useState(existing?.notas || '');
-  const [status, setStatus] = useState<SolicitacaoStatus>(existing?.status || 'Aberta');
-  const [itens, setItens] = useState<SolicitacaoItem[]>(existing?.itens || [emptyItem()]);
+  const [projetoId, setProjetoId] = useState('');
+  const [motivo, setMotivo] = useState('');
+  const [dataSolicitacao, setDataSolicitacao] = useState(new Date().toISOString().split('T')[0]);
+  const [revisao, setRevisao] = useState('');
+  const [erp, setErp] = useState('');
+  const [notas, setNotas] = useState('');
+  const [status, setStatus] = useState('Aberta');
+  const [itens, setItens] = useState<FormItem[]>([emptyItem()]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (existing && !loaded) {
+      setProjetoId(existing.projeto_id);
+      setMotivo(existing.motivo);
+      setDataSolicitacao(existing.data_solicitacao);
+      setRevisao(existing.revisao);
+      setErp(existing.erp);
+      setNotas(existing.notas);
+      setStatus(existing.status);
+      setItens(
+        (existing.solicitacao_itens || []).map((i: any) => ({
+          key: i.id,
+          material_id: i.material_id,
+          descricao: i.descricao,
+          bitola: i.bitola,
+          quantidade: i.quantidade,
+          unidade: i.unidade,
+          custo_unitario: i.custo_unitario,
+          custo_total: i.custo_total,
+        }))
+      );
+      setLoaded(true);
+    }
+  }, [existing, loaded]);
 
   const descriptions = useMemo(() => [...new Set(materials.map(m => m.descricao))].sort(), [materials]);
 
@@ -50,7 +90,7 @@ export default function SolicitacaoFormPage() {
   const handleDescChange = (index: number, desc: string) => {
     setItens(prev => prev.map((item, i) => {
       if (i !== index) return item;
-      return { ...item, descricao: desc, bitola: '', custoUnitario: 0, custoTotal: 0 };
+      return { ...item, descricao: desc, bitola: '', custo_unitario: 0, custo_total: 0, material_id: null };
     }));
   };
 
@@ -58,15 +98,15 @@ export default function SolicitacaoFormPage() {
     setItens(prev => prev.map((item, i) => {
       if (i !== index) return item;
       const mat = materials.find(m => m.descricao === item.descricao && m.bitola === bitola);
-      const custoUnitario = mat?.custo || 0;
+      const custo_unitario = mat?.custo || 0;
       const unidade = mat?.unidade || 'un';
       return {
         ...item,
         bitola,
-        materialId: mat?.id || '',
-        custoUnitario,
+        material_id: mat?.id || null,
+        custo_unitario,
         unidade,
-        custoTotal: item.quantidade * custoUnitario,
+        custo_total: item.quantidade * custo_unitario,
       };
     }));
   };
@@ -74,14 +114,14 @@ export default function SolicitacaoFormPage() {
   const handleQtdChange = (index: number, qty: number) => {
     setItens(prev => prev.map((item, i) => {
       if (i !== index) return item;
-      return { ...item, quantidade: qty, custoTotal: qty * item.custoUnitario };
+      return { ...item, quantidade: qty, custo_total: qty * item.custo_unitario };
     }));
   };
 
   const addItem = () => setItens(prev => [...prev, emptyItem()]);
   const removeItem = (index: number) => setItens(prev => prev.filter((_, i) => i !== index));
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!projetoId) { toast.error('Selecione um projeto'); return; }
     if (!motivo.trim()) { toast.error('Informe o motivo'); return; }
     if (itens.length === 0 || itens.some(i => !i.descricao || !i.bitola)) {
@@ -89,19 +129,32 @@ export default function SolicitacaoFormPage() {
       return;
     }
 
-    const data = { projetoId, motivo, dataSolicitacao, revisao, erp, notas, status, itens };
+    const payload = {
+      projeto_id: projetoId,
+      motivo,
+      data_solicitacao: dataSolicitacao,
+      revisao,
+      erp,
+      notas,
+      status,
+      itens: itens.map(({ key, ...rest }) => rest),
+    };
 
-    if (existing) {
-      updateSolicitacao(existing.id, data);
-      toast.success('Solicitação atualizada');
-    } else {
-      addSolicitacao(data);
-      toast.success('Solicitação criada');
+    try {
+      if (existing) {
+        await updateSolicitacao.mutateAsync({ id: existing.id, ...payload });
+        toast.success('Solicitação atualizada');
+      } else {
+        await addSolicitacao.mutateAsync(payload);
+        toast.success('Solicitação criada');
+      }
+      navigate('/solicitacoes');
+    } catch {
+      toast.error('Erro ao salvar solicitação');
     }
-    navigate('/solicitacoes');
   };
 
-  const totalGeral = itens.reduce((a, i) => a + i.custoTotal, 0);
+  const totalGeral = itens.reduce((a, i) => a + i.custo_total, 0);
 
   return (
     <div>
@@ -134,7 +187,7 @@ export default function SolicitacaoFormPage() {
               </div>
               <div>
                 <Label>Status</Label>
-                <Select value={status} onValueChange={v => setStatus(v as SolicitacaoStatus)}>
+                <Select value={status} onValueChange={setStatus}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Aberta">Aberta</SelectItem>
@@ -182,7 +235,7 @@ export default function SolicitacaoFormPage() {
                 </TableHeader>
                 <TableBody>
                   {itens.map((item, idx) => (
-                    <TableRow key={item.id}>
+                    <TableRow key={item.key}>
                       <TableCell>
                         <Select value={item.descricao} onValueChange={v => handleDescChange(idx, v)}>
                           <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
@@ -203,8 +256,8 @@ export default function SolicitacaoFormPage() {
                         <Input type="number" min={1} value={item.quantidade} onChange={e => handleQtdChange(idx, parseInt(e.target.value) || 0)} />
                       </TableCell>
                       <TableCell className="text-muted-foreground">{item.unidade}</TableCell>
-                      <TableCell className="text-right font-mono">{formatBRL(item.custoUnitario)}</TableCell>
-                      <TableCell className="text-right font-mono font-medium">{formatBRL(item.custoTotal)}</TableCell>
+                      <TableCell className="text-right font-mono">{formatBRL(item.custo_unitario)}</TableCell>
+                      <TableCell className="text-right font-mono font-medium">{formatBRL(item.custo_total)}</TableCell>
                       <TableCell>
                         {itens.length > 1 && (
                           <Button variant="ghost" size="icon" onClick={() => removeItem(idx)}>
@@ -228,7 +281,9 @@ export default function SolicitacaoFormPage() {
 
         <div className="flex justify-end gap-3">
           <Button variant="outline" onClick={() => navigate('/solicitacoes')}>Cancelar</Button>
-          <Button onClick={handleSave}><Save className="h-4 w-4 mr-2" />Salvar Solicitação</Button>
+          <Button onClick={handleSave} disabled={addSolicitacao.isPending || updateSolicitacao.isPending}>
+            <Save className="h-4 w-4 mr-2" />Salvar Solicitação
+          </Button>
         </div>
       </div>
     </div>

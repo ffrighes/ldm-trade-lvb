@@ -1,17 +1,19 @@
-import { useAppStore } from '@/store/useAppStore';
+import { useMaterials, useProjects, useSolicitacoes } from '@/hooks/useSupabaseData';
 import { FolderKanban, FileText, Database, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
 import { formatBRL } from '@/lib/formatCurrency';
 
 export default function DashboardPage() {
-  const { projects, solicitacoes, materials } = useAppStore();
+  const { data: projects = [] } = useProjects();
+  const { data: solicitacoes = [] } = useSolicitacoes();
+  const { data: materials = [] } = useMaterials();
 
   const abertas = solicitacoes.filter(s => s.status === 'Aberta').length;
   const aprovadas = solicitacoes.filter(s => s.status === 'Aprovada').length;
   const finalizadas = solicitacoes.filter(s => s.status === 'Finalizada').length;
   const totalCusto = solicitacoes.reduce((acc, s) =>
-    acc + s.itens.reduce((a, i) => a + i.custoTotal, 0), 0
+    acc + (s.solicitacao_itens || []).reduce((a: number, i: any) => a + (i.custo_total || 0), 0), 0
   );
 
   const stats = [

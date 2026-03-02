@@ -14,7 +14,158 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      materials: {
+        Row: {
+          bitola: string
+          created_at: string
+          custo: number
+          descricao: string
+          id: string
+          unidade: string
+        }
+        Insert: {
+          bitola: string
+          created_at?: string
+          custo?: number
+          descricao: string
+          id?: string
+          unidade?: string
+        }
+        Update: {
+          bitola?: string
+          created_at?: string
+          custo?: number
+          descricao?: string
+          id?: string
+          unidade?: string
+        }
+        Relationships: []
+      }
+      projects: {
+        Row: {
+          created_at: string
+          data_criacao: string
+          descricao: string
+          id: string
+          numero: string
+        }
+        Insert: {
+          created_at?: string
+          data_criacao?: string
+          descricao: string
+          id?: string
+          numero: string
+        }
+        Update: {
+          created_at?: string
+          data_criacao?: string
+          descricao?: string
+          id?: string
+          numero?: string
+        }
+        Relationships: []
+      }
+      solicitacao_itens: {
+        Row: {
+          bitola: string
+          custo_total: number
+          custo_unitario: number
+          descricao: string
+          id: string
+          material_id: string | null
+          quantidade: number
+          solicitacao_id: string
+          unidade: string
+        }
+        Insert: {
+          bitola: string
+          custo_total?: number
+          custo_unitario?: number
+          descricao: string
+          id?: string
+          material_id?: string | null
+          quantidade?: number
+          solicitacao_id: string
+          unidade?: string
+        }
+        Update: {
+          bitola?: string
+          custo_total?: number
+          custo_unitario?: number
+          descricao?: string
+          id?: string
+          material_id?: string | null
+          quantidade?: number
+          solicitacao_id?: string
+          unidade?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitacao_itens_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitacao_itens_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "solicitacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      solicitacoes: {
+        Row: {
+          created_at: string
+          data_solicitacao: string
+          desenho: string | null
+          erp: string
+          id: string
+          motivo: string
+          notas: string
+          numero: string
+          projeto_id: string
+          revisao: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          data_solicitacao?: string
+          desenho?: string | null
+          erp?: string
+          id?: string
+          motivo: string
+          notas?: string
+          numero: string
+          projeto_id: string
+          revisao?: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          data_solicitacao?: string
+          desenho?: string | null
+          erp?: string
+          id?: string
+          motivo?: string
+          notas?: string
+          numero?: string
+          projeto_id?: string
+          revisao?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitacoes_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

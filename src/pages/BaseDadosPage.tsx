@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useAppStore } from '@/store/useAppStore';
-import { MaterialItem } from '@/types';
+import { useMaterials, useAddMaterial, useUpdateMaterial, useDeleteMaterial } from '@/hooks/useSupabaseData';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -14,11 +13,15 @@ import { toast } from 'sonner';
 import { formatBRL, parseBRL } from '@/lib/formatCurrency';
 
 export default function BaseDadosPage() {
-  const { materials, addMaterial, updateMaterial, deleteMaterial } = useAppStore();
+  const { data: materials = [] } = useMaterials();
+  const addMaterial = useAddMaterial();
+  const updateMaterial = useUpdateMaterial();
+  const deleteMaterial = useDeleteMaterial();
+
   const [search, setSearch] = useState('');
   const [descFilter, setDescFilter] = useState('all');
   const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<MaterialItem | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ descricao: '', bitola: '', unidade: 'm', custo: '' });
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
@@ -34,7 +37,7 @@ export default function BaseDadosPage() {
   }), [materials, search, descFilter]);
 
   const grouped = useMemo(() => {
-    const map = new Map<string, MaterialItem[]>();
+    const map = new Map<string, typeof materials>();
     filtered.forEach(m => {
       const list = map.get(m.descricao) || [];
       list.push(m);
@@ -46,8 +49,7 @@ export default function BaseDadosPage() {
   const toggleGroup = (desc: string) => {
     setExpandedGroups(prev => {
       const next = new Set(prev);
-      if (next.has(desc)) next.delete(desc);
-      else next.add(desc);
+      if (next.has(desc)) next.delete(desc); else next.add(desc);
       return next;
     });
   };
@@ -55,31 +57,38 @@ export default function BaseDadosPage() {
   const expandAll = () => setExpandedGroups(new Set(grouped.map(([d]) => d)));
   const collapseAll = () => setExpandedGroups(new Set());
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const custo = parseBRL(form.custo);
     if (!form.descricao.trim() || !form.bitola.trim()) {
       toast.error('Preencha todos os campos obrigatórios');
       return;
     }
-    if (editing) {
-      updateMaterial(editing.id, { ...form, custo });
-      toast.success('Item atualizado');
-    } else {
-      const ok = addMaterial({ ...form, custo });
-      if (!ok) { toast.error('Este item já existe na base'); return; }
-      toast.success('Item adicionado');
+    try {
+      if (editingId) {
+        await updateMaterial.mutateAsync({ id: editingId, ...form, custo });
+        toast.success('Item atualizado');
+      } else {
+        await addMaterial.mutateAsync({ ...form, custo });
+        toast.success('Item adicionado');
+      }
+      setOpen(false);
+    } catch (e: any) {
+      if (e.message?.includes('duplicate') || e.code === '23505') {
+        toast.error('Este item já existe na base');
+      } else {
+        toast.error('Erro ao salvar item');
+      }
     }
-    setOpen(false);
   };
 
-  const openEdit = (m: MaterialItem) => {
-    setEditing(m);
+  const openEdit = (m: typeof materials[0]) => {
+    setEditingId(m.id);
     setForm({ descricao: m.descricao, bitola: m.bitola, unidade: m.unidade, custo: m.custo.toString() });
     setOpen(true);
   };
 
   const openNew = () => {
-    setEditing(null);
+    setEditingId(null);
     setForm({ descricao: '', bitola: '', unidade: 'm', custo: '' });
     setOpen(true);
   };
@@ -93,7 +102,7 @@ export default function BaseDadosPage() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{editing ? 'Editar Item' : 'Novo Item'}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editingId ? 'Editar Item' : 'Novo Item'}</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div>
               <Label>Descrição *</Label>
@@ -125,7 +134,7 @@ export default function BaseDadosPage() {
           </div>
           <DialogFooter>
             <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
-            <Button onClick={handleSave}>Salvar</Button>
+            <Button onClick={handleSave} disabled={addMaterial.isPending || updateMaterial.isPending}>Salvar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -201,7 +210,7 @@ export default function BaseDadosPage() {
                                       </AlertDialogHeader>
                                       <AlertDialogFooter>
                                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => { deleteMaterial(m.id); toast.success('Item excluído'); }}>Excluir</AlertDialogAction>
+                                        <AlertDialogAction onClick={() => { deleteMaterial.mutate(m.id); toast.success('Item excluído'); }}>Excluir</AlertDialogAction>
                                       </AlertDialogFooter>
                                     </AlertDialogContent>
                                   </AlertDialog>
