@@ -1,10 +1,9 @@
 import { useState } from 'react';
-import { useAppStore } from '@/store/useAppStore';
-import { Project } from '@/types';
+import { useProjects, useAddProject, useUpdateProject, useDeleteProject } from '@/hooks/useSupabaseData';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Pencil, Trash2, Search } from 'lucide-react';
@@ -12,10 +11,14 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { toast } from 'sonner';
 
 export default function ProjectsPage() {
-  const { projects, addProject, updateProject, deleteProject } = useAppStore();
+  const { data: projects = [] } = useProjects();
+  const addProject = useAddProject();
+  const updateProject = useUpdateProject();
+  const deleteProject = useDeleteProject();
+
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<Project | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ numero: '', descricao: '' });
 
   const filtered = projects.filter(p =>
@@ -23,33 +26,37 @@ export default function ProjectsPage() {
     p.descricao.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.numero.trim() || !form.descricao.trim()) {
       toast.error('Preencha todos os campos obrigatórios');
       return;
     }
-    if (editing) {
-      const ok = updateProject(editing.id, form);
-      if (!ok) { toast.error('Número do projeto já existe'); return; }
-      toast.success('Projeto atualizado');
-    } else {
-      const ok = addProject(form);
-      if (!ok) { toast.error('Número do projeto já existe'); return; }
-      toast.success('Projeto criado');
+    try {
+      if (editingId) {
+        await updateProject.mutateAsync({ id: editingId, ...form });
+        toast.success('Projeto atualizado');
+      } else {
+        await addProject.mutateAsync(form);
+        toast.success('Projeto criado');
+      }
+      setOpen(false);
+    } catch (e: any) {
+      if (e.message?.includes('duplicate') || e.code === '23505') {
+        toast.error('Número do projeto já existe');
+      } else {
+        toast.error('Erro ao salvar projeto');
+      }
     }
-    setOpen(false);
-    setEditing(null);
-    setForm({ numero: '', descricao: '' });
   };
 
-  const openEdit = (p: Project) => {
-    setEditing(p);
+  const openEdit = (p: typeof projects[0]) => {
+    setEditingId(p.id);
     setForm({ numero: p.numero, descricao: p.descricao });
     setOpen(true);
   };
 
   const openNew = () => {
-    setEditing(null);
+    setEditingId(null);
     setForm({ numero: '', descricao: '' });
     setOpen(true);
   };
@@ -58,31 +65,30 @@ export default function ProjectsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Projetos</h1>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" />Novo Projeto</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editing ? 'Editar Projeto' : 'Novo Projeto'}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div>
-                <Label>Número do Projeto *</Label>
-                <Input value={form.numero} onChange={e => setForm(f => ({ ...f, numero: e.target.value }))} placeholder="PRJ-001" />
-              </div>
-              <div>
-                <Label>Descrição *</Label>
-                <Input value={form.descricao} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))} placeholder="Descrição do projeto" />
-              </div>
-            </div>
-            <DialogFooter>
-              <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
-              <Button onClick={handleSave}>Salvar</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" />Novo Projeto</Button>
       </div>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingId ? 'Editar Projeto' : 'Novo Projeto'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label>Número do Projeto *</Label>
+              <Input value={form.numero} onChange={e => setForm(f => ({ ...f, numero: e.target.value }))} placeholder="PRJ-001" />
+            </div>
+            <div>
+              <Label>Descrição *</Label>
+              <Input value={form.descricao} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))} placeholder="Descrição do projeto" />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
+            <Button onClick={handleSave} disabled={addProject.isPending || updateProject.isPending}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Card>
         <CardHeader>
@@ -108,7 +114,7 @@ export default function ProjectsPage() {
                 <TableRow key={p.id}>
                   <TableCell className="font-mono font-medium">{p.numero}</TableCell>
                   <TableCell>{p.descricao}</TableCell>
-                  <TableCell className="text-muted-foreground">{p.dataCriacao}</TableCell>
+                  <TableCell className="text-muted-foreground">{p.data_criacao}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
                       <Button variant="ghost" size="icon" onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /></Button>
@@ -123,7 +129,7 @@ export default function ProjectsPage() {
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => { deleteProject(p.id); toast.success('Projeto excluído'); }}>Excluir</AlertDialogAction>
+                            <AlertDialogAction onClick={() => { deleteProject.mutate(p.id); toast.success('Projeto excluído'); }}>Excluir</AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
