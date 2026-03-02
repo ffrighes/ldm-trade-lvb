@@ -55,6 +55,7 @@ export default function SolicitacaoFormPage() {
   const [status, setStatus] = useState('Aberta');
   const [itens, setItens] = useState<FormItem[]>([emptyItem()]);
   const [loaded, setLoaded] = useState(false);
+  const statusChanged = existing && status !== existing.status;
 
   useEffect(() => {
     if (existing && !loaded) {
@@ -285,7 +286,7 @@ export default function SolicitacaoFormPage() {
 
         <div className="flex justify-end gap-3">
           <Button variant="outline" onClick={() => navigate('/solicitacoes')}>Voltar</Button>
-          <Button onClick={handleSave} disabled={isReadOnly || addSolicitacao.isPending || updateSolicitacao.isPending}>
+          <Button onClick={handleSave} disabled={(isReadOnly && !statusChanged) || addSolicitacao.isPending || updateSolicitacao.isPending}>
             <Save className="h-4 w-4 mr-2" />Salvar Solicitação
           </Button>
         </div>
