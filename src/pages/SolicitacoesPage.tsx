@@ -1,26 +1,31 @@
 import { useState, useMemo } from 'react';
-import { useSolicitacoes, useProjects } from '@/hooks/useSupabaseData';
+import { useSolicitacoes, useProjects, useDeleteSolicitacao } from '@/hooks/useSupabaseData';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Eye } from 'lucide-react';
+import { Plus, Search, Eye, Trash2 } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useNavigate } from 'react-router-dom';
 import { formatBRL } from '@/lib/formatCurrency';
+import { toast } from 'sonner';
 
-type SolicitacaoStatus = 'Aberta' | 'Aprovada' | 'Finalizada';
+type SolicitacaoStatus = 'Aberta' | 'Aprovada' | 'Finalizada' | 'Material Comprado' | 'Material enviado para Obra';
 
 const statusColors: Record<SolicitacaoStatus, string> = {
   Aberta: 'bg-warning text-warning-foreground',
   Aprovada: 'bg-info text-info-foreground',
   Finalizada: 'bg-success text-success-foreground',
+  'Material Comprado': 'bg-primary/20 text-primary',
+  'Material enviado para Obra': 'bg-accent text-accent-foreground',
 };
 
 export default function SolicitacoesPage() {
   const { data: solicitacoes = [] } = useSolicitacoes();
   const { data: projects = [] } = useProjects();
+  const deleteSolicitacao = useDeleteSolicitacao();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -67,9 +72,11 @@ export default function SolicitacoesPage() {
                 <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="Status" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os Status</SelectItem>
-                  <SelectItem value="Aberta">Aberta</SelectItem>
-                  <SelectItem value="Aprovada">Aprovada</SelectItem>
-                  <SelectItem value="Finalizada">Finalizada</SelectItem>
+                   <SelectItem value="Aberta">Aberta</SelectItem>
+                   <SelectItem value="Aprovada">Aprovada</SelectItem>
+                   <SelectItem value="Material Comprado">Material Comprado</SelectItem>
+                   <SelectItem value="Material enviado para Obra">Material enviado para Obra</SelectItem>
+                   <SelectItem value="Finalizada">Finalizada</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={projetoFilter} onValueChange={setProjetoFilter}>
@@ -100,7 +107,7 @@ export default function SolicitacoesPage() {
                   <TableHead className="text-center">Itens</TableHead>
                   <TableHead>ERP</TableHead>
                   <TableHead className="text-right">Custo Total</TableHead>
-                  <TableHead className="w-16">Ações</TableHead>
+                  <TableHead className="w-24">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -118,7 +125,28 @@ export default function SolicitacoesPage() {
                       <TableCell className="text-center">{itens.length}</TableCell>
                       <TableCell className="font-mono">{s.erp || '-'}</TableCell>
                       <TableCell className="text-right font-mono">{formatBRL(itens.reduce((a: number, i: any) => a + (i.custo_total || 0), 0))}</TableCell>
-                      <TableCell><Button variant="ghost" size="icon"><Eye className="h-4 w-4" /></Button></TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); navigate(`/solicitacoes/${s.id}`); }}><Eye className="h-4 w-4" /></Button>
+                          {s.status === 'Aberta' && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Excluir solicitação {s.numero}?</AlertDialogTitle>
+                                  <AlertDialogDescription>Esta ação excluirá a solicitação e todos os seus itens. Não pode ser desfeita.</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => { deleteSolicitacao.mutate(s.id); toast.success('Solicitação excluída'); }}>Excluir</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                        </div>
+                      </TableCell>
                     </TableRow>
                   );
                 })}

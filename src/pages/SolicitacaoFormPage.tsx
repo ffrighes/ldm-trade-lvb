@@ -44,6 +44,7 @@ export default function SolicitacaoFormPage() {
   const updateSolicitacao = useUpdateSolicitacao();
 
   const isNew = !id || id === 'nova';
+  const isReadOnly = !isNew && existing?.status !== 'Aberta';
 
   const [projetoId, setProjetoId] = useState('');
   const [motivo, setMotivo] = useState('');
@@ -192,6 +193,8 @@ export default function SolicitacaoFormPage() {
                   <SelectContent>
                     <SelectItem value="Aberta">Aberta</SelectItem>
                     <SelectItem value="Aprovada">Aprovada</SelectItem>
+                    <SelectItem value="Material Comprado">Material Comprado</SelectItem>
+                    <SelectItem value="Material enviado para Obra">Material enviado para Obra</SelectItem>
                     <SelectItem value="Finalizada">Finalizada</SelectItem>
                   </SelectContent>
                 </Select>
@@ -280,10 +283,12 @@ export default function SolicitacaoFormPage() {
         </Card>
 
         <div className="flex justify-end gap-3">
-          <Button variant="outline" onClick={() => navigate('/solicitacoes')}>Cancelar</Button>
-          <Button onClick={handleSave} disabled={addSolicitacao.isPending || updateSolicitacao.isPending}>
-            <Save className="h-4 w-4 mr-2" />Salvar Solicitação
-          </Button>
+          <Button variant="outline" onClick={() => navigate('/solicitacoes')}>Voltar</Button>
+          {!isReadOnly && (
+            <Button onClick={handleSave} disabled={addSolicitacao.isPending || updateSolicitacao.isPending}>
+              <Save className="h-4 w-4 mr-2" />Salvar Solicitação
+            </Button>
+          )}
         </div>
       </div>
     </div>
