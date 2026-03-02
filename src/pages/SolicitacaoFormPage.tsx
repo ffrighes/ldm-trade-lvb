@@ -171,7 +171,7 @@ export default function SolicitacaoFormPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <Label>Projeto *</Label>
-                <Select value={projetoId} onValueChange={setProjetoId}>
+                <Select value={projetoId} onValueChange={setProjetoId} disabled={isReadOnly}>
                   <SelectTrigger><SelectValue placeholder="Selecione o projeto" /></SelectTrigger>
                   <SelectContent>
                     {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.numero} - {p.descricao}</SelectItem>)}
@@ -180,15 +180,15 @@ export default function SolicitacaoFormPage() {
               </div>
               <div>
                 <Label>Motivo *</Label>
-                <Input value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Motivo da solicitação" />
+                <Input value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Motivo da solicitação" disabled={isReadOnly} />
               </div>
               <div>
                 <Label>Data da Solicitação *</Label>
-                <Input type="date" value={dataSolicitacao} onChange={e => setDataSolicitacao(e.target.value)} />
+                <Input type="date" value={dataSolicitacao} onChange={e => setDataSolicitacao(e.target.value)} disabled={isReadOnly} />
               </div>
               <div>
                 <Label>Status</Label>
-                <Select value={status} onValueChange={setStatus}>
+                <Select value={status} onValueChange={setStatus} disabled={isReadOnly}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Aberta">Aberta</SelectItem>
@@ -201,15 +201,15 @@ export default function SolicitacaoFormPage() {
               </div>
               <div>
                 <Label>Revisão</Label>
-                <Input value={revisao} onChange={e => setRevisao(e.target.value)} />
+                <Input value={revisao} onChange={e => setRevisao(e.target.value)} disabled={isReadOnly} />
               </div>
               <div>
                 <Label>ERP</Label>
-                <Input value={erp} onChange={e => setErp(e.target.value)} />
+                <Input value={erp} onChange={e => setErp(e.target.value)} disabled={isReadOnly} />
               </div>
               <div className="md:col-span-2 lg:col-span-3">
                 <Label>Notas</Label>
-                <Textarea value={notas} onChange={e => setNotas(e.target.value)} rows={3} />
+                <Textarea value={notas} onChange={e => setNotas(e.target.value)} rows={3} disabled={isReadOnly} />
               </div>
             </div>
           </CardContent>
@@ -219,7 +219,7 @@ export default function SolicitacaoFormPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Itens da Solicitação</CardTitle>
-              <Button variant="outline" size="sm" onClick={addItem}><Plus className="h-4 w-4 mr-1" />Adicionar Item</Button>
+              {!isReadOnly && <Button variant="outline" size="sm" onClick={addItem}><Plus className="h-4 w-4 mr-1" />Adicionar Item</Button>}
             </div>
           </CardHeader>
           <CardContent>
@@ -240,7 +240,7 @@ export default function SolicitacaoFormPage() {
                   {itens.map((item, idx) => (
                     <TableRow key={item.key}>
                       <TableCell>
-                        <Select value={item.descricao} onValueChange={v => handleDescChange(idx, v)}>
+                        <Select value={item.descricao} onValueChange={v => handleDescChange(idx, v)} disabled={isReadOnly}>
                           <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                           <SelectContent>
                             {descriptions.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
@@ -248,7 +248,7 @@ export default function SolicitacaoFormPage() {
                         </Select>
                       </TableCell>
                       <TableCell>
-                        <Select value={item.bitola} onValueChange={v => handleBitolaChange(idx, v)} disabled={!item.descricao}>
+                        <Select value={item.bitola} onValueChange={v => handleBitolaChange(idx, v)} disabled={isReadOnly || !item.descricao}>
                           <SelectTrigger><SelectValue placeholder="Bitola" /></SelectTrigger>
                           <SelectContent>
                             {getBitolas(item.descricao).map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
@@ -256,13 +256,13 @@ export default function SolicitacaoFormPage() {
                         </Select>
                       </TableCell>
                       <TableCell>
-                        <Input type="number" min={1} value={item.quantidade} onChange={e => handleQtdChange(idx, parseInt(e.target.value) || 0)} />
+                        <Input type="number" min={1} value={item.quantidade} onChange={e => handleQtdChange(idx, parseInt(e.target.value) || 0)} disabled={isReadOnly} />
                       </TableCell>
                       <TableCell className="text-muted-foreground">{item.unidade}</TableCell>
                       <TableCell className="text-right font-mono">{formatBRL(item.custo_unitario)}</TableCell>
                       <TableCell className="text-right font-mono font-medium">{formatBRL(item.custo_total)}</TableCell>
                       <TableCell>
-                        {itens.length > 1 && (
+                        {!isReadOnly && itens.length > 1 && (
                           <Button variant="ghost" size="icon" onClick={() => removeItem(idx)}>
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
@@ -284,11 +284,9 @@ export default function SolicitacaoFormPage() {
 
         <div className="flex justify-end gap-3">
           <Button variant="outline" onClick={() => navigate('/solicitacoes')}>Voltar</Button>
-          {!isReadOnly && (
-            <Button onClick={handleSave} disabled={addSolicitacao.isPending || updateSolicitacao.isPending}>
-              <Save className="h-4 w-4 mr-2" />Salvar Solicitação
-            </Button>
-          )}
+          <Button onClick={handleSave} disabled={isReadOnly || addSolicitacao.isPending || updateSolicitacao.isPending}>
+            <Save className="h-4 w-4 mr-2" />Salvar Solicitação
+          </Button>
         </div>
       </div>
     </div>
