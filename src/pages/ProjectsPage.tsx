@@ -18,6 +18,7 @@ export default function ProjectsPage() {
   const projectCosts = useMemo(() => {
     const costs: Record<string, number> = {};
     solicitacoes.forEach(s => {
+      if (s.status === 'Aberta' || s.status === 'Cancelada') return;
       const itens = s.solicitacao_itens || [];
       const total = itens.reduce((a: number, i: any) => a + (i.custo_total || 0), 0);
       costs[s.projeto_id] = (costs[s.projeto_id] || 0) + total;

@@ -12,7 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import { formatBRL } from '@/lib/formatCurrency';
 import { toast } from 'sonner';
 
-type SolicitacaoStatus = 'Aberta' | 'Aprovada' | 'Finalizada' | 'Material Comprado' | 'Material enviado para Obra';
+type SolicitacaoStatus = 'Aberta' | 'Aprovada' | 'Finalizada' | 'Material Comprado' | 'Material enviado para Obra' | 'Cancelada';
 
 const statusColors: Record<SolicitacaoStatus, string> = {
   Aberta: 'bg-warning text-warning-foreground',
@@ -20,6 +20,7 @@ const statusColors: Record<SolicitacaoStatus, string> = {
   Finalizada: 'bg-success text-success-foreground',
   'Material Comprado': 'bg-primary/20 text-primary',
   'Material enviado para Obra': 'bg-accent text-accent-foreground',
+  Cancelada: 'bg-destructive/20 text-destructive',
 };
 
 export default function SolicitacoesPage() {
@@ -77,6 +78,7 @@ export default function SolicitacoesPage() {
                    <SelectItem value="Material Comprado">Material Comprado</SelectItem>
                    <SelectItem value="Material enviado para Obra">Material enviado para Obra</SelectItem>
                    <SelectItem value="Finalizada">Finalizada</SelectItem>
+                   <SelectItem value="Cancelada">Cancelada</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={projetoFilter} onValueChange={setProjetoFilter}>
