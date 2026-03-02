@@ -188,7 +188,7 @@ export default function SolicitacaoFormPage() {
               </div>
               <div>
                 <Label>Status</Label>
-                <Select value={status} onValueChange={setStatus} disabled={isReadOnly}>
+                <Select value={status} onValueChange={setStatus}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Aberta">Aberta</SelectItem>
@@ -196,6 +196,7 @@ export default function SolicitacaoFormPage() {
                     <SelectItem value="Material Comprado">Material Comprado</SelectItem>
                     <SelectItem value="Material enviado para Obra">Material enviado para Obra</SelectItem>
                     <SelectItem value="Finalizada">Finalizada</SelectItem>
+                    <SelectItem value="Cancelada">Cancelada</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
