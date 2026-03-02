@@ -201,14 +201,18 @@ export default function SolicitacaoFormPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label>Revisão</Label>
-                <Input value={revisao} onChange={e => setRevisao(e.target.value)} disabled={isReadOnly} />
-              </div>
-              <div>
-                <Label>ERP</Label>
-                <Input value={erp} onChange={e => setErp(e.target.value)} disabled={isReadOnly} />
-              </div>
+              {!isNew && (
+                <>
+                  <div>
+                    <Label>Revisão</Label>
+                    <Input value={revisao} onChange={e => setRevisao(e.target.value)} disabled={isReadOnly} />
+                  </div>
+                  <div>
+                    <Label>ERP</Label>
+                    <Input value={erp} onChange={e => setErp(e.target.value)} disabled={isReadOnly} />
+                  </div>
+                </>
+              )}
               <div className="md:col-span-2 lg:col-span-3">
                 <Label>Notas</Label>
                 <Textarea value={notas} onChange={e => setNotas(e.target.value)} rows={3} disabled={isReadOnly} />
