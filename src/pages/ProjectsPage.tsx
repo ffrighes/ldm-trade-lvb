@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { useProjects, useAddProject, useUpdateProject, useDeleteProject } from '@/hooks/useSupabaseData';
+import { useState, useMemo } from 'react';
+import { useProjects, useAddProject, useUpdateProject, useDeleteProject, useSolicitacoes } from '@/hooks/useSupabaseData';
+import { formatBRL } from '@/lib/formatCurrency';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -12,6 +13,17 @@ import { toast } from 'sonner';
 
 export default function ProjectsPage() {
   const { data: projects = [] } = useProjects();
+  const { data: solicitacoes = [] } = useSolicitacoes();
+
+  const projectCosts = useMemo(() => {
+    const costs: Record<string, number> = {};
+    solicitacoes.forEach(s => {
+      const itens = s.solicitacao_itens || [];
+      const total = itens.reduce((a: number, i: any) => a + (i.custo_total || 0), 0);
+      costs[s.projeto_id] = (costs[s.projeto_id] || 0) + total;
+    });
+    return costs;
+  }, [solicitacoes]);
   const addProject = useAddProject();
   const updateProject = useUpdateProject();
   const deleteProject = useDeleteProject();
@@ -104,17 +116,19 @@ export default function ProjectsPage() {
                 <TableHead>Número</TableHead>
                 <TableHead>Descrição</TableHead>
                 <TableHead>Data de Criação</TableHead>
+                <TableHead className="text-right">Custo Total</TableHead>
                 <TableHead className="w-24">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Nenhum projeto encontrado</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhum projeto encontrado</TableCell></TableRow>
               ) : filtered.map(p => (
                 <TableRow key={p.id}>
                   <TableCell className="font-mono font-medium">{p.numero}</TableCell>
                   <TableCell>{p.descricao}</TableCell>
                   <TableCell className="text-muted-foreground">{p.data_criacao}</TableCell>
+                  <TableCell className="text-right font-mono font-medium">{formatBRL(projectCosts[p.id] || 0)}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
                       <Button variant="ghost" size="icon" onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /></Button>
