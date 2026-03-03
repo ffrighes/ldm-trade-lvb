@@ -145,6 +145,7 @@ export function useAddSolicitacao() {
       erp: string;
       notas: string;
       status: string;
+      desenho?: string | null;
       itens: Array<{
         material_id?: string | null;
         descricao: string;
@@ -188,6 +189,7 @@ export function useUpdateSolicitacao() {
       erp: string;
       notas: string;
       status: string;
+      desenho?: string | null;
       itens: Array<{
         material_id?: string | null;
         descricao: string;
