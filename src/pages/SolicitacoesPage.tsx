@@ -131,9 +131,11 @@ export default function SolicitacoesPage() {
                         <div className="flex gap-1">
                           <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); navigate(`/solicitacoes/${s.id}`); }}><Eye className="h-4 w-4" /></Button>
                           {s.desenho && (
-                            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); window.open(s.desenho!, '_blank'); }} title="Ver desenho">
-                              <FileText className="h-4 w-4 text-primary" />
-                            </Button>
+                            <a href={s.desenho} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} title="Ver desenho">
+                              <Button variant="ghost" size="icon" asChild>
+                                <span><FileText className="h-4 w-4 text-primary" /></span>
+                              </Button>
+                            </a>
                           )}
                           {s.status === 'Aberta' && (
                             <AlertDialog>
