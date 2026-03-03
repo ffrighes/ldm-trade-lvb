@@ -181,14 +181,7 @@ export default function SolicitacaoFormPage() {
               </div>
               <div>
                 <Label>Motivo *</Label>
-                <Select value={motivo} onValueChange={setMotivo} disabled={isReadOnly}>
-                  <SelectTrigger><SelectValue placeholder="Selecione o motivo" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Material de Lista">Material de Lista</SelectItem>
-                    <SelectItem value="Material Faltante">Material Faltante</SelectItem>
-                    <SelectItem value="Alteração de Projeto">Alteração de Projeto</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Input value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Motivo da solicitação" disabled={isReadOnly} />
               </div>
               <div>
                 <Label>Data da Solicitação *</Label>
