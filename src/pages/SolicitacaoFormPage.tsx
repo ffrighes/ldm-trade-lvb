@@ -1,6 +1,7 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMaterials, useProjects, useSolicitacao, useAddSolicitacao, useUpdateSolicitacao } from '@/hooks/useSupabaseData';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Trash2, ArrowLeft, Save } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, Save, Upload, FileText, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatBRL } from '@/lib/formatCurrency';
 
@@ -53,6 +54,9 @@ export default function SolicitacaoFormPage() {
   const [erp, setErp] = useState('');
   const [notas, setNotas] = useState('');
   const [status, setStatus] = useState('Aberta');
+  const [desenho, setDesenho] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [itens, setItens] = useState<FormItem[]>([emptyItem()]);
   const [loaded, setLoaded] = useState(false);
   const statusChanged = existing && status !== existing.status;
@@ -66,6 +70,7 @@ export default function SolicitacaoFormPage() {
       setErp(existing.erp);
       setNotas(existing.notas);
       setStatus(existing.status);
+      setDesenho(existing.desenho || null);
       setItens(
         (existing.solicitacao_itens || []).map((i: any) => ({
           key: i.id,
@@ -123,6 +128,32 @@ export default function SolicitacaoFormPage() {
   const addItem = () => setItens(prev => [...prev, emptyItem()]);
   const removeItem = (index: number) => setItens(prev => prev.filter((_, i) => i !== index));
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== 'application/pdf') {
+      toast.error('Apenas arquivos PDF são permitidos');
+      return;
+    }
+    setUploading(true);
+    const fileName = `${Date.now()}-${file.name}`;
+    const { error } = await supabase.storage.from('desenhos').upload(fileName, file);
+    if (error) {
+      toast.error('Erro ao fazer upload do desenho');
+      setUploading(false);
+      return;
+    }
+    const { data: urlData } = supabase.storage.from('desenhos').getPublicUrl(fileName);
+    setDesenho(urlData.publicUrl);
+    setUploading(false);
+    toast.success('Desenho anexado');
+  };
+
+  const removeDesenho = () => {
+    setDesenho(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const handleSave = async () => {
     if (!projetoId) { toast.error('Selecione um projeto'); return; }
     if (!motivo.trim()) { toast.error('Informe o motivo'); return; }
@@ -139,6 +170,7 @@ export default function SolicitacaoFormPage() {
       erp,
       notas,
       status,
+      desenho,
       itens: itens.map(({ key, ...rest }) => rest),
     };
 
@@ -223,6 +255,38 @@ export default function SolicitacaoFormPage() {
               <div className="md:col-span-2 lg:col-span-3">
                 <Label>Notas</Label>
                 <Textarea value={notas} onChange={e => setNotas(e.target.value)} rows={3} disabled={isReadOnly} />
+              </div>
+              <div className="md:col-span-2 lg:col-span-3">
+                <Label>Desenho de Referência (PDF)</Label>
+                {desenho ? (
+                  <div className="flex items-center gap-2 mt-1">
+                    <Button variant="outline" size="sm" asChild>
+                      <a href={desenho} target="_blank" rel="noopener noreferrer">
+                        <FileText className="h-4 w-4 mr-1" />Ver Desenho
+                      </a>
+                    </Button>
+                    {!isReadOnly && (
+                      <Button variant="ghost" size="icon" onClick={removeDesenho}>
+                        <X className="h-4 w-4 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
+                ) : !isReadOnly ? (
+                  <div className="mt-1">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".pdf"
+                      className="hidden"
+                      onChange={handleFileUpload}
+                    />
+                    <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+                      <Upload className="h-4 w-4 mr-1" />{uploading ? 'Enviando...' : 'Anexar Desenho'}
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground mt-1">Nenhum desenho anexado</p>
+                )}
               </div>
             </div>
           </CardContent>

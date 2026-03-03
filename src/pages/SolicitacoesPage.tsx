@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Eye, Trash2 } from 'lucide-react';
+import { Plus, Search, Eye, Trash2, FileText } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useNavigate } from 'react-router-dom';
 import { formatBRL } from '@/lib/formatCurrency';
@@ -130,6 +130,11 @@ export default function SolicitacoesPage() {
                       <TableCell>
                         <div className="flex gap-1">
                           <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); navigate(`/solicitacoes/${s.id}`); }}><Eye className="h-4 w-4" /></Button>
+                          {s.desenho && (
+                            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); window.open(s.desenho!, '_blank'); }} title="Ver desenho">
+                              <FileText className="h-4 w-4 text-primary" />
+                            </Button>
+                          )}
                           {s.status === 'Aberta' && (
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
