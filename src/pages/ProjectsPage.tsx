@@ -10,10 +10,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Plus, Pencil, Trash2, Search } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
+import { usePermissions } from '@/hooks/usePermissions';
 
 export default function ProjectsPage() {
   const { data: projects = [] } = useProjects();
   const { data: solicitacoes = [] } = useSolicitacoes();
+  const perms = usePermissions();
 
   const projectCosts = useMemo(() => {
     const costs: Record<string, number> = {};
@@ -78,7 +80,7 @@ export default function ProjectsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Projetos</h1>
-        <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" />Novo Projeto</Button>
+        {perms?.canCreateProject && <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" />Novo Projeto</Button>}
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
