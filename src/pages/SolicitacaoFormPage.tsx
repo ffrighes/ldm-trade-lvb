@@ -16,6 +16,8 @@ import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
   AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
+import { usePermissions } from '@/hooks/usePermissions';
+import { useAuth } from '@/hooks/useAuth';
 
 interface FormItem {
   key: string;
@@ -47,9 +49,15 @@ export default function SolicitacaoFormPage() {
   const { data: existing } = useSolicitacao(id);
   const addSolicitacao = useAddSolicitacao();
   const updateSolicitacao = useUpdateSolicitacao();
+  const perms = usePermissions();
+  const { role } = useAuth();
 
   const isNew = !id || id === 'nova';
-  const isReadOnly = !isNew && existing?.status !== 'Aberta';
+  // Determine read-only based on role permissions
+  const canEditFields = isNew
+    ? perms?.canCreateSolicitacao
+    : perms?.canEditSolicitacao && existing?.status === 'Aberta';
+  const isReadOnly = !canEditFields;
 
   const [projetoId, setProjetoId] = useState('');
   const [motivo, setMotivo] = useState('');
@@ -92,6 +100,31 @@ export default function SolicitacaoFormPage() {
       setLoaded(true);
     }
   }, [existing, loaded]);
+
+  const ALL_STATUSES = ['Aberta', 'Aprovada', 'Material Comprado', 'Material enviado para Obra', 'Finalizada', 'Cancelada'];
+
+  const canChangeStatus = () => {
+    if (!perms) return false;
+    if (perms.canChangeAnyStatus) return true;
+    if (perms.canChangeStatusTo.length > 0) return true;
+    if (role === 'coordenador_campo' && existing?.status === 'Aberta') return true;
+    return false;
+  };
+
+  const getAvailableStatuses = () => {
+    if (!perms) return [status];
+    if (perms.canChangeAnyStatus) return ALL_STATUSES;
+    const available = new Set([status]);
+    // Comprador: from Aprovada to specific statuses
+    if (role === 'comprador' && existing?.status === 'Aprovada') {
+      perms.canChangeStatusTo.forEach(s => available.add(s));
+    }
+    // Coordenador: can cancel open
+    if (role === 'coordenador_campo' && existing?.status === 'Aberta') {
+      available.add('Cancelada');
+    }
+    return ALL_STATUSES.filter(s => available.has(s));
+  };
 
   const descriptions = useMemo(() => [...new Set(materials.map(m => m.descricao))].sort(), [materials]);
 
@@ -275,15 +308,12 @@ export default function SolicitacaoFormPage() {
               </div>
               <div>
                 <Label>Status</Label>
-                <Select value={status} onValueChange={setStatus}>
+                <Select value={status} onValueChange={setStatus} disabled={!canChangeStatus()}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Aberta">Aberta</SelectItem>
-                    <SelectItem value="Aprovada">Aprovada</SelectItem>
-                    <SelectItem value="Material Comprado">Material Comprado</SelectItem>
-                    <SelectItem value="Material enviado para Obra">Material enviado para Obra</SelectItem>
-                    <SelectItem value="Finalizada">Finalizada</SelectItem>
-                    <SelectItem value="Cancelada">Cancelada</SelectItem>
+                    {getAvailableStatuses().map(s => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
