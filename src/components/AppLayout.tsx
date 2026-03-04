@@ -1,22 +1,16 @@
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { FolderKanban, FileText, Database, LayoutDashboard, Users, LogOut } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
-import { usePermissions, ROLE_LABELS } from '@/hooks/usePermissions';
-import { Button } from '@/components/ui/button';
+import { FolderKanban, FileText, Database, LayoutDashboard } from 'lucide-react';
+
+const NAV_ITEMS = [
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/projetos', label: 'Projetos', icon: FolderKanban },
+  { to: '/solicitacoes', label: 'Solicitações', icon: FileText },
+  { to: '/base-dados', label: 'Base de Dados', icon: Database },
+];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation();
-  const { user, role, signOut } = useAuth();
-  const perms = usePermissions();
-
-  const NAV_ITEMS = [
-    { to: '/', label: 'Dashboard', icon: LayoutDashboard, show: true },
-    { to: '/projetos', label: 'Projetos', icon: FolderKanban, show: true },
-    { to: '/solicitacoes', label: 'Solicitações', icon: FileText, show: true },
-    { to: '/base-dados', label: 'Base de Dados', icon: Database, show: true },
-    { to: '/usuarios', label: 'Usuários', icon: Users, show: perms?.canManageUsers },
-  ].filter(i => i.show);
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -47,20 +41,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
-        <div className="p-3 border-t border-sidebar-border">
-          <div className="px-3 py-2 text-xs text-sidebar-foreground/60 truncate">
-            {user?.email}
-            {role && <span className="block text-sidebar-foreground/40">{ROLE_LABELS[role]}</span>}
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-            onClick={signOut}
-          >
-            <LogOut className="h-4 w-4 mr-2" />Sair
-          </Button>
-        </div>
       </aside>
 
       {/* Mobile nav */}

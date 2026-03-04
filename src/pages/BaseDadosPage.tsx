@@ -11,14 +11,12 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { formatBRL, parseBRL } from '@/lib/formatCurrency';
-import { usePermissions } from '@/hooks/usePermissions';
 
 export default function BaseDadosPage() {
   const { data: materials = [] } = useMaterials();
   const addMaterial = useAddMaterial();
   const updateMaterial = useUpdateMaterial();
   const deleteMaterial = useDeleteMaterial();
-  const perms = usePermissions();
 
   const [search, setSearch] = useState('');
   const [descFilter, setDescFilter] = useState('all');
@@ -99,7 +97,7 @@ export default function BaseDadosPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Base de Dados</h1>
-        {perms?.canModifyBaseDados && <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" />Novo Item</Button>}
+        <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" />Novo Item</Button>
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>

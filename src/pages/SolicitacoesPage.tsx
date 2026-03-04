@@ -11,7 +11,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useNavigate } from 'react-router-dom';
 import { formatBRL } from '@/lib/formatCurrency';
 import { toast } from 'sonner';
-import { usePermissions } from '@/hooks/usePermissions';
 
 type SolicitacaoStatus = 'Aberta' | 'Aprovada' | 'Finalizada' | 'Material Comprado' | 'Material enviado para Obra' | 'Cancelada';
 
@@ -29,7 +28,6 @@ export default function SolicitacoesPage() {
   const { data: projects = [] } = useProjects();
   const deleteSolicitacao = useDeleteSolicitacao();
   const navigate = useNavigate();
-  const perms = usePermissions();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [projetoFilter, setProjetoFilter] = useState('all');
@@ -60,9 +58,7 @@ export default function SolicitacoesPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Solicitações</h1>
-        {perms?.canCreateSolicitacao && (
-          <Button onClick={() => navigate('/solicitacoes/nova')}><Plus className="h-4 w-4 mr-2" />Criar Nova Solicitação</Button>
-        )}
+        <Button onClick={() => navigate('/solicitacoes/nova')}><Plus className="h-4 w-4 mr-2" />Criar Nova Solicitação</Button>
       </div>
 
       <Card>
@@ -141,7 +137,7 @@ export default function SolicitacoesPage() {
                               </Button>
                             </a>
                           )}
-                          {s.status === 'Aberta' && perms?.canDeleteSolicitacao && (
+                          {s.status === 'Aberta' && (
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}><Trash2 className="h-4 w-4 text-destructive" /></Button>
