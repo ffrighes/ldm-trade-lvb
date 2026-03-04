@@ -12,6 +12,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Plus, Trash2, ArrowLeft, Save, Upload, FileText, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatBRL } from '@/lib/formatCurrency';
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
 
 interface FormItem {
   key: string;
@@ -59,6 +63,8 @@ export default function SolicitacaoFormPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [itens, setItens] = useState<FormItem[]>([emptyItem()]);
   const [loaded, setLoaded] = useState(false);
+  const [showDuplicateAlert, setShowDuplicateAlert] = useState(false);
+  const [duplicateMessage, setDuplicateMessage] = useState('');
   const statusChanged = existing && status !== existing.status;
 
   useEffect(() => {
@@ -157,11 +163,52 @@ export default function SolicitacaoFormPage() {
   const handleSave = async () => {
     if (!projetoId) { toast.error('Selecione um projeto'); return; }
     if (!motivo.trim()) { toast.error('Informe o motivo'); return; }
+    if (motivo === 'Material Faltante' && !notas.trim()) {
+      toast.error('Descreva o motivo do material faltante no campo Notas');
+      return;
+    }
     if (itens.length === 0 || itens.some(i => !i.descricao || !i.bitola)) {
       toast.error('Preencha todos os itens corretamente');
       return;
     }
 
+    // Check for duplicate materials in other solicitations for the same project
+    if (isNew && motivo === 'Material Faltante') {
+      const { data: existingSols } = await supabase
+        .from('solicitacoes')
+        .select('numero, solicitacao_itens(descricao, bitola)')
+        .eq('projeto_id', projetoId)
+        .neq('status', 'Cancelada');
+
+      if (existingSols && existingSols.length > 0) {
+        const currentMaterials = itens.map(i => `${i.descricao}||${i.bitola}`);
+        const matches: string[] = [];
+
+        for (const sol of existingSols) {
+          const solItens = (sol as any).solicitacao_itens || [];
+          const found = solItens.filter((si: any) =>
+            currentMaterials.includes(`${si.descricao}||${si.bitola}`)
+          );
+          if (found.length > 0) {
+            const descs = found.map((f: any) => `${f.descricao} ${f.bitola}`).join(', ');
+            matches.push(`${sol.numero}: ${descs}`);
+          }
+        }
+
+        if (matches.length > 0) {
+          setDuplicateMessage(
+            `O material solicitado já foi comprado nas listas [${matches.join('; ')}]. Tem certeza que deseja solicitar?`
+          );
+          setShowDuplicateAlert(true);
+          return;
+        }
+      }
+    }
+
+    await doSave();
+  };
+
+  const doSave = async () => {
     const payload = {
       projeto_id: projetoId,
       motivo,
@@ -253,8 +300,14 @@ export default function SolicitacaoFormPage() {
                 </>
               )}
               <div className="md:col-span-2 lg:col-span-3">
-                <Label>Notas</Label>
-                <Textarea value={notas} onChange={e => setNotas(e.target.value)} rows={3} disabled={isReadOnly} />
+                <Label>Notas{motivo === 'Material Faltante' ? ' *' : ''}</Label>
+                <Textarea
+                  value={notas}
+                  onChange={e => setNotas(e.target.value)}
+                  rows={3}
+                  disabled={isReadOnly}
+                  placeholder={motivo === 'Material Faltante' ? 'Descreva o Motivo' : ''}
+                />
               </div>
               <div className="md:col-span-2 lg:col-span-3">
                 <Label>Desenho de Referência (PDF)</Label>
@@ -366,6 +419,19 @@ export default function SolicitacaoFormPage() {
           </Button>
         </div>
       </div>
+
+      <AlertDialog open={showDuplicateAlert} onOpenChange={setShowDuplicateAlert}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Material já solicitado</AlertDialogTitle>
+            <AlertDialogDescription>{duplicateMessage}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Não</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setShowDuplicateAlert(false); doSave(); }}>Sim</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
