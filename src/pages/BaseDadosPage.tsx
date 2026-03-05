@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Plus, Pencil, Trash2, Search, ChevronDown, ChevronRight } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { formatBRL, parseBRL } from '@/lib/formatCurrency';
 
@@ -22,7 +23,7 @@ export default function BaseDadosPage() {
   const [descFilter, setDescFilter] = useState('all');
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ descricao: '', bitola: '', unidade: 'm', custo: '' });
+  const [form, setForm] = useState({ descricao: '', bitola: '', sch: '', unidade: 'm', erp: '', custo: '', notas: '' });
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   const descriptions = useMemo(() => [...new Set(materials.map(m => m.descricao))].sort(), [materials]);
@@ -31,7 +32,7 @@ export default function BaseDadosPage() {
     if (descFilter !== 'all' && m.descricao !== descFilter) return false;
     if (search) {
       const s = search.toLowerCase();
-      return m.descricao.toLowerCase().includes(s) || m.bitola.toLowerCase().includes(s);
+      return m.descricao.toLowerCase().includes(s) || m.bitola.toLowerCase().includes(s) || (m as any).erp?.toLowerCase().includes(s);
     }
     return true;
   }), [materials, search, descFilter]);
@@ -65,10 +66,10 @@ export default function BaseDadosPage() {
     }
     try {
       if (editingId) {
-        await updateMaterial.mutateAsync({ id: editingId, ...form, custo });
+        await updateMaterial.mutateAsync({ id: editingId, descricao: form.descricao, bitola: form.bitola, sch: form.sch, unidade: form.unidade, erp: form.erp, custo, notas: form.notas });
         toast.success('Item atualizado');
       } else {
-        await addMaterial.mutateAsync({ ...form, custo });
+        await addMaterial.mutateAsync({ descricao: form.descricao, bitola: form.bitola, sch: form.sch, unidade: form.unidade, erp: form.erp, custo, notas: form.notas });
         toast.success('Item adicionado');
       }
       setOpen(false);
@@ -83,13 +84,21 @@ export default function BaseDadosPage() {
 
   const openEdit = (m: typeof materials[0]) => {
     setEditingId(m.id);
-    setForm({ descricao: m.descricao, bitola: m.bitola, unidade: m.unidade, custo: m.custo.toString() });
+    setForm({
+      descricao: m.descricao,
+      bitola: m.bitola,
+      sch: (m as any).sch || '',
+      unidade: m.unidade,
+      erp: (m as any).erp || '',
+      custo: m.custo.toString(),
+      notas: (m as any).notas || '',
+    });
     setOpen(true);
   };
 
   const openNew = () => {
     setEditingId(null);
-    setForm({ descricao: '', bitola: '', unidade: 'm', custo: '' });
+    setForm({ descricao: '', bitola: '', sch: '', unidade: 'm', erp: '', custo: '', notas: '' });
     setOpen(true);
   };
 
@@ -101,18 +110,24 @@ export default function BaseDadosPage() {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>{editingId ? 'Editar Item' : 'Novo Item'}</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div>
-              <Label>Descrição *</Label>
+              <Label>Descrição (Família) *</Label>
               <Input value={form.descricao} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))} />
             </div>
-            <div>
-              <Label>Bitola *</Label>
-              <Input value={form.bitola} onChange={e => setForm(f => ({ ...f, bitola: e.target.value }))} />
-            </div>
             <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Ø (Bitola) *</Label>
+                <Input value={form.bitola} onChange={e => setForm(f => ({ ...f, bitola: e.target.value }))} />
+              </div>
+              <div>
+                <Label>SCH</Label>
+                <Input value={form.sch} onChange={e => setForm(f => ({ ...f, sch: e.target.value }))} placeholder="Ex: SCH10S" />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
               <div>
                 <Label>Unidade</Label>
                 <Select value={form.unidade} onValueChange={v => setForm(f => ({ ...f, unidade: v }))}>
@@ -121,15 +136,21 @@ export default function BaseDadosPage() {
                     <SelectItem value="m">m</SelectItem>
                     <SelectItem value="un">un</SelectItem>
                     <SelectItem value="kg">kg</SelectItem>
-                    <SelectItem value="pç">pç</SelectItem>
-                    <SelectItem value="cx">cx</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label>Custo (R$) *</Label>
+                <Label>ERP</Label>
+                <Input value={form.erp} onChange={e => setForm(f => ({ ...f, erp: e.target.value }))} placeholder="Código ERP" />
+              </div>
+              <div>
+                <Label>Custo (R$)</Label>
                 <Input value={form.custo} onChange={e => setForm(f => ({ ...f, custo: e.target.value }))} placeholder="0,00" />
               </div>
+            </div>
+            <div>
+              <Label>Notas</Label>
+              <Textarea value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} placeholder="Observações..." rows={2} />
             </div>
           </div>
           <DialogFooter>
@@ -157,7 +178,7 @@ export default function BaseDadosPage() {
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm text-muted-foreground">{grouped.length} tipos · {filtered.length} itens</span>
+            <span className="text-sm text-muted-foreground">{grouped.length} famílias · {filtered.length} itens</span>
             <div className="flex gap-2">
               <Button variant="ghost" size="sm" onClick={expandAll}>Expandir todos</Button>
               <Button variant="ghost" size="sm" onClick={collapseAll}>Recolher todos</Button>
@@ -177,16 +198,19 @@ export default function BaseDadosPage() {
                   >
                     {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
                     <span className="font-medium text-sm flex-1">{descricao}</span>
-                    <span className="text-xs text-muted-foreground bg-background px-2 py-0.5 rounded-full">{items.length} bitola{items.length > 1 ? 's' : ''}</span>
+                    <span className="text-xs text-muted-foreground bg-background px-2 py-0.5 rounded-full">{items.length} Ø</span>
                   </button>
                   {isExpanded && (
                     <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Bitola</TableHead>
-                            <TableHead>Unidade</TableHead>
+                            <TableHead>Ø</TableHead>
+                            <TableHead>SCH</TableHead>
+                            <TableHead>Un.</TableHead>
+                            <TableHead>ERP</TableHead>
                             <TableHead className="text-right">Custo</TableHead>
+                            <TableHead>Notas</TableHead>
                             <TableHead className="w-24">Ações</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -194,8 +218,11 @@ export default function BaseDadosPage() {
                           {items.map(m => (
                             <TableRow key={m.id}>
                               <TableCell className="font-mono">{m.bitola}</TableCell>
+                              <TableCell className="text-muted-foreground">{(m as any).sch || '-'}</TableCell>
                               <TableCell>{m.unidade}</TableCell>
-                              <TableCell className="text-right font-mono">{formatBRL(m.custo)}</TableCell>
+                              <TableCell className="font-mono text-xs">{(m as any).erp || '-'}</TableCell>
+                              <TableCell className="text-right font-mono">{m.custo > 0 ? formatBRL(m.custo) : '-'}</TableCell>
+                              <TableCell className="max-w-[200px] truncate text-xs text-muted-foreground" title={(m as any).notas || ''}>{(m as any).notas || '-'}</TableCell>
                               <TableCell>
                                 <div className="flex gap-1">
                                   <Button variant="ghost" size="icon" onClick={() => openEdit(m)}><Pencil className="h-4 w-4" /></Button>
