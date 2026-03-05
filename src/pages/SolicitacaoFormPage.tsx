@@ -181,24 +181,30 @@ export default function SolicitacaoFormPage() {
         .neq('status', 'Cancelada');
 
       if (existingSols && existingSols.length > 0) {
-        const currentMaterials = itens.map(i => `${i.descricao}||${i.bitola}`);
-        const matches: string[] = [];
+        const duplicates: { item: string; listas: string[] }[] = [];
 
-        for (const sol of existingSols) {
-          const solItens = (sol as any).solicitacao_itens || [];
-          const found = solItens.filter((si: any) =>
-            currentMaterials.includes(`${si.descricao}||${si.bitola}`)
-          );
-          if (found.length > 0) {
-            const descs = found.map((f: any) => `${f.descricao} ${f.bitola}`).join(', ');
-            matches.push(`${sol.numero}: ${descs}`);
+        for (const item of itens) {
+          const itemKey = `${item.descricao}||${item.bitola}`;
+          const listasComItem: string[] = [];
+
+          for (const sol of existingSols) {
+            const solItens = (sol as any).solicitacao_itens || [];
+            const found = solItens.some((si: any) => `${si.descricao}||${si.bitola}` === itemKey);
+            if (found) {
+              listasComItem.push(sol.numero);
+            }
+          }
+
+          if (listasComItem.length > 0) {
+            duplicates.push({ item: `${item.descricao} ${item.bitola}`, listas: listasComItem });
           }
         }
 
-        if (matches.length > 0) {
-          setDuplicateMessage(
-            `O material solicitado já foi comprado nas listas [${matches.join('; ')}]. Tem certeza que deseja solicitar?`
-          );
+        if (duplicates.length > 0) {
+          const msg = duplicates.map(d =>
+            `${d.item} já solicitado em:\n${d.listas.join('\n')}`
+          ).join('\n\n');
+          setDuplicateMessage(msg);
           setShowDuplicateAlert(true);
           return;
         }
@@ -424,7 +430,7 @@ export default function SolicitacaoFormPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Material já solicitado</AlertDialogTitle>
-            <AlertDialogDescription>{duplicateMessage}</AlertDialogDescription>
+            <AlertDialogDescription className="whitespace-pre-line">{duplicateMessage}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Não</AlertDialogCancel>
