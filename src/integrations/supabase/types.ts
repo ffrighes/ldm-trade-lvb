@@ -20,7 +20,10 @@ export type Database = {
           created_at: string
           custo: number
           descricao: string
+          erp: string
           id: string
+          notas: string
+          sch: string
           unidade: string
         }
         Insert: {
@@ -28,7 +31,10 @@ export type Database = {
           created_at?: string
           custo?: number
           descricao: string
+          erp?: string
           id?: string
+          notas?: string
+          sch?: string
           unidade?: string
         }
         Update: {
@@ -36,7 +42,10 @@ export type Database = {
           created_at?: string
           custo?: number
           descricao?: string
+          erp?: string
           id?: string
+          notas?: string
+          sch?: string
           unidade?: string
         }
         Relationships: []
