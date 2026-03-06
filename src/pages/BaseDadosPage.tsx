@@ -28,6 +28,73 @@ export default function BaseDadosPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ descricao: '', bitola: '', sch: '', unidade: 'm', erp: '', custo: '', notas: '' });
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
+
+  const handleImportXlsx = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+      const headerMap: Record<string, string> = {
+        'Descrição (Família)': 'descricao', 'Descrição': 'descricao', 'descricao': 'descricao',
+        'Ø': 'bitola', 'Bitola': 'bitola', 'bitola': 'bitola',
+        'SCH': 'sch', 'sch': 'sch',
+        'Un.': 'unidade', 'Unidade': 'unidade', 'unidade': 'unidade',
+        'ERP': 'erp', 'erp': 'erp',
+        'Custo': 'custo', 'custo': 'custo',
+        'Notas': 'notas', 'notas': 'notas',
+      };
+
+      const materials = rows.map(row => {
+        const mapped: any = {};
+        for (const [key, value] of Object.entries(row)) {
+          const field = headerMap[key.trim()];
+          if (field) mapped[field] = value;
+        }
+        if (!mapped.descricao || !mapped.bitola) return null;
+        const unRaw = String(mapped.unidade || 'un').trim();
+        return {
+          descricao: String(mapped.descricao).trim(),
+          bitola: String(mapped.bitola).trim(),
+          sch: String(mapped.sch || '').trim(),
+          unidade: unRaw === 'M' ? 'm' : unRaw === 'STK' ? 'un' : unRaw.toLowerCase() || 'un',
+          erp: String(mapped.erp || '').trim(),
+          custo: parseFloat(String(mapped.custo || '0').replace(',', '.')) || 0,
+          notas: String(mapped.notas || '').trim(),
+        };
+      }).filter(Boolean);
+
+      if (materials.length === 0) {
+        toast.error('Nenhum item válido encontrado na planilha');
+        return;
+      }
+
+      const batchSize = 100;
+      let inserted = 0;
+      for (let i = 0; i < materials.length; i += batchSize) {
+        const batch = materials.slice(i, i + batchSize);
+        const { error } = await supabase.from('materials').insert(batch as any[]);
+        if (error) throw error;
+        inserted += batch.length;
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['materials'] });
+      toast.success(`${inserted} itens importados com sucesso`);
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Erro ao importar: ' + (err.message || 'erro desconhecido'));
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   const descriptions = useMemo(() => [...new Set(materials.map(m => m.descricao))].sort(), [materials]);
 
