@@ -178,6 +178,24 @@ export default function BaseDadosPage() {
         <h1 className="text-2xl font-bold">Base de Dados</h1>
         <div className="flex gap-2">
           <input type="file" accept=".xlsx,.xls" ref={fileInputRef} onChange={handleImportXlsx} className="hidden" />
+          <Button variant="outline" onClick={() => {
+            const exportData = materials.map(m => ({
+              'Descrição (Família)': m.descricao,
+              'Ø': m.bitola,
+              'SCH': m.sch,
+              'Un.': m.unidade,
+              'ERP': m.erp,
+              'Custo': m.custo,
+              'Notas': m.notas,
+            }));
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Materiais');
+            XLSX.writeFile(wb, 'base-dados.xlsx');
+            toast.success('Planilha exportada');
+          }}>
+            <Download className="h-4 w-4 mr-2" />Exportar XLSX
+          </Button>
           <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importing}>
             <Upload className="h-4 w-4 mr-2" />{importing ? 'Importando...' : 'Importar XLSX'}
           </Button>
