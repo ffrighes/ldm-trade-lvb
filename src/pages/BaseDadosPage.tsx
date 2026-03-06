@@ -71,7 +71,14 @@ export default function BaseDadosPage() {
           custo: parseFloat(String(mapped.custo || '0').replace(',', '.')) || 0,
           notas: String(mapped.notas || '').trim(),
         };
-      }).filter(Boolean);
+      }).filter(Boolean) as any[];
+
+      // Deduplicate by descricao+bitola, keeping last occurrence
+      const deduped = new Map<string, any>();
+      for (const m of materials) {
+        deduped.set(`${m.descricao}|||${m.bitola}`, m);
+      }
+      const uniqueMaterials = [...deduped.values()];
 
       if (materials.length === 0) {
         toast.error('Nenhum item válido encontrado na planilha');
