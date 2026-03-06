@@ -1,20 +1,17 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import { useMaterials, useAddMaterial, useUpdateMaterial, useDeleteMaterial } from '@/hooks/useSupabaseData';
-import { supabase } from '@/integrations/supabase/client';
-import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Pencil, Trash2, Search, ChevronDown, ChevronRight, Upload } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, ChevronDown, ChevronRight } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { formatBRL, parseBRL } from '@/lib/formatCurrency';
-import * as XLSX from 'xlsx';
 
 export default function BaseDadosPage() {
   const { data: materials = [] } = useMaterials();
@@ -28,73 +25,6 @@ export default function BaseDadosPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ descricao: '', bitola: '', sch: '', unidade: 'm', erp: '', custo: '', notas: '' });
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-  const [importing, setImporting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const queryClient = useQueryClient();
-
-  const handleImportXlsx = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setImporting(true);
-    try {
-      const buffer = await file.arrayBuffer();
-      const workbook = XLSX.read(buffer, { type: 'array' });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-
-      const headerMap: Record<string, string> = {
-        'Descrição (Família)': 'descricao', 'Descrição': 'descricao', 'descricao': 'descricao',
-        'Ø': 'bitola', 'Bitola': 'bitola', 'bitola': 'bitola',
-        'SCH': 'sch', 'sch': 'sch',
-        'Un.': 'unidade', 'Unidade': 'unidade', 'unidade': 'unidade',
-        'ERP': 'erp', 'erp': 'erp',
-        'Custo': 'custo', 'custo': 'custo',
-        'Notas': 'notas', 'notas': 'notas',
-      };
-
-      const materials = rows.map(row => {
-        const mapped: any = {};
-        for (const [key, value] of Object.entries(row)) {
-          const field = headerMap[key.trim()];
-          if (field) mapped[field] = value;
-        }
-        if (!mapped.descricao || !mapped.bitola) return null;
-        const unRaw = String(mapped.unidade || 'un').trim();
-        return {
-          descricao: String(mapped.descricao).trim(),
-          bitola: String(mapped.bitola).trim(),
-          sch: String(mapped.sch || '').trim(),
-          unidade: unRaw === 'M' ? 'm' : unRaw === 'STK' ? 'un' : unRaw.toLowerCase() || 'un',
-          erp: String(mapped.erp || '').trim(),
-          custo: parseFloat(String(mapped.custo || '0').replace(',', '.')) || 0,
-          notas: String(mapped.notas || '').trim(),
-        };
-      }).filter(Boolean);
-
-      if (materials.length === 0) {
-        toast.error('Nenhum item válido encontrado na planilha');
-        return;
-      }
-
-      const batchSize = 100;
-      let inserted = 0;
-      for (let i = 0; i < materials.length; i += batchSize) {
-        const batch = materials.slice(i, i + batchSize);
-        const { error } = await supabase.from('materials').insert(batch as any[]);
-        if (error) throw error;
-        inserted += batch.length;
-      }
-
-      queryClient.invalidateQueries({ queryKey: ['materials'] });
-      toast.success(`${inserted} itens importados com sucesso`);
-    } catch (err: any) {
-      console.error(err);
-      toast.error('Erro ao importar: ' + (err.message || 'erro desconhecido'));
-    } finally {
-      setImporting(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
 
   const descriptions = useMemo(() => [...new Set(materials.map(m => m.descricao))].sort(), [materials]);
 
@@ -176,13 +106,7 @@ export default function BaseDadosPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Base de Dados</h1>
-        <div className="flex gap-2">
-          <input type="file" accept=".xlsx,.xls" ref={fileInputRef} onChange={handleImportXlsx} className="hidden" />
-          <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importing}>
-            <Upload className="h-4 w-4 mr-2" />{importing ? 'Importando...' : 'Importar XLSX'}
-          </Button>
-          <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" />Novo Item</Button>
-        </div>
+        <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" />Novo Item</Button>
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
