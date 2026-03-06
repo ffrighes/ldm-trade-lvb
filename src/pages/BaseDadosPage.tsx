@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Pencil, Trash2, Search, ChevronDown, ChevronRight, Upload, Download } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -29,6 +30,7 @@ export default function BaseDadosPage() {
   const [form, setForm] = useState({ descricao: '', bitola: '', sch: '', unidade: 'm', erp: '', custo: '', notas: '' });
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [importing, setImporting] = useState(false);
+  const [clearBeforeImport, setClearBeforeImport] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
@@ -74,6 +76,11 @@ export default function BaseDadosPage() {
       if (materials.length === 0) {
         toast.error('Nenhum item válido encontrado na planilha');
         return;
+      }
+
+      if (clearBeforeImport) {
+        const { error: delError } = await supabase.from('materials').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        if (delError) throw delError;
       }
 
       const batchSize = 100;
@@ -196,6 +203,10 @@ export default function BaseDadosPage() {
           }}>
             <Download className="h-4 w-4 mr-2" />Exportar XLSX
           </Button>
+          <div className="flex items-center gap-2">
+            <Checkbox id="clearBeforeImport" checked={clearBeforeImport} onCheckedChange={(v) => setClearBeforeImport(!!v)} />
+            <Label htmlFor="clearBeforeImport" className="text-sm cursor-pointer">Limpar base antes de importar</Label>
+          </div>
           <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importing}>
             <Upload className="h-4 w-4 mr-2" />{importing ? 'Importando...' : 'Importar XLSX'}
           </Button>
