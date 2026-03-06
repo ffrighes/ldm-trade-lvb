@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Pencil, Trash2, Search, ChevronDown, ChevronRight, Upload } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, ChevronDown, ChevronRight, Upload, Download } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -178,6 +178,24 @@ export default function BaseDadosPage() {
         <h1 className="text-2xl font-bold">Base de Dados</h1>
         <div className="flex gap-2">
           <input type="file" accept=".xlsx,.xls" ref={fileInputRef} onChange={handleImportXlsx} className="hidden" />
+          <Button variant="outline" onClick={() => {
+            const exportData = materials.map(m => ({
+              'Descrição (Família)': m.descricao,
+              'Ø': m.bitola,
+              'SCH': m.sch,
+              'Un.': m.unidade,
+              'ERP': m.erp,
+              'Custo': m.custo,
+              'Notas': m.notas,
+            }));
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Materiais');
+            XLSX.writeFile(wb, 'base-dados.xlsx');
+            toast.success('Planilha exportada');
+          }}>
+            <Download className="h-4 w-4 mr-2" />Exportar XLSX
+          </Button>
           <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importing}>
             <Upload className="h-4 w-4 mr-2" />{importing ? 'Importando...' : 'Importar XLSX'}
           </Button>
