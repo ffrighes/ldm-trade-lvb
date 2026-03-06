@@ -80,13 +80,12 @@ export default function BaseDadosPage() {
       }
       const uniqueMaterials = [...deduped.values()];
 
-      if (materials.length === 0) {
+      if (uniqueMaterials.length === 0) {
         toast.error('Nenhum item válido encontrado na planilha');
         return;
       }
 
       if (clearBeforeImport) {
-        // Clear dependent solicitacao_itens first, then materials
         const { error: itemsError } = await supabase.from('solicitacao_itens').delete().neq('id', '00000000-0000-0000-0000-000000000000');
         if (itemsError) throw itemsError;
         const { error: delError } = await supabase.from('materials').delete().neq('id', '00000000-0000-0000-0000-000000000000');
@@ -95,8 +94,8 @@ export default function BaseDadosPage() {
 
       const batchSize = 100;
       let inserted = 0;
-      for (let i = 0; i < materials.length; i += batchSize) {
-        const batch = materials.slice(i, i + batchSize);
+      for (let i = 0; i < uniqueMaterials.length; i += batchSize) {
+        const batch = uniqueMaterials.slice(i, i + batchSize);
         const { error } = await supabase.from('materials').upsert(batch as any[], { onConflict: 'descricao,bitola' });
         if (error) throw error;
         inserted += batch.length;
