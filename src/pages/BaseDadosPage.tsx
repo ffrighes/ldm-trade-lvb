@@ -29,6 +29,7 @@ export default function BaseDadosPage() {
   const [form, setForm] = useState({ descricao: '', bitola: '', sch: '', unidade: 'm', erp: '', custo: '', notas: '' });
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [importing, setImporting] = useState(false);
+  const [clearBeforeImport, setClearBeforeImport] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
