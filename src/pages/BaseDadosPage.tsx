@@ -90,7 +90,7 @@ export default function BaseDadosPage() {
       let inserted = 0;
       for (let i = 0; i < materials.length; i += batchSize) {
         const batch = materials.slice(i, i + batchSize);
-        const { error } = await supabase.from('materials').insert(batch as any[]);
+        const { error } = await supabase.from('materials').upsert(batch as any[], { onConflict: 'descricao,bitola' });
         if (error) throw error;
         inserted += batch.length;
       }
