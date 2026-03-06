@@ -79,6 +79,9 @@ export default function BaseDadosPage() {
       }
 
       if (clearBeforeImport) {
+        // Clear dependent solicitacao_itens first, then materials
+        const { error: itemsError } = await supabase.from('solicitacao_itens').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        if (itemsError) throw itemsError;
         const { error: delError } = await supabase.from('materials').delete().neq('id', '00000000-0000-0000-0000-000000000000');
         if (delError) throw delError;
       }
