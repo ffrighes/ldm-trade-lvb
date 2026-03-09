@@ -34,6 +34,7 @@ const emptyItem = (): FormItem => ({
   material_id: null,
   descricao: '',
   bitola: '',
+  erp_item: '',
   quantidade: 1,
   unidade: 'un',
   custo_unitario: 0,
