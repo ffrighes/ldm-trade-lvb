@@ -407,11 +407,14 @@ export default function SolicitacaoFormPage() {
                           </SelectContent>
                         </Select>
                       </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">{item.erp_item}</TableCell>
                       <TableCell>
                         <Input type="number" min={1} value={item.quantidade} onChange={e => handleQtdChange(idx, parseInt(e.target.value) || 0)} disabled={isReadOnly} />
                       </TableCell>
                       <TableCell className="text-muted-foreground">{item.unidade}</TableCell>
-                      <TableCell className="text-right font-mono">{formatBRL(item.custo_unitario)}</TableCell>
+                      <TableCell>
+                        <Input type="number" min={0} step={0.01} value={item.custo_unitario} onChange={e => handleCustoChange(idx, parseFloat(e.target.value) || 0)} disabled={isReadOnly} className="text-right font-mono w-28" />
+                      </TableCell>
                       <TableCell className="text-right font-mono font-medium">{formatBRL(item.custo_total)}</TableCell>
                       <TableCell>
                         {!isReadOnly && itens.length > 1 && (
