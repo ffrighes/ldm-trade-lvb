@@ -119,12 +119,14 @@ export default function SolicitacaoFormPage() {
       const mat = materials.find(m => m.descricao === item.descricao && m.bitola === bitola);
       const custo_unitario = mat?.custo || 0;
       const unidade = mat?.unidade || 'un';
+      const erp_item = mat?.erp || '';
       return {
         ...item,
         bitola,
         material_id: mat?.id || null,
         custo_unitario,
         unidade,
+        erp_item,
         custo_total: item.quantidade * custo_unitario,
       };
     }));
