@@ -365,9 +365,10 @@ export default function SolicitacaoFormPage() {
                   <TableRow>
                     <TableHead className="min-w-[250px]">Descrição *</TableHead>
                     <TableHead className="min-w-[150px]">Bitola *</TableHead>
+                    <TableHead className="w-28">ERP</TableHead>
                     <TableHead className="w-24">Qtd *</TableHead>
                     <TableHead className="w-20">Unid.</TableHead>
-                    <TableHead className="text-right">Custo Unit.</TableHead>
+                    <TableHead className="text-right w-32">Custo Unit.</TableHead>
                     <TableHead className="text-right">Custo Total</TableHead>
                     <TableHead className="w-12"></TableHead>
                   </TableRow>
