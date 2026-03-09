@@ -22,6 +22,7 @@ interface FormItem {
   material_id: string | null;
   descricao: string;
   bitola: string;
+  erp_item: string;
   quantidade: number;
   unidade: string;
   custo_unitario: number;
