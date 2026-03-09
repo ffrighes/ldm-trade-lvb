@@ -139,6 +139,13 @@ export default function SolicitacaoFormPage() {
     }));
   };
 
+  const handleCustoChange = (index: number, custo: number) => {
+    setItens(prev => prev.map((item, i) => {
+      if (i !== index) return item;
+      return { ...item, custo_unitario: custo, custo_total: item.quantidade * custo };
+    }));
+  };
+
   const addItem = () => setItens(prev => [...prev, emptyItem()]);
   const removeItem = (index: number) => setItens(prev => prev.filter((_, i) => i !== index));
 
