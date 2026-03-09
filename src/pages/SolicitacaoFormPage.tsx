@@ -239,7 +239,7 @@ export default function SolicitacaoFormPage() {
       notas,
       status,
       desenho,
-      itens: itens.map(({ key, ...rest }) => rest),
+      itens: itens.map(({ key, erp_item, ...rest }) => rest),
     };
 
     try {
