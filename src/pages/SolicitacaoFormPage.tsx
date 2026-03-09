@@ -22,6 +22,7 @@ interface FormItem {
   material_id: string | null;
   descricao: string;
   bitola: string;
+  erp_item: string;
   quantidade: number;
   unidade: string;
   custo_unitario: number;
@@ -33,6 +34,7 @@ const emptyItem = (): FormItem => ({
   material_id: null,
   descricao: '',
   bitola: '',
+  erp_item: '',
   quantidade: 1,
   unidade: 'un',
   custo_unitario: 0,
@@ -78,16 +80,20 @@ export default function SolicitacaoFormPage() {
       setStatus(existing.status);
       setDesenho(existing.desenho || null);
       setItens(
-        (existing.solicitacao_itens || []).map((i: any) => ({
-          key: i.id,
-          material_id: i.material_id,
-          descricao: i.descricao,
-          bitola: i.bitola,
-          quantidade: i.quantidade,
-          unidade: i.unidade,
-          custo_unitario: i.custo_unitario,
-          custo_total: i.custo_total,
-        }))
+        (existing.solicitacao_itens || []).map((i: any) => {
+          const mat = materials.find(m => m.id === i.material_id);
+          return {
+            key: i.id,
+            material_id: i.material_id,
+            descricao: i.descricao,
+            bitola: i.bitola,
+            erp_item: mat?.erp || '',
+            quantidade: i.quantidade,
+            unidade: i.unidade,
+            custo_unitario: i.custo_unitario,
+            custo_total: i.custo_total,
+          };
+        })
       );
       setLoaded(true);
     }
@@ -113,12 +119,14 @@ export default function SolicitacaoFormPage() {
       const mat = materials.find(m => m.descricao === item.descricao && m.bitola === bitola);
       const custo_unitario = mat?.custo || 0;
       const unidade = mat?.unidade || 'un';
+      const erp_item = mat?.erp || '';
       return {
         ...item,
         bitola,
         material_id: mat?.id || null,
         custo_unitario,
         unidade,
+        erp_item,
         custo_total: item.quantidade * custo_unitario,
       };
     }));
@@ -128,6 +136,13 @@ export default function SolicitacaoFormPage() {
     setItens(prev => prev.map((item, i) => {
       if (i !== index) return item;
       return { ...item, quantidade: qty, custo_total: qty * item.custo_unitario };
+    }));
+  };
+
+  const handleCustoChange = (index: number, custo: number) => {
+    setItens(prev => prev.map((item, i) => {
+      if (i !== index) return item;
+      return { ...item, custo_unitario: custo, custo_total: item.quantidade * custo };
     }));
   };
 
@@ -365,9 +380,10 @@ export default function SolicitacaoFormPage() {
                   <TableRow>
                     <TableHead className="min-w-[250px]">Descrição *</TableHead>
                     <TableHead className="min-w-[150px]">Bitola *</TableHead>
+                    <TableHead className="w-28">ERP</TableHead>
                     <TableHead className="w-24">Qtd *</TableHead>
                     <TableHead className="w-20">Unid.</TableHead>
-                    <TableHead className="text-right">Custo Unit.</TableHead>
+                    <TableHead className="text-right w-32">Custo Unit.</TableHead>
                     <TableHead className="text-right">Custo Total</TableHead>
                     <TableHead className="w-12"></TableHead>
                   </TableRow>
@@ -391,11 +407,14 @@ export default function SolicitacaoFormPage() {
                           </SelectContent>
                         </Select>
                       </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">{item.erp_item}</TableCell>
                       <TableCell>
                         <Input type="number" min={1} value={item.quantidade} onChange={e => handleQtdChange(idx, parseInt(e.target.value) || 0)} disabled={isReadOnly} />
                       </TableCell>
                       <TableCell className="text-muted-foreground">{item.unidade}</TableCell>
-                      <TableCell className="text-right font-mono">{formatBRL(item.custo_unitario)}</TableCell>
+                      <TableCell>
+                        <Input type="number" min={0} step={0.01} value={item.custo_unitario} onChange={e => handleCustoChange(idx, parseFloat(e.target.value) || 0)} disabled={isReadOnly} className="text-right font-mono w-28" />
+                      </TableCell>
                       <TableCell className="text-right font-mono font-medium">{formatBRL(item.custo_total)}</TableCell>
                       <TableCell>
                         {!isReadOnly && itens.length > 1 && (
