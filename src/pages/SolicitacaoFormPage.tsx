@@ -80,16 +80,20 @@ export default function SolicitacaoFormPage() {
       setStatus(existing.status);
       setDesenho(existing.desenho || null);
       setItens(
-        (existing.solicitacao_itens || []).map((i: any) => ({
-          key: i.id,
-          material_id: i.material_id,
-          descricao: i.descricao,
-          bitola: i.bitola,
-          quantidade: i.quantidade,
-          unidade: i.unidade,
-          custo_unitario: i.custo_unitario,
-          custo_total: i.custo_total,
-        }))
+        (existing.solicitacao_itens || []).map((i: any) => {
+          const mat = materials.find(m => m.id === i.material_id);
+          return {
+            key: i.id,
+            material_id: i.material_id,
+            descricao: i.descricao,
+            bitola: i.bitola,
+            erp_item: mat?.erp || '',
+            quantidade: i.quantidade,
+            unidade: i.unidade,
+            custo_unitario: i.custo_unitario,
+            custo_total: i.custo_total,
+          };
+        })
       );
       setLoaded(true);
     }
