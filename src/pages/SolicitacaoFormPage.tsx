@@ -16,6 +16,7 @@ import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
   AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 
 interface FormItem {
   key: string;
@@ -392,20 +393,24 @@ export default function SolicitacaoFormPage() {
                   {itens.map((item, idx) => (
                     <TableRow key={item.key}>
                       <TableCell>
-                        <Select value={item.descricao} onValueChange={v => handleDescChange(idx, v)} disabled={isReadOnly}>
-                          <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                          <SelectContent>
-                            {descriptions.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
+                        <SearchableSelect
+                          options={descriptions}
+                          value={item.descricao}
+                          onValueChange={v => handleDescChange(idx, v)}
+                          placeholder="Selecione..."
+                          searchPlaceholder="Filtrar descrição..."
+                          disabled={isReadOnly}
+                        />
                       </TableCell>
                       <TableCell>
-                        <Select value={item.bitola} onValueChange={v => handleBitolaChange(idx, v)} disabled={isReadOnly || !item.descricao}>
-                          <SelectTrigger><SelectValue placeholder="Bitola" /></SelectTrigger>
-                          <SelectContent>
-                            {getBitolas(item.descricao).map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
+                        <SearchableSelect
+                          options={getBitolas(item.descricao)}
+                          value={item.bitola}
+                          onValueChange={v => handleBitolaChange(idx, v)}
+                          placeholder="Bitola"
+                          searchPlaceholder="Filtrar bitola..."
+                          disabled={isReadOnly || !item.descricao}
+                        />
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">{item.erp_item}</TableCell>
                       <TableCell>
