@@ -68,7 +68,7 @@ export default function InventarioPage() {
                 <CardTitle className="text-sm font-medium text-muted-foreground">Custo Total</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-lg font-semibold">{formatCurrency(totalCost)}</p>
+                <p className="text-lg font-semibold">{formatBRL(totalCost)}</p>
               </CardContent>
             </Card>
           </div>
