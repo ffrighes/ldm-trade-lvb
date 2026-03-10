@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Package } from 'lucide-react';
-import { formatCurrency } from '@/lib/formatCurrency';
+import { formatBRL } from '@/lib/formatCurrency';
 
 export default function InventarioPage() {
   const { data: projects } = useProjects();
