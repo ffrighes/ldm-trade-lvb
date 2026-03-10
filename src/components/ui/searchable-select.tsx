@@ -1,20 +1,9 @@
-import * as React from 'react';
-import { Check, ChevronsUpDown } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import * as React from "react";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface SearchableSelectProps {
   options: string[];
@@ -30,10 +19,10 @@ export function SearchableSelect({
   options,
   value,
   onValueChange,
-  placeholder = 'Selecione...',
-  searchPlaceholder = 'Buscar...',
+  placeholder = "Selecione...",
+  searchPlaceholder = "Buscar...",
   disabled = false,
-  emptyMessage = 'Nenhum item encontrado.',
+  emptyMessage = "Nenhum item encontrado.",
 }: SearchableSelectProps) {
   const [open, setOpen] = React.useState(false);
 
@@ -45,20 +34,13 @@ export function SearchableSelect({
           role="combobox"
           aria-expanded={open}
           disabled={disabled}
-          className={cn(
-            'w-full justify-between font-normal',
-            !value && 'text-muted-foreground',
-          )}
+          className={cn("w-full justify-between font-normal", !value && "text-muted-foreground")}
         >
           <span className="truncate">{value || placeholder}</span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent
-        className="p-0"
-        style={{ width: 'var(--radix-popover-trigger-width)' }}
-        align="start"
-      >
+      <PopoverContent className="p-0" style={{ width: "var(--radix-popover-trigger-width)" }} align="start">
         <Command>
           <CommandInput placeholder={searchPlaceholder} />
           <CommandList>
@@ -69,16 +51,11 @@ export function SearchableSelect({
                   key={option}
                   value={option}
                   onSelect={(currentValue) => {
-                    onValueChange(currentValue === value ? '' : currentValue);
+                    onValueChange(currentValue === value ? "" : currentValue);
                     setOpen(false);
                   }}
                 >
-                  <Check
-                    className={cn(
-                      'mr-2 h-4 w-4',
-                      value === option ? 'opacity-100' : 'opacity-0',
-                    )}
-                  />
+                  <Check className={cn("mr-2 h-4 w-4", value === option ? "opacity-100" : "opacity-0")} />
                   {option}
                 </CommandItem>
               ))}
