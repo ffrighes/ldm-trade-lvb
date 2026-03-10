@@ -10,7 +10,7 @@ import SolicitacoesPage from "@/pages/SolicitacoesPage";
 import SolicitacaoFormPage from "@/pages/SolicitacaoFormPage";
 import BaseDadosPage from "@/pages/BaseDadosPage";
 import InventarioPage from "@/pages/InventarioPage";
-import NotFound from "./pages/NotFound";
+import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
 
