@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { FolderKanban, FileText, Database, LayoutDashboard, Package } from 'lucide-react';
+import { FolderKanban, FileText, Database, LayoutDashboard, Package, Sun, Moon } from 'lucide-react';
+import { useTheme } from '@/hooks/useTheme';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -12,15 +13,25 @@ const NAV_ITEMS = [
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation();
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <div className="flex min-h-screen bg-background">
       <aside className="hidden md:flex w-64 flex-col bg-sidebar border-r border-sidebar-border">
-        <div className="p-6">
-          <h1 className="text-lg font-bold text-sidebar-primary-foreground tracking-tight">
-            Gestor de Materiais
-          </h1>
-          <p className="text-xs text-sidebar-foreground/60 mt-0.5">Trade Management</p>
+        <div className="p-6 flex items-start justify-between">
+          <div>
+            <h1 className="text-lg font-bold text-sidebar-primary-foreground tracking-tight">
+              Gestor de Materiais
+            </h1>
+            <p className="text-xs text-sidebar-foreground/60 mt-0.5">Trade Management</p>
+          </div>
+          <button
+            onClick={toggleTheme}
+            className="mt-1 p-1.5 rounded-md text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+            title={theme === 'dark' ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
+          >
+            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
         </div>
         <nav className="flex-1 px-3 space-y-1">
           {NAV_ITEMS.map(({ to, label, icon: Icon }) => {
@@ -62,6 +73,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </Link>
           );
         })}
+        {/* Mobile theme toggle */}
+        <button
+          onClick={toggleTheme}
+          className="flex-1 flex flex-col items-center py-2 text-xs text-muted-foreground transition-colors"
+        >
+          {theme === 'dark'
+            ? <Sun className="h-5 w-5 mb-0.5" />
+            : <Moon className="h-5 w-5 mb-0.5" />}
+          Tema
+        </button>
       </div>
 
       <main className="flex-1 overflow-auto pb-20 md:pb-0">
