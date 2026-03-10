@@ -14,6 +14,70 @@ export type Database = {
   }
   public: {
     Tables: {
+      inventario: {
+        Row: {
+          bitola: string
+          created_at: string
+          custo_total: number
+          custo_unitario: number
+          descricao: string
+          id: string
+          material_id: string | null
+          projeto_id: string
+          quantidade: number
+          solicitacao_id: string
+          unidade: string
+        }
+        Insert: {
+          bitola: string
+          created_at?: string
+          custo_total?: number
+          custo_unitario?: number
+          descricao: string
+          id?: string
+          material_id?: string | null
+          projeto_id: string
+          quantidade?: number
+          solicitacao_id: string
+          unidade?: string
+        }
+        Update: {
+          bitola?: string
+          created_at?: string
+          custo_total?: number
+          custo_unitario?: number
+          descricao?: string
+          id?: string
+          material_id?: string | null
+          projeto_id?: string
+          quantidade?: number
+          solicitacao_id?: string
+          unidade?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventario_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventario_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventario_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "solicitacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       materials: {
         Row: {
           bitola: string
