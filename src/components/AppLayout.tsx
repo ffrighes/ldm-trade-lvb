@@ -1,11 +1,12 @@
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { FolderKanban, FileText, Database, LayoutDashboard } from 'lucide-react';
+import { FolderKanban, FileText, Database, LayoutDashboard, Package } from 'lucide-react';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/projetos', label: 'Projetos', icon: FolderKanban },
   { to: '/solicitacoes', label: 'Solicitações', icon: FileText },
+  { to: '/inventario', label: 'Inventário', icon: Package },
   { to: '/base-dados', label: 'Base de Dados', icon: Database },
 ];
 
