@@ -103,8 +103,8 @@ export default function InventarioPage() {
                         <TableCell>{item.bitola}</TableCell>
                         <TableCell className="text-right">{Number(item.quantidade)}</TableCell>
                         <TableCell>{item.unidade}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(Number(item.custo_unitario))}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(Number(item.custo_total))}</TableCell>
+                        <TableCell className="text-right">{formatBRL(Number(item.custo_unitario))}</TableCell>
+                        <TableCell className="text-right">{formatBRL(Number(item.custo_total))}</TableCell>
                         <TableCell>
                           <Badge variant="outline">{item.solicitacao_numero}</Badge>
                         </TableCell>
