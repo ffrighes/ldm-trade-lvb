@@ -417,7 +417,7 @@ export default function SolicitacaoFormPage() {
                       </TableCell>
                       <TableCell className="text-right font-mono font-medium">{formatBRL(item.custo_total)}</TableCell>
                       <TableCell>
-                        {!isReadOnly && itens.length > 1 && (
+                        {!isReadOnly && (
                           <Button variant="ghost" size="icon" onClick={() => removeItem(idx)}>
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
