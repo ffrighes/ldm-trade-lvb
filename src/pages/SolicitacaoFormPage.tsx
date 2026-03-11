@@ -9,8 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Trash2, ArrowLeft, Save, Upload, FileText, X, FileDown } from 'lucide-react';
-
+import { Plus, Trash2, ArrowLeft, Save, Upload, FileText, X, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatBRL } from '@/lib/formatCurrency';
 import {
@@ -63,6 +62,7 @@ export default function SolicitacaoFormPage() {
   const [status, setStatus] = useState('Aberta');
   const [desenho, setDesenho] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [itens, setItens] = useState<FormItem[]>([emptyItem()]);
   const [loaded, setLoaded] = useState(false);
@@ -98,7 +98,7 @@ export default function SolicitacaoFormPage() {
       );
       setLoaded(true);
     }
-  }, [existing, loaded, materials]);
+  }, [existing, loaded]);
 
   const descriptions = useMemo(() => [...new Set(materials.map(m => m.descricao))].sort(), [materials]);
 
@@ -175,6 +175,226 @@ export default function SolicitacaoFormPage() {
     setDesenho(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
+
+  // ─── Exportar PDF: download automático, A4 vertical ──────────────────────
+  const handleExportPDF = async () => {
+    if (!existing) return;
+    setExportingPdf(true);
+    try {
+      const projeto = projects.find(p => p.id === projetoId);
+
+      // Importações dinâmicas para não pesar no bundle
+      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+        import('jspdf'),
+        import('html2canvas'),
+      ]);
+
+      // A4 em pontos: 595 x 842 pt  |  margens 20 pt
+      const A4_W = 595;
+      const A4_H = 842;
+      const MARGIN = 20;
+      const CONTENT_W = A4_W - MARGIN * 2;
+
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+
+      // ── helpers ────────────────────────────────────────────────────────────
+      let curY = MARGIN;
+
+      const checkPageBreak = (needed: number) => {
+        if (curY + needed > A4_H - MARGIN) {
+          doc.addPage();
+          curY = MARGIN;
+        }
+      };
+
+      // ── Cabeçalho ─────────────────────────────────────────────────────────
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('LDM TRADE', MARGIN, curY + 10);
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Solicitação ${existing.numero}`, A4_W - MARGIN, curY + 10, { align: 'right' });
+      curY += 22;
+
+      // linha separadora
+      doc.setDrawColor(180);
+      doc.line(MARGIN, curY, A4_W - MARGIN, curY);
+      curY += 12;
+
+      // ── Informações Gerais ─────────────────────────────────────────────────
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Informações Gerais', MARGIN, curY);
+      curY += 14;
+
+      doc.setFontSize(8.5);
+      doc.setFont('helvetica', 'normal');
+
+      const col1X = MARGIN;
+      const col2X = MARGIN + CONTENT_W / 2;
+      const lineH = 13;
+
+      const infoRows: [string, string][] = [
+        ['Projeto', projeto ? `${projeto.numero} – ${projeto.descricao}` : '—'],
+        ['Motivo', motivo || '—'],
+        ['Data da Solicitação', dataSolicitacao || '—'],
+        ['Status', status || '—'],
+      ];
+      if (revisao) infoRows.push(['Revisão', revisao]);
+      if (erp) infoRows.push(['ERP', erp]);
+
+      // 2 colunas de info
+      for (let i = 0; i < infoRows.length; i += 2) {
+        checkPageBreak(lineH + 2);
+        const [lbl1, val1] = infoRows[i];
+        doc.setFont('helvetica', 'bold');
+        doc.text(`${lbl1}:`, col1X, curY);
+        doc.setFont('helvetica', 'normal');
+        doc.text(val1, col1X + 60, curY);
+
+        if (infoRows[i + 1]) {
+          const [lbl2, val2] = infoRows[i + 1];
+          doc.setFont('helvetica', 'bold');
+          doc.text(`${lbl2}:`, col2X, curY);
+          doc.setFont('helvetica', 'normal');
+          doc.text(val2, col2X + 60, curY);
+        }
+        curY += lineH;
+      }
+
+      if (notas) {
+        checkPageBreak(lineH * 2 + 4);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Notas:', col1X, curY);
+        doc.setFont('helvetica', 'normal');
+        const notasLines = doc.splitTextToSize(notas, CONTENT_W - 60);
+        doc.text(notasLines, col1X + 60, curY);
+        curY += lineH * notasLines.length;
+      }
+
+      curY += 8;
+      doc.setDrawColor(200);
+      doc.line(MARGIN, curY, A4_W - MARGIN, curY);
+      curY += 12;
+
+      // ── Tabela de Itens ────────────────────────────────────────────────────
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Itens da Solicitação', MARGIN, curY);
+      curY += 14;
+
+      // Definição de colunas (larguras em pt)
+      const cols = [
+        { label: '#',            w: 20,  align: 'center' as const },
+        { label: 'Descrição',    w: 155, align: 'left'   as const },
+        { label: 'Ø / Bitola',   w: 80,  align: 'left'   as const },
+        { label: 'ERP',          w: 60,  align: 'left'   as const },
+        { label: 'Qtd',          w: 35,  align: 'center' as const },
+        { label: 'Un.',          w: 28,  align: 'center' as const },
+        { label: 'Custo Unit.',  w: 65,  align: 'right'  as const },
+        { label: 'Custo Total',  w: 65,  align: 'right'  as const },
+      ];
+
+      const ROW_H = 16;
+      const HEADER_H = 18;
+
+      const drawTableHeader = () => {
+        doc.setFillColor(50, 50, 50);
+        doc.rect(MARGIN, curY, CONTENT_W, HEADER_H, 'F');
+        doc.setFontSize(7.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(255, 255, 255);
+
+        let xPos = MARGIN;
+        cols.forEach(c => {
+          const textX =
+            c.align === 'right'  ? xPos + c.w - 3 :
+            c.align === 'center' ? xPos + c.w / 2  :
+                                   xPos + 3;
+          doc.text(c.label, textX, curY + 12, { align: c.align });
+          xPos += c.w;
+        });
+        doc.setTextColor(0, 0, 0);
+        curY += HEADER_H;
+      };
+
+      drawTableHeader();
+
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'normal');
+
+      itens.forEach((item, idx) => {
+        checkPageBreak(ROW_H + 2);
+
+        // zebra stripes
+        if (idx % 2 === 0) {
+          doc.setFillColor(245, 245, 245);
+          doc.rect(MARGIN, curY, CONTENT_W, ROW_H, 'F');
+        }
+
+        const rowData = [
+          String(idx + 1),
+          item.descricao || '—',
+          item.bitola || '—',
+          item.erp_item || '—',
+          String(item.quantidade),
+          item.unidade,
+          formatBRL(item.custo_unitario),
+          formatBRL(item.custo_total),
+        ];
+
+        let xPos = MARGIN;
+        cols.forEach((c, ci) => {
+          const cellText = doc.splitTextToSize(rowData[ci], c.w - 4);
+          const textX =
+            c.align === 'right'  ? xPos + c.w - 3 :
+            c.align === 'center' ? xPos + c.w / 2  :
+                                   xPos + 3;
+          doc.text(cellText[0], textX, curY + 11, { align: c.align });
+          xPos += c.w;
+        });
+
+        // linha inferior da linha
+        doc.setDrawColor(220);
+        doc.line(MARGIN, curY + ROW_H, A4_W - MARGIN, curY + ROW_H);
+        curY += ROW_H;
+      });
+
+      // ── Total Geral ────────────────────────────────────────────────────────
+      curY += 6;
+      checkPageBreak(20);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Total Geral: ${formatBRL(totalGeral)}`, A4_W - MARGIN, curY, { align: 'right' });
+
+      // ── Rodapé ─────────────────────────────────────────────────────────────
+      const totalPages = (doc as any).internal.getNumberOfPages();
+      for (let pg = 1; pg <= totalPages; pg++) {
+        doc.setPage(pg);
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(150);
+        doc.text(
+          `Gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`,
+          MARGIN,
+          A4_H - 10,
+        );
+        doc.text(`Página ${pg} / ${totalPages}`, A4_W - MARGIN, A4_H - 10, { align: 'right' });
+        doc.setTextColor(0);
+      }
+
+      // ── Download automático ────────────────────────────────────────────────
+      doc.save(`solicitacao-${existing.numero}.pdf`);
+      toast.success('PDF exportado com sucesso');
+    } catch (err) {
+      console.error(err);
+      toast.error('Erro ao gerar PDF');
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+  // ─────────────────────────────────────────────────────────────────────────
 
   const handleSave = async () => {
     if (!projetoId) { toast.error('Selecione um projeto'); return; }
@@ -259,82 +479,19 @@ export default function SolicitacaoFormPage() {
 
   const totalGeral = itens.reduce((a, i) => a + i.custo_total, 0);
 
-  const handleExportPDF = () => {
-    const projeto = projects.find(p => p.id === projetoId);
-    const itensRows = itens.map((item, idx) => `
-      <tr>
-        <td>${idx + 1}</td>
-        <td>${item.descricao}</td>
-        <td>${item.bitola}</td>
-        <td>${item.erp_item || '-'}</td>
-        <td style="text-align:right">${item.quantidade}</td>
-        <td>${item.unidade}</td>
-        <td style="text-align:right">${formatBRL(item.custo_unitario)}</td>
-        <td style="text-align:right">${formatBRL(item.custo_total)}</td>
-      </tr>`).join('');
-
-    const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8"/>
-  <title>Solicitação ${existing?.numero || ''}</title>
-  <style>
-    body { font-family: Arial, sans-serif; font-size: 11px; margin: 20px; color: #111; }
-    h2 { font-size: 15px; margin-bottom: 8px; }
-    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 32px; margin-bottom: 16px; }
-    .info-grid span { display: block; }
-    .info-label { color: #555; font-size: 10px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-    th { background: #1e293b; color: #fff; padding: 6px 8px; text-align: left; font-size: 10px; }
-    td { padding: 5px 8px; border-bottom: 1px solid #e2e8f0; }
-    tr:nth-child(even) td { background: #f8fafc; }
-    .total-row td { font-weight: bold; background: #f1f5f9; border-top: 2px solid #cbd5e1; }
-    @media print { body { margin: 10px; } }
-  </style>
-</head>
-<body>
-  <h2>Lista de Materiais — Solicitação ${existing?.numero || 'Nova'}</h2>
-  <div class="info-grid">
-    <span><span class="info-label">Projeto</span>${projeto ? projeto.numero + ' — ' + projeto.descricao : '-'}</span>
-    <span><span class="info-label">Data</span>${dataSolicitacao}</span>
-    <span><span class="info-label">Motivo</span>${motivo}</span>
-    <span><span class="info-label">Status</span>${status}</span>
-    <span><span class="info-label">ERP</span>${erp || '-'}</span>
-    <span><span class="info-label">Revisão</span>${revisao || '-'}</span>
-    ${notas ? `<span style="grid-column:span 2"><span class="info-label">Notas</span>${notas}</span>` : ''}
-  </div>
-  <table>
-    <thead>
-      <tr>
-        <th>#</th><th>Descrição</th><th>Bitola</th><th>ERP</th>
-        <th style="text-align:right">Qtd</th><th>Unid.</th>
-        <th style="text-align:right">Custo Unit.</th><th style="text-align:right">Custo Total</th>
-      </tr>
-    </thead>
-    <tbody>${itensRows}</tbody>
-    <tfoot>
-      <tr class="total-row">
-        <td colspan="7" style="text-align:right">Total Geral:</td>
-        <td style="text-align:right">${formatBRL(totalGeral)}</td>
-      </tr>
-    </tfoot>
-  </table>
-</body>
-</html>`;
-
-    const win = window.open('', '_blank');
-    if (!win) { return; }
-    win.document.write(html);
-    win.document.close();
-    win.focus();
-    setTimeout(() => { win.print(); }, 500);
-  };
-
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
         <Button variant="ghost" size="icon" onClick={() => navigate('/solicitacoes')}><ArrowLeft className="h-5 w-5" /></Button>
         <h1 className="text-2xl font-bold">{existing ? `Solicitação ${existing.numero}` : 'Nova Solicitação'}</h1>
+        {existing && (
+          <div className="ml-auto">
+            <Button variant="outline" onClick={handleExportPDF} disabled={exportingPdf}>
+              <Download className="h-4 w-4 mr-2" />
+              {exportingPdf ? 'Gerando PDF...' : 'Exportar PDF'}
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="space-y-6">
@@ -386,10 +543,9 @@ export default function SolicitacaoFormPage() {
                     <Label>Revisão</Label>
                     <Input value={revisao} onChange={e => setRevisao(e.target.value)} disabled={isReadOnly} />
                   </div>
-                  {/* CORRIGIDO: col-span-2 para dar mais espaço ao campo ERP */}
-                  <div className="md:col-span-2 lg:col-span-1 lg:col-start-auto">
+                  <div>
                     <Label>ERP</Label>
-                    <Input value={erp} onChange={e => setErp(e.target.value)} disabled={isReadOnly} className="font-mono" />
+                    <Input value={erp} onChange={e => setErp(e.target.value)} disabled={isReadOnly} />
                   </div>
                 </>
               )}
@@ -453,8 +609,7 @@ export default function SolicitacaoFormPage() {
                   <TableRow>
                     <TableHead className="min-w-[250px]">Descrição *</TableHead>
                     <TableHead className="min-w-[150px]">Bitola *</TableHead>
-                    {/* CORRIGIDO: min-w maior para exibir código ERP completo */}
-                    <TableHead className="min-w-[160px]">ERP</TableHead>
+                    <TableHead className="w-28">ERP</TableHead>
                     <TableHead className="w-24">Qtd *</TableHead>
                     <TableHead className="w-20">Unid.</TableHead>
                     <TableHead className="text-right w-32">Custo Unit.</TableHead>
@@ -467,7 +622,7 @@ export default function SolicitacaoFormPage() {
                     <TableRow key={item.key}>
                       <TableCell>
                         <Select value={item.descricao} onValueChange={v => handleDescChange(idx, v)} disabled={isReadOnly}>
-                          <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                           <SelectContent>
                             {descriptions.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
                           </SelectContent>
@@ -481,16 +636,32 @@ export default function SolicitacaoFormPage() {
                           </SelectContent>
                         </Select>
                       </TableCell>
-                      {/* CORRIGIDO: font-mono e sem text-xs para melhor legibilidade */}
-                      <TableCell className="text-muted-foreground font-mono">{item.erp_item}</TableCell>
                       <TableCell>
-                        <Input type="number" min={1} value={item.quantidade} onChange={e => handleQtdChange(idx, parseInt(e.target.value) || 0)} disabled={isReadOnly} />
+                        <Input value={item.erp_item} disabled className="w-24 text-xs" />
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{item.unidade}</TableCell>
                       <TableCell>
-                        <Input type="number" min={0} step={0.01} value={item.custo_unitario} onChange={e => handleCustoChange(idx, parseFloat(e.target.value) || 0)} disabled={isReadOnly} className="text-right font-mono w-28" />
+                        <Input
+                          type="number"
+                          min={0}
+                          value={item.quantidade}
+                          onChange={e => handleQtdChange(idx, parseFloat(e.target.value) || 0)}
+                          disabled={isReadOnly}
+                          className="w-20"
+                        />
                       </TableCell>
-                      <TableCell className="text-right font-mono font-medium">{formatBRL(item.custo_total)}</TableCell>
+                      <TableCell className="text-center text-sm">{item.unidade}</TableCell>
+                      <TableCell className="text-right">
+                        <Input
+                          type="number"
+                          min={0}
+                          step={0.01}
+                          value={item.custo_unitario}
+                          onChange={e => handleCustoChange(idx, parseFloat(e.target.value) || 0)}
+                          disabled={isReadOnly}
+                          className="w-28 text-right"
+                        />
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm">{formatBRL(item.custo_total)}</TableCell>
                       <TableCell>
                         {!isReadOnly && (
                           <Button variant="ghost" size="icon" onClick={() => removeItem(idx)}>
@@ -512,16 +683,11 @@ export default function SolicitacaoFormPage() {
           </CardContent>
         </Card>
 
-        <div className="flex justify-between gap-3">
-          <Button variant="outline" onClick={handleExportPDF} disabled={isNew}>
-            <FileDown className="h-4 w-4 mr-2" />Exportar PDF
+        <div className="flex justify-end gap-3">
+          <Button variant="outline" onClick={() => navigate('/solicitacoes')}>Voltar</Button>
+          <Button onClick={handleSave} disabled={(isReadOnly && !statusChanged) || addSolicitacao.isPending || updateSolicitacao.isPending}>
+            <Save className="h-4 w-4 mr-2" />Salvar Solicitação
           </Button>
-          <div className="flex gap-3">
-            <Button variant="outline" onClick={() => navigate('/solicitacoes')}>Voltar</Button>
-            <Button onClick={handleSave} disabled={(isReadOnly && !statusChanged) || addSolicitacao.isPending || updateSolicitacao.isPending}>
-              <Save className="h-4 w-4 mr-2" />Salvar Solicitação
-            </Button>
-          </div>
         </div>
       </div>
 
