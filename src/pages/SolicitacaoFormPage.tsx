@@ -511,9 +511,14 @@ export default function SolicitacaoFormPage() {
             <div className="flex items-center justify-between">
               <CardTitle>Itens da Solicitação</CardTitle>
               {!isReadOnly && (
-                <Button variant="outline" size="sm" onClick={addItem}>
-                  <Plus className="h-4 w-4 mr-1" />Adicionar Item
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={addItem}>
+                    <Plus className="h-4 w-4 mr-1" />Adicionar Item
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={addSpecialItem}>
+                    <Star className="h-4 w-4 mr-1" />Item Especial
+                  </Button>
+                </div>
               )}
             </div>
           </CardHeader>
