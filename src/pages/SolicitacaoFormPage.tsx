@@ -151,6 +151,7 @@ export default function SolicitacaoFormPage() {
   };
 
   const addItem = () => setItens(prev => [...prev, emptyItem()]);
+  const addSpecialItem = () => setItens(prev => [...prev, { ...emptyItem(), isSpecial: true }]);
   const removeItem = (index: number) => setItens(prev => prev.filter((_, i) => i !== index));
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
