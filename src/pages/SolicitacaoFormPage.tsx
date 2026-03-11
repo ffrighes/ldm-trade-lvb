@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Trash2, ArrowLeft, Save, Upload, FileText, X, Download } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, Save, Upload, FileText, X, Download, Star } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatBRL } from '@/lib/formatCurrency';
 import {
@@ -29,6 +29,7 @@ interface FormItem {
   unidade: string;
   custo_unitario: number;
   custo_total: number;
+  isSpecial?: boolean;
 }
 
 const emptyItem = (): FormItem => ({
@@ -150,6 +151,7 @@ export default function SolicitacaoFormPage() {
   };
 
   const addItem = () => setItens(prev => [...prev, emptyItem()]);
+  const addSpecialItem = () => setItens(prev => [...prev, { ...emptyItem(), isSpecial: true }]);
   const removeItem = (index: number) => setItens(prev => prev.filter((_, i) => i !== index));
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -299,7 +301,7 @@ export default function SolicitacaoFormPage() {
       toast.error('Descreva o motivo do material faltante no campo Notas');
       return;
     }
-    if (itens.length === 0 || itens.some(i => !i.descricao || !i.bitola)) {
+    if (itens.length === 0 || itens.some(i => !i.descricao || (!i.isSpecial && !i.bitola))) {
       toast.error('Preencha todos os itens corretamente');
       return;
     }
@@ -509,9 +511,14 @@ export default function SolicitacaoFormPage() {
             <div className="flex items-center justify-between">
               <CardTitle>Itens da Solicitação</CardTitle>
               {!isReadOnly && (
-                <Button variant="outline" size="sm" onClick={addItem}>
-                  <Plus className="h-4 w-4 mr-1" />Adicionar Item
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={addItem}>
+                    <Plus className="h-4 w-4 mr-1" />Adicionar Item
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={addSpecialItem}>
+                    <Star className="h-4 w-4 mr-1" />Item Especial
+                  </Button>
+                </div>
               )}
             </div>
           </CardHeader>
@@ -534,30 +541,48 @@ export default function SolicitacaoFormPage() {
                   {itens.map((item, idx) => (
                     <TableRow key={item.key}>
                       <TableCell>
-                        <Select
-                          value={item.descricao}
-                          onValueChange={v => handleDescChange(idx, v)}
-                          disabled={isReadOnly}
-                        >
-                          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                          <SelectContent>
-                            {descriptions.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
+                        {item.isSpecial ? (
+                          <Input
+                            value={item.descricao}
+                            onChange={e => setItens(prev => prev.map((it, i) => i === idx ? { ...it, descricao: e.target.value } : it))}
+                            disabled={isReadOnly}
+                            placeholder="Descrição livre"
+                          />
+                        ) : (
+                          <Select
+                            value={item.descricao}
+                            onValueChange={v => handleDescChange(idx, v)}
+                            disabled={isReadOnly}
+                          >
+                            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                            <SelectContent>
+                              {descriptions.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        )}
                       </TableCell>
                       <TableCell>
-                        <Select
-                          value={item.bitola}
-                          onValueChange={v => handleBitolaChange(idx, v)}
-                          disabled={isReadOnly || !item.descricao}
-                        >
-                          <SelectTrigger><SelectValue placeholder="Bitola" /></SelectTrigger>
-                          <SelectContent>
-                            {getBitolas(item.descricao).map(b => (
-                              <SelectItem key={b} value={b}>{b}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        {item.isSpecial ? (
+                          <Input
+                            value={item.bitola}
+                            onChange={e => setItens(prev => prev.map((it, i) => i === idx ? { ...it, bitola: e.target.value } : it))}
+                            disabled={isReadOnly}
+                            placeholder="Bitola (opcional)"
+                          />
+                        ) : (
+                          <Select
+                            value={item.bitola}
+                            onValueChange={v => handleBitolaChange(idx, v)}
+                            disabled={isReadOnly || !item.descricao}
+                          >
+                            <SelectTrigger><SelectValue placeholder="Bitola" /></SelectTrigger>
+                            <SelectContent>
+                              {getBitolas(item.descricao).map(b => (
+                                <SelectItem key={b} value={b}>{b}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Input value={item.erp_item} disabled className="w-24 text-xs" />
@@ -572,7 +597,18 @@ export default function SolicitacaoFormPage() {
                           className="w-20"
                         />
                       </TableCell>
-                      <TableCell className="text-center text-sm">{item.unidade}</TableCell>
+                      <TableCell>
+                        {item.isSpecial ? (
+                          <Input
+                            value={item.unidade}
+                            onChange={e => setItens(prev => prev.map((it, i) => i === idx ? { ...it, unidade: e.target.value } : it))}
+                            disabled={isReadOnly}
+                            className="w-20 text-sm"
+                          />
+                        ) : (
+                          <span className="text-center text-sm block">{item.unidade}</span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right">
                         <Input
                           type="number"
