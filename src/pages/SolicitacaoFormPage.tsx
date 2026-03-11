@@ -176,222 +176,146 @@ export default function SolicitacaoFormPage() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  // ─── Exportar PDF: download automático, A4 vertical ──────────────────────
-  const handleExportPDF = async () => {
+  // ─── Exportar PDF: A4 vertical, sem dependências externas ─────────────────
+  const handleExportPDF = () => {
     if (!existing) return;
     setExportingPdf(true);
+
     try {
       const projeto = projects.find(p => p.id === projetoId);
+      const dataGeracao =
+        new Date().toLocaleDateString('pt-BR') +
+        ' às ' +
+        new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-      // Importação dinâmica para não pesar no bundle
-      const { default: jsPDF } = await import('jspdf');
+      const itensRows = itens
+        .map(
+          (item, idx) => `
+        <tr class="${idx % 2 === 0 ? 'even' : ''}">
+          <td class="center">${idx + 1}</td>
+          <td>${item.descricao || '—'}</td>
+          <td>${item.bitola || '—'}</td>
+          <td>${item.erp_item || '—'}</td>
+          <td class="center">${item.quantidade}</td>
+          <td class="center">${item.unidade}</td>
+          <td class="right">${formatBRL(item.custo_unitario)}</td>
+          <td class="right">${formatBRL(item.custo_total)}</td>
+        </tr>`
+        )
+        .join('');
 
-      // A4 em pontos: 595 x 842 pt  |  margens 20 pt
-      const A4_W = 595;
-      const A4_H = 842;
-      const MARGIN = 20;
-      const CONTENT_W = A4_W - MARGIN * 2;
+      const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Solicitacao ${existing.numero}</title>
+  <style>
+    @page { size: A4 portrait; margin: 16mm 14mm; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; font-size: 9pt; color: #111; }
+    .header { display: flex; justify-content: space-between; align-items: flex-end;
+              border-bottom: 2px solid #222; padding-bottom: 6px; margin-bottom: 10px; }
+    .header .brand { font-size: 15pt; font-weight: bold; letter-spacing: 1px; }
+    .header .numero { font-size: 11pt; color: #444; }
+    .section-title { font-size: 10pt; font-weight: bold; margin: 10px 0 5px;
+                     border-bottom: 1px solid #ccc; padding-bottom: 2px; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 16px; margin-bottom: 4px; }
+    .info-row { display: flex; gap: 4px; font-size: 8.5pt; }
+    .info-label { font-weight: bold; white-space: nowrap; min-width: 110px; }
+    .info-value { color: #333; }
+    .info-full { grid-column: 1 / -1; }
+    table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 8pt; }
+    thead tr { background: #222; color: #fff; }
+    thead th { padding: 5px 4px; font-weight: bold; }
+    tbody tr.even { background: #f5f5f5; }
+    tbody td { padding: 4px; border-bottom: 1px solid #e0e0e0; vertical-align: middle; }
+    .center { text-align: center; }
+    .right  { text-align: right; }
+    .total-row { margin-top: 8px; text-align: right; font-size: 10pt; font-weight: bold; }
+    .footer { position: fixed; bottom: 0; left: 0; right: 0;
+              font-size: 7pt; color: #888; border-top: 1px solid #ddd; padding-top: 3px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="brand">LDM TRADE</div>
+    <div class="numero">Solicitacao ${existing.numero}</div>
+  </div>
 
-      const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+  <div class="section-title">Informacoes Gerais</div>
+  <div class="info-grid">
+    <div class="info-row">
+      <span class="info-label">Projeto:</span>
+      <span class="info-value">${projeto ? projeto.numero + ' - ' + projeto.descricao : '—'}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Motivo:</span>
+      <span class="info-value">${motivo || '—'}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Data da Solicitacao:</span>
+      <span class="info-value">${dataSolicitacao || '—'}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Status:</span>
+      <span class="info-value">${status || '—'}</span>
+    </div>
+    ${revisao ? '<div class="info-row"><span class="info-label">Revisao:</span><span class="info-value">' + revisao + '</span></div>' : ''}
+    ${erp ? '<div class="info-row"><span class="info-label">ERP:</span><span class="info-value">' + erp + '</span></div>' : ''}
+    ${notas ? '<div class="info-row info-full"><span class="info-label">Notas:</span><span class="info-value">' + notas + '</span></div>' : ''}
+  </div>
 
-      // ── helpers ────────────────────────────────────────────────────────────
-      let curY = MARGIN;
+  <div class="section-title">Itens da Solicitacao</div>
+  <table>
+    <thead>
+      <tr>
+        <th class="center" style="width:22px">#</th>
+        <th style="width:28%">Descricao</th>
+        <th style="width:14%">Bitola</th>
+        <th style="width:10%">ERP</th>
+        <th class="center" style="width:7%">Qtd</th>
+        <th class="center" style="width:6%">Un.</th>
+        <th class="right" style="width:13%">Custo Unit.</th>
+        <th class="right" style="width:13%">Custo Total</th>
+      </tr>
+    </thead>
+    <tbody>${itensRows}</tbody>
+  </table>
 
-      const checkPageBreak = (needed: number) => {
-        if (curY + needed > A4_H - MARGIN) {
-          doc.addPage();
-          curY = MARGIN;
-        }
+  <div class="total-row">Total Geral: ${formatBRL(totalGeral)}</div>
+
+  <div class="footer">Gerado em ${dataGeracao}</div>
+</body>
+</html>`;
+
+      const iframe = document.createElement('iframe');
+      iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:210mm;height:297mm;';
+      document.body.appendChild(iframe);
+
+      const iframeDoc = iframe.contentWindow?.document;
+      if (!iframeDoc) throw new Error('Falha ao criar iframe');
+
+      iframeDoc.open();
+      iframeDoc.write(html);
+      iframeDoc.close();
+
+      iframe.onload = () => {
+        setTimeout(() => {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+          setTimeout(() => {
+            document.body.removeChild(iframe);
+            setExportingPdf(false);
+          }, 1500);
+        }, 400);
       };
-
-      // ── Cabeçalho ─────────────────────────────────────────────────────────
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.text('LDM TRADE', MARGIN, curY + 10);
-
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Solicitação ${existing.numero}`, A4_W - MARGIN, curY + 10, { align: 'right' });
-      curY += 22;
-
-      // linha separadora
-      doc.setDrawColor(180);
-      doc.line(MARGIN, curY, A4_W - MARGIN, curY);
-      curY += 12;
-
-      // ── Informações Gerais ─────────────────────────────────────────────────
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Informações Gerais', MARGIN, curY);
-      curY += 14;
-
-      doc.setFontSize(8.5);
-      doc.setFont('helvetica', 'normal');
-
-      const col1X = MARGIN;
-      const col2X = MARGIN + CONTENT_W / 2;
-      const lineH = 13;
-
-      const infoRows: [string, string][] = [
-        ['Projeto', projeto ? `${projeto.numero} – ${projeto.descricao}` : '—'],
-        ['Motivo', motivo || '—'],
-        ['Data da Solicitação', dataSolicitacao || '—'],
-        ['Status', status || '—'],
-      ];
-      if (revisao) infoRows.push(['Revisão', revisao]);
-      if (erp) infoRows.push(['ERP', erp]);
-
-      // 2 colunas de info
-      for (let i = 0; i < infoRows.length; i += 2) {
-        checkPageBreak(lineH + 2);
-        const [lbl1, val1] = infoRows[i];
-        doc.setFont('helvetica', 'bold');
-        doc.text(`${lbl1}:`, col1X, curY);
-        doc.setFont('helvetica', 'normal');
-        doc.text(val1, col1X + 60, curY);
-
-        if (infoRows[i + 1]) {
-          const [lbl2, val2] = infoRows[i + 1];
-          doc.setFont('helvetica', 'bold');
-          doc.text(`${lbl2}:`, col2X, curY);
-          doc.setFont('helvetica', 'normal');
-          doc.text(val2, col2X + 60, curY);
-        }
-        curY += lineH;
-      }
-
-      if (notas) {
-        checkPageBreak(lineH * 2 + 4);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Notas:', col1X, curY);
-        doc.setFont('helvetica', 'normal');
-        const notasLines = doc.splitTextToSize(notas, CONTENT_W - 60);
-        doc.text(notasLines, col1X + 60, curY);
-        curY += lineH * notasLines.length;
-      }
-
-      curY += 8;
-      doc.setDrawColor(200);
-      doc.line(MARGIN, curY, A4_W - MARGIN, curY);
-      curY += 12;
-
-      // ── Tabela de Itens ────────────────────────────────────────────────────
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Itens da Solicitação', MARGIN, curY);
-      curY += 14;
-
-      // Definição de colunas (larguras em pt)
-      const cols = [
-        { label: '#',            w: 20,  align: 'center' as const },
-        { label: 'Descrição',    w: 155, align: 'left'   as const },
-        { label: 'Ø / Bitola',   w: 80,  align: 'left'   as const },
-        { label: 'ERP',          w: 60,  align: 'left'   as const },
-        { label: 'Qtd',          w: 35,  align: 'center' as const },
-        { label: 'Un.',          w: 28,  align: 'center' as const },
-        { label: 'Custo Unit.',  w: 65,  align: 'right'  as const },
-        { label: 'Custo Total',  w: 65,  align: 'right'  as const },
-      ];
-
-      const ROW_H = 16;
-      const HEADER_H = 18;
-
-      const drawTableHeader = () => {
-        doc.setFillColor(50, 50, 50);
-        doc.rect(MARGIN, curY, CONTENT_W, HEADER_H, 'F');
-        doc.setFontSize(7.5);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(255, 255, 255);
-
-        let xPos = MARGIN;
-        cols.forEach(c => {
-          const textX =
-            c.align === 'right'  ? xPos + c.w - 3 :
-            c.align === 'center' ? xPos + c.w / 2  :
-                                   xPos + 3;
-          doc.text(c.label, textX, curY + 12, { align: c.align });
-          xPos += c.w;
-        });
-        doc.setTextColor(0, 0, 0);
-        curY += HEADER_H;
-      };
-
-      drawTableHeader();
-
-      doc.setFontSize(7.5);
-      doc.setFont('helvetica', 'normal');
-
-      itens.forEach((item, idx) => {
-        checkPageBreak(ROW_H + 2);
-
-        // zebra stripes
-        if (idx % 2 === 0) {
-          doc.setFillColor(245, 245, 245);
-          doc.rect(MARGIN, curY, CONTENT_W, ROW_H, 'F');
-        }
-
-        const rowData = [
-          String(idx + 1),
-          item.descricao || '—',
-          item.bitola || '—',
-          item.erp_item || '—',
-          String(item.quantidade),
-          item.unidade,
-          formatBRL(item.custo_unitario),
-          formatBRL(item.custo_total),
-        ];
-
-        let xPos = MARGIN;
-        cols.forEach((c, ci) => {
-          const cellText = doc.splitTextToSize(rowData[ci], c.w - 4);
-          const textX =
-            c.align === 'right'  ? xPos + c.w - 3 :
-            c.align === 'center' ? xPos + c.w / 2  :
-                                   xPos + 3;
-          doc.text(cellText[0], textX, curY + 11, { align: c.align });
-          xPos += c.w;
-        });
-
-        // linha inferior da linha
-        doc.setDrawColor(220);
-        doc.line(MARGIN, curY + ROW_H, A4_W - MARGIN, curY + ROW_H);
-        curY += ROW_H;
-      });
-
-      // ── Total Geral ────────────────────────────────────────────────────────
-      curY += 6;
-      checkPageBreak(20);
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`Total Geral: ${formatBRL(totalGeral)}`, A4_W - MARGIN, curY, { align: 'right' });
-
-      // ── Rodapé ─────────────────────────────────────────────────────────────
-      const totalPages = (doc as any).internal.getNumberOfPages();
-      for (let pg = 1; pg <= totalPages; pg++) {
-        doc.setPage(pg);
-        doc.setFontSize(7);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(150);
-        doc.text(
-          `Gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`,
-          MARGIN,
-          A4_H - 10,
-        );
-        doc.text(`Página ${pg} / ${totalPages}`, A4_W - MARGIN, A4_H - 10, { align: 'right' });
-        doc.setTextColor(0);
-      }
-
-      // ── Download automático ────────────────────────────────────────────────
-      doc.save(`solicitacao-${existing.numero}.pdf`);
-      toast.success('PDF exportado com sucesso');
     } catch (err) {
       console.error(err);
       toast.error('Erro ao gerar PDF');
-    } finally {
       setExportingPdf(false);
     }
   };
-  // ─────────────────────────────────────────────────────────────────────────
+  // ──────────────────────────────────────────────────────────────────────────
 
   const handleSave = async () => {
     if (!projetoId) { toast.error('Selecione um projeto'); return; }
@@ -405,7 +329,6 @@ export default function SolicitacaoFormPage() {
       return;
     }
 
-    // Check for duplicate materials in other solicitations for the same project
     if (isNew && motivo === 'Material Faltante') {
       const { data: existingSols } = await supabase
         .from('solicitacoes')
@@ -423,9 +346,7 @@ export default function SolicitacaoFormPage() {
           for (const sol of existingSols) {
             const solItens = (sol as any).solicitacao_itens || [];
             const found = solItens.some((si: any) => `${si.descricao}||${si.bitola}` === itemKey);
-            if (found) {
-              listasComItem.push(sol.numero);
-            }
+            if (found) listasComItem.push(sol.numero);
           }
 
           if (listasComItem.length > 0) {
@@ -434,9 +355,9 @@ export default function SolicitacaoFormPage() {
         }
 
         if (duplicates.length > 0) {
-          const msg = duplicates.map(d =>
-            `${d.item} já solicitado em:\n${d.listas.join('\n')}`
-          ).join('\n\n');
+          const msg = duplicates
+            .map(d => `${d.item} já solicitado em:\n${d.listas.join('\n')}`)
+            .join('\n\n');
           setDuplicateMessage(msg);
           setShowDuplicateAlert(true);
           return;
@@ -479,8 +400,12 @@ export default function SolicitacaoFormPage() {
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/solicitacoes')}><ArrowLeft className="h-5 w-5" /></Button>
-        <h1 className="text-2xl font-bold">{existing ? `Solicitação ${existing.numero}` : 'Nova Solicitação'}</h1>
+        <Button variant="ghost" size="icon" onClick={() => navigate('/solicitacoes')}>
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <h1 className="text-2xl font-bold">
+          {existing ? `Solicitação ${existing.numero}` : 'Nova Solicitação'}
+        </h1>
         {existing && (
           <div className="ml-auto">
             <Button variant="outline" onClick={handleExportPDF} disabled={exportingPdf}>
@@ -501,7 +426,9 @@ export default function SolicitacaoFormPage() {
                 <Select value={projetoId} onValueChange={setProjetoId} disabled={isReadOnly}>
                   <SelectTrigger><SelectValue placeholder="Selecione o projeto" /></SelectTrigger>
                   <SelectContent>
-                    {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.numero} - {p.descricao}</SelectItem>)}
+                    {projects.map(p => (
+                      <SelectItem key={p.id} value={p.id}>{p.numero} - {p.descricao}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -518,7 +445,12 @@ export default function SolicitacaoFormPage() {
               </div>
               <div>
                 <Label>Data da Solicitação *</Label>
-                <Input type="date" value={dataSolicitacao} onChange={e => setDataSolicitacao(e.target.value)} disabled={isReadOnly} />
+                <Input
+                  type="date"
+                  value={dataSolicitacao}
+                  onChange={e => setDataSolicitacao(e.target.value)}
+                  disabled={isReadOnly}
+                />
               </div>
               <div>
                 <Label>Status</Label>
@@ -580,7 +512,12 @@ export default function SolicitacaoFormPage() {
                       className="hidden"
                       onChange={handleFileUpload}
                     />
-                    <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                    >
                       <Upload className="h-4 w-4 mr-1" />{uploading ? 'Enviando...' : 'Anexar Desenho'}
                     </Button>
                   </div>
@@ -596,7 +533,11 @@ export default function SolicitacaoFormPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Itens da Solicitação</CardTitle>
-              {!isReadOnly && <Button variant="outline" size="sm" onClick={addItem}><Plus className="h-4 w-4 mr-1" />Adicionar Item</Button>}
+              {!isReadOnly && (
+                <Button variant="outline" size="sm" onClick={addItem}>
+                  <Plus className="h-4 w-4 mr-1" />Adicionar Item
+                </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent>
@@ -618,7 +559,11 @@ export default function SolicitacaoFormPage() {
                   {itens.map((item, idx) => (
                     <TableRow key={item.key}>
                       <TableCell>
-                        <Select value={item.descricao} onValueChange={v => handleDescChange(idx, v)} disabled={isReadOnly}>
+                        <Select
+                          value={item.descricao}
+                          onValueChange={v => handleDescChange(idx, v)}
+                          disabled={isReadOnly}
+                        >
                           <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                           <SelectContent>
                             {descriptions.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
@@ -626,10 +571,16 @@ export default function SolicitacaoFormPage() {
                         </Select>
                       </TableCell>
                       <TableCell>
-                        <Select value={item.bitola} onValueChange={v => handleBitolaChange(idx, v)} disabled={isReadOnly || !item.descricao}>
+                        <Select
+                          value={item.bitola}
+                          onValueChange={v => handleBitolaChange(idx, v)}
+                          disabled={isReadOnly || !item.descricao}
+                        >
                           <SelectTrigger><SelectValue placeholder="Bitola" /></SelectTrigger>
                           <SelectContent>
-                            {getBitolas(item.descricao).map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                            {getBitolas(item.descricao).map(b => (
+                              <SelectItem key={b} value={b}>{b}</SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </TableCell>
@@ -658,7 +609,9 @@ export default function SolicitacaoFormPage() {
                           className="w-28 text-right"
                         />
                       </TableCell>
-                      <TableCell className="text-right font-mono text-sm">{formatBRL(item.custo_total)}</TableCell>
+                      <TableCell className="text-right font-mono text-sm">
+                        {formatBRL(item.custo_total)}
+                      </TableCell>
                       <TableCell>
                         {!isReadOnly && (
                           <Button variant="ghost" size="icon" onClick={() => removeItem(idx)}>
@@ -682,7 +635,14 @@ export default function SolicitacaoFormPage() {
 
         <div className="flex justify-end gap-3">
           <Button variant="outline" onClick={() => navigate('/solicitacoes')}>Voltar</Button>
-          <Button onClick={handleSave} disabled={(isReadOnly && !statusChanged) || addSolicitacao.isPending || updateSolicitacao.isPending}>
+          <Button
+            onClick={handleSave}
+            disabled={
+              (isReadOnly && !statusChanged) ||
+              addSolicitacao.isPending ||
+              updateSolicitacao.isPending
+            }
+          >
             <Save className="h-4 w-4 mr-2" />Salvar Solicitação
           </Button>
         </div>
@@ -692,11 +652,15 @@ export default function SolicitacaoFormPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Material já solicitado</AlertDialogTitle>
-            <AlertDialogDescription className="whitespace-pre-line">{duplicateMessage}</AlertDialogDescription>
+            <AlertDialogDescription className="whitespace-pre-line">
+              {duplicateMessage}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Não</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setShowDuplicateAlert(false); doSave(); }}>Sim</AlertDialogAction>
+            <AlertDialogAction onClick={() => { setShowDuplicateAlert(false); doSave(); }}>
+              Sim
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
