@@ -206,113 +206,97 @@ export default function SolicitacaoFormPage() {
         )
         .join('');
 
-      const html = `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8"/>
-  <title>Solicitacao ${existing.numero}</title>
-  <style>
-    @page { size: A4 portrait; margin: 16mm 14mm; }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, sans-serif; font-size: 9pt; color: #111; }
-    .header { display: flex; justify-content: space-between; align-items: flex-end;
-              border-bottom: 2px solid #222; padding-bottom: 6px; margin-bottom: 10px; }
-    .header .brand { font-size: 15pt; font-weight: bold; letter-spacing: 1px; }
-    .header .numero { font-size: 11pt; color: #444; }
-    .section-title { font-size: 10pt; font-weight: bold; margin: 10px 0 5px;
-                     border-bottom: 1px solid #ccc; padding-bottom: 2px; }
-    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 16px; margin-bottom: 4px; }
-    .info-row { display: flex; gap: 4px; font-size: 8.5pt; }
-    .info-label { font-weight: bold; white-space: nowrap; min-width: 110px; }
-    .info-value { color: #333; }
-    .info-full { grid-column: 1 / -1; }
-    table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 8pt; }
-    thead tr { background: #222; color: #fff; }
-    thead th { padding: 5px 4px; font-weight: bold; }
-    tbody tr.even { background: #f5f5f5; }
-    tbody td { padding: 4px; border-bottom: 1px solid #e0e0e0; vertical-align: middle; }
-    .center { text-align: center; }
-    .right  { text-align: right; }
-    .total-row { margin-top: 8px; text-align: right; font-size: 10pt; font-weight: bold; }
-    .footer { position: fixed; bottom: 0; left: 0; right: 0;
-              font-size: 7pt; color: #888; border-top: 1px solid #ddd; padding-top: 3px; }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <div class="brand">LDM TRADE</div>
-    <div class="numero">Solicitacao ${existing.numero}</div>
-  </div>
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.getWidth();
 
-  <div class="section-title">Informacoes Gerais</div>
-  <div class="info-grid">
-    <div class="info-row">
-      <span class="info-label">Projeto:</span>
-      <span class="info-value">${projeto ? projeto.numero + ' - ' + projeto.descricao : '—'}</span>
-    </div>
-    <div class="info-row">
-      <span class="info-label">Motivo:</span>
-      <span class="info-value">${motivo || '—'}</span>
-    </div>
-    <div class="info-row">
-      <span class="info-label">Data da Solicitacao:</span>
-      <span class="info-value">${dataSolicitacao || '—'}</span>
-    </div>
-    <div class="info-row">
-      <span class="info-label">Status:</span>
-      <span class="info-value">${status || '—'}</span>
-    </div>
-    ${revisao ? '<div class="info-row"><span class="info-label">Revisao:</span><span class="info-value">' + revisao + '</span></div>' : ''}
-    ${erp ? '<div class="info-row"><span class="info-label">ERP:</span><span class="info-value">' + erp + '</span></div>' : ''}
-    ${notas ? '<div class="info-row info-full"><span class="info-label">Notas:</span><span class="info-value">' + notas + '</span></div>' : ''}
-  </div>
+      // Header
+      doc.setFontSize(15);
+      doc.setFont('helvetica', 'bold');
+      doc.text('LDM TRADE', 14, 16);
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Solicitação ${existing.numero}`, pageWidth - 14, 16, { align: 'right' });
+      doc.setDrawColor(34, 34, 34);
+      doc.setLineWidth(0.5);
+      doc.line(14, 19, pageWidth - 14, 19);
 
-  <div class="section-title">Itens da Solicitacao</div>
-  <table>
-    <thead>
-      <tr>
-        <th class="center" style="width:22px">#</th>
-        <th style="width:28%">Descricao</th>
-        <th style="width:14%">Bitola</th>
-        <th style="width:10%">ERP</th>
-        <th class="center" style="width:7%">Qtd</th>
-        <th class="center" style="width:6%">Un.</th>
-        <th class="right" style="width:13%">Custo Unit.</th>
-        <th class="right" style="width:13%">Custo Total</th>
-      </tr>
-    </thead>
-    <tbody>${itensRows}</tbody>
-  </table>
+      // Info section
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Informações Gerais', 14, 26);
+      doc.setLineWidth(0.2);
+      doc.setDrawColor(200, 200, 200);
+      doc.line(14, 27.5, pageWidth - 14, 27.5);
 
-  <div class="total-row">Total Geral: ${formatBRL(totalGeral)}</div>
+      doc.setFontSize(8.5);
+      const infoLines: [string, string][] = [
+        ['Projeto:', projeto ? `${projeto.numero} - ${projeto.descricao}` : '—'],
+        ['Motivo:', motivo || '—'],
+        ['Data da Solicitação:', dataSolicitacao || '—'],
+        ['Status:', status || '—'],
+      ];
+      if (revisao) infoLines.push(['Revisão:', revisao]);
+      if (erp) infoLines.push(['ERP:', erp]);
+      if (notas) infoLines.push(['Notas:', notas]);
 
-  <div class="footer">Gerado em ${dataGeracao}</div>
-</body>
-</html>`;
+      let infoY = 32;
+      infoLines.forEach(([label, value]) => {
+        doc.setFont('helvetica', 'bold');
+        doc.text(label, 14, infoY);
+        doc.setFont('helvetica', 'normal');
+        doc.text(value, 50, infoY);
+        infoY += 5;
+      });
 
-      // Abre em nova aba e dispara print automaticamente (salvar como PDF)
-      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
+      // Items table
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Itens da Solicitação', 14, infoY + 4);
+      doc.setLineWidth(0.2);
+      doc.line(14, infoY + 5.5, pageWidth - 14, infoY + 5.5);
 
-      const win = window.open(url, '_blank');
-      if (win) {
-        win.onload = () => {
-          setTimeout(() => {
-            win.print();
-            URL.revokeObjectURL(url);
-            setExportingPdf(false);
-          }, 500);
-        };
-      } else {
-        // fallback: link de download do HTML caso popup seja bloqueado
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `solicitacao-${existing.numero}.html`;
-        a.click();
-        URL.revokeObjectURL(url);
-        toast.info('Popup bloqueado. Arquivo HTML baixado — abra e imprima como PDF.');
-        setExportingPdf(false);
-      }
+      const tableData = items.map((item, i) => [
+        String(i + 1),
+        item.descricao,
+        item.bitola,
+        item.erp_item || '',
+        String(item.quantidade),
+        item.unidade,
+        formatBRL(item.custo_unitario),
+        formatBRL(item.custo_total),
+      ]);
+
+      autoTable(doc, {
+        startY: infoY + 8,
+        head: [['#', 'Descrição', 'Bitola', 'ERP', 'Qtd', 'Un.', 'Custo Unit.', 'Custo Total']],
+        body: tableData,
+        styles: { fontSize: 8, cellPadding: 1.5 },
+        headStyles: { fillColor: [34, 34, 34], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [245, 245, 245] },
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 8 },
+          4: { halign: 'center', cellWidth: 12 },
+          5: { halign: 'center', cellWidth: 10 },
+          6: { halign: 'right', cellWidth: 22 },
+          7: { halign: 'right', cellWidth: 22 },
+        },
+        margin: { left: 14, right: 14 },
+      });
+
+      // Total
+      const finalY = (doc as any).lastAutoTable?.finalY || infoY + 40;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Total Geral: ${formatBRL(totalGeral)}`, pageWidth - 14, finalY + 8, { align: 'right' });
+
+      // Footer
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(136, 136, 136);
+      doc.text(`Gerado em ${dataGeracao}`, 14, doc.internal.pageSize.getHeight() - 8);
+
+      doc.save(`solicitacao-${existing.numero}.pdf`);
+      setExportingPdf(false);
     } catch (err) {
       console.error(err);
       toast.error('Erro ao gerar PDF');
