@@ -301,7 +301,7 @@ export default function SolicitacaoFormPage() {
       toast.error('Descreva o motivo do material faltante no campo Notas');
       return;
     }
-    if (itens.length === 0 || itens.some(i => !i.descricao || !i.bitola)) {
+    if (itens.length === 0 || itens.some(i => !i.descricao || (!i.isSpecial && !i.bitola))) {
       toast.error('Preencha todos os itens corretamente');
       return;
     }
