@@ -86,6 +86,7 @@ export default function SolicitacaoFormPage() {
       setItens(
         (existing.solicitacao_itens || []).map((i: any) => {
           const mat = materials.find(m => m.id === i.material_id);
+          const isSpecial = !i.material_id;
           return {
             key: i.id,
             material_id: i.material_id,
@@ -96,6 +97,7 @@ export default function SolicitacaoFormPage() {
             unidade: i.unidade,
             custo_unitario: i.custo_unitario,
             custo_total: i.custo_total,
+            isSpecial,
           };
         })
       );
