@@ -190,21 +190,8 @@ export default function SolicitacaoFormPage() {
         ' às ' +
         new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-      const itensRows = itens
-        .map(
-          (item, idx) => `
-        <tr class="${idx % 2 === 0 ? 'even' : ''}">
-          <td class="center">${idx + 1}</td>
-          <td>${item.descricao || '—'}</td>
-          <td>${item.bitola || '—'}</td>
-          <td>${item.erp_item || '—'}</td>
-          <td class="center">${item.quantidade}</td>
-          <td class="center">${item.unidade}</td>
-          <td class="right">${formatBRL(item.custo_unitario)}</td>
-          <td class="right">${formatBRL(item.custo_total)}</td>
-        </tr>`
-        )
-        .join('');
+
+
 
       const doc = new jsPDF('p', 'mm', 'a4');
       const pageWidth = doc.internal.pageSize.getWidth();
