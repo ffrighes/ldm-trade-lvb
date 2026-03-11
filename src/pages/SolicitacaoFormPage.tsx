@@ -597,7 +597,18 @@ export default function SolicitacaoFormPage() {
                           className="w-20"
                         />
                       </TableCell>
-                      <TableCell className="text-center text-sm">{item.unidade}</TableCell>
+                      <TableCell>
+                        {item.isSpecial ? (
+                          <Input
+                            value={item.unidade}
+                            onChange={e => setItens(prev => prev.map((it, i) => i === idx ? { ...it, unidade: e.target.value } : it))}
+                            disabled={isReadOnly}
+                            className="w-20 text-sm"
+                          />
+                        ) : (
+                          <span className="text-center text-sm block">{item.unidade}</span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right">
                         <Input
                           type="number"
