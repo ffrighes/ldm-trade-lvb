@@ -183,11 +183,8 @@ export default function SolicitacaoFormPage() {
     try {
       const projeto = projects.find(p => p.id === projetoId);
 
-      // Importações dinâmicas para não pesar no bundle
-      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
-        import('jspdf'),
-        import('html2canvas'),
-      ]);
+      // Importação dinâmica para não pesar no bundle
+      const { default: jsPDF } = await import('jspdf');
 
       // A4 em pontos: 595 x 842 pt  |  margens 20 pt
       const A4_W = 595;
