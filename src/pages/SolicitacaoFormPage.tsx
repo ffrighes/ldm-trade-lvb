@@ -288,27 +288,29 @@ export default function SolicitacaoFormPage() {
 </body>
 </html>`;
 
-      const iframe = document.createElement('iframe');
-      iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:210mm;height:297mm;';
-      document.body.appendChild(iframe);
+      // Abre em nova aba e dispara print automaticamente (salvar como PDF)
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
 
-      const iframeDoc = iframe.contentWindow?.document;
-      if (!iframeDoc) throw new Error('Falha ao criar iframe');
-
-      iframeDoc.open();
-      iframeDoc.write(html);
-      iframeDoc.close();
-
-      iframe.onload = () => {
-        setTimeout(() => {
-          iframe.contentWindow?.focus();
-          iframe.contentWindow?.print();
+      const win = window.open(url, '_blank');
+      if (win) {
+        win.onload = () => {
           setTimeout(() => {
-            document.body.removeChild(iframe);
+            win.print();
+            URL.revokeObjectURL(url);
             setExportingPdf(false);
-          }, 1500);
-        }, 400);
-      };
+          }, 500);
+        };
+      } else {
+        // fallback: link de download do HTML caso popup seja bloqueado
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `solicitacao-${existing.numero}.html`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.info('Popup bloqueado. Arquivo HTML baixado — abra e imprima como PDF.');
+        setExportingPdf(false);
+      }
     } catch (err) {
       console.error(err);
       toast.error('Erro ao gerar PDF');
