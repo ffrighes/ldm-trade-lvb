@@ -541,30 +541,48 @@ export default function SolicitacaoFormPage() {
                   {itens.map((item, idx) => (
                     <TableRow key={item.key}>
                       <TableCell>
-                        <Select
-                          value={item.descricao}
-                          onValueChange={v => handleDescChange(idx, v)}
-                          disabled={isReadOnly}
-                        >
-                          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                          <SelectContent>
-                            {descriptions.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
+                        {item.isSpecial ? (
+                          <Input
+                            value={item.descricao}
+                            onChange={e => setItens(prev => prev.map((it, i) => i === idx ? { ...it, descricao: e.target.value } : it))}
+                            disabled={isReadOnly}
+                            placeholder="Descrição livre"
+                          />
+                        ) : (
+                          <Select
+                            value={item.descricao}
+                            onValueChange={v => handleDescChange(idx, v)}
+                            disabled={isReadOnly}
+                          >
+                            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                            <SelectContent>
+                              {descriptions.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        )}
                       </TableCell>
                       <TableCell>
-                        <Select
-                          value={item.bitola}
-                          onValueChange={v => handleBitolaChange(idx, v)}
-                          disabled={isReadOnly || !item.descricao}
-                        >
-                          <SelectTrigger><SelectValue placeholder="Bitola" /></SelectTrigger>
-                          <SelectContent>
-                            {getBitolas(item.descricao).map(b => (
-                              <SelectItem key={b} value={b}>{b}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        {item.isSpecial ? (
+                          <Input
+                            value={item.bitola}
+                            onChange={e => setItens(prev => prev.map((it, i) => i === idx ? { ...it, bitola: e.target.value } : it))}
+                            disabled={isReadOnly}
+                            placeholder="Bitola (opcional)"
+                          />
+                        ) : (
+                          <Select
+                            value={item.bitola}
+                            onValueChange={v => handleBitolaChange(idx, v)}
+                            disabled={isReadOnly || !item.descricao}
+                          >
+                            <SelectTrigger><SelectValue placeholder="Bitola" /></SelectTrigger>
+                            <SelectContent>
+                              {getBitolas(item.descricao).map(b => (
+                                <SelectItem key={b} value={b}>{b}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Input value={item.erp_item} disabled className="w-24 text-xs" />
