@@ -242,7 +242,7 @@ export default function SolicitacaoFormPage() {
       doc.setLineWidth(0.2);
       doc.line(14, infoY + 5.5, pageWidth - 14, infoY + 5.5);
 
-      const tableData = items.map((item, i) => [
+      const tableData = itens.map((item, i) => [
         String(i + 1),
         item.descricao,
         item.bitola,
