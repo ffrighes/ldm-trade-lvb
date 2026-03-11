@@ -29,6 +29,7 @@ interface FormItem {
   unidade: string;
   custo_unitario: number;
   custo_total: number;
+  isSpecial?: boolean;
 }
 
 const emptyItem = (): FormItem => ({
