@@ -47,6 +47,7 @@ export default function BaseDadosPage() {
   const [renamingFamily_saving, setRenamingFamily_saving] = useState(false);
   const [newFamilyDialogOpen, setNewFamilyDialogOpen] = useState(false);
   const [newFamilyInput, setNewFamilyInput] = useState("");
+  const [deleteFamilyTarget, setDeleteFamilyTarget] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
@@ -286,6 +287,19 @@ export default function BaseDadosPage() {
     }
   };
 
+  const handleDeleteFamily = async (descricao: string) => {
+    try {
+      const { error } = await supabase.from("materials").delete().eq("descricao", descricao);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["materials"] });
+      toast.success(`Família "${descricao}" excluída`);
+    } catch (err: any) {
+      toast.error("Erro ao excluir família: " + (err.message || "erro desconhecido"));
+    } finally {
+      setDeleteFamilyTarget(null);
+    }
+  };
+
   const openNew = (familiaDescricao?: string) => {
     setEditingId(null);
     setForm({ descricao: familiaDescricao ?? "", bitola: "", unidade: "m", erp: "", custo: "", notas: "" });
@@ -405,6 +419,27 @@ export default function BaseDadosPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteFamilyTarget} onOpenChange={(v) => { if (!v) setDeleteFamilyTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir família?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Todos os <strong>{materials.filter(m => m.descricao === deleteFamilyTarget).length}</strong> itens da família{" "}
+              <strong>{deleteFamilyTarget}</strong> serão excluídos permanentemente. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteFamilyTarget && handleDeleteFamily(deleteFamilyTarget)}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Excluir família
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">
@@ -544,12 +579,22 @@ export default function BaseDadosPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="mr-2 h-7 px-2 text-muted-foreground hover:text-foreground"
+                      className="h-7 px-2 text-muted-foreground hover:text-foreground"
                       onClick={(e) => { e.stopPropagation(); openNew(descricao); }}
                       title="Adicionar bitola a esta família"
                     >
                       <PlusCircle className="h-4 w-4 mr-1" />
                       <span className="text-xs">Bitola</span>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="mr-2 h-7 px-2 text-destructive hover:text-destructive"
+                      onClick={(e) => { e.stopPropagation(); setDeleteFamilyTarget(descricao); }}
+                      title="Excluir família"
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      <span className="text-xs">Excluir</span>
                     </Button>
                   </div>
                   {isExpanded && (
