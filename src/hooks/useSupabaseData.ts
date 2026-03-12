@@ -235,6 +235,36 @@ export function useUpdateSolicitacaoItemCosts() {
   });
 }
 
+// ============= INVENTARIO =============
+
+export function useAddInventarioAjuste() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (ajuste: {
+      projeto_id: string;
+      descricao: string;
+      bitola: string;
+      unidade: string;
+      quantidade: number;
+      custo_unitario: number;
+      custo_total: number;
+      material_id?: string | null;
+    }) => {
+      const { error } = await supabase.from('inventario').insert({
+        ...ajuste,
+        solicitacao_id: null,
+        tipo: 'ajuste',
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      qc.invalidateQueries({ queryKey: ['inventario', variables.projeto_id] });
+      toast.success('Ajuste de estoque registrado.');
+    },
+    onError: () => toast.error('Erro ao registrar ajuste de estoque.'),
+  });
+}
+
 export function useDeleteSolicitacao() {
   const qc = useQueryClient();
   return useMutation({
