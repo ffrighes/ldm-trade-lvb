@@ -1,7 +1,9 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { FolderKanban, FileText, Database, LayoutDashboard, Package, Sun, Moon } from 'lucide-react';
+import { FolderKanban, FileText, Database, LayoutDashboard, Package, Sun, Moon, Users, LogOut } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
+import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -9,11 +11,19 @@ const NAV_ITEMS = [
   { to: '/solicitacoes', label: 'Solicitações', icon: FileText },
   { to: '/inventario', label: 'Inventário', icon: Package },
   { to: '/base-dados', label: 'Base de Dados', icon: Database },
+  { to: '/admin/usuarios', label: 'Usuários', icon: Users },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
+  const { user, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/login');
+  };
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -53,11 +63,25 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
+
+        {/* User info + logout */}
+        <div className="p-3 border-t border-sidebar-border">
+          <div className="px-3 py-2">
+            <p className="text-xs text-sidebar-foreground/60 truncate">{user?.email}</p>
+          </div>
+          <button
+            onClick={handleSignOut}
+            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-md text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+          >
+            <LogOut className="h-4 w-4" />
+            Sair
+          </button>
+        </div>
       </aside>
 
       {/* Mobile nav */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border flex">
-        {NAV_ITEMS.map(({ to, label, icon: Icon }) => {
+        {NAV_ITEMS.slice(0, 5).map(({ to, label, icon: Icon }) => {
           const active = to === '/' ? pathname === '/' : pathname.startsWith(to);
           return (
             <Link
@@ -73,15 +97,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </Link>
           );
         })}
-        {/* Mobile theme toggle */}
+        {/* Mobile logout */}
         <button
-          onClick={toggleTheme}
+          onClick={handleSignOut}
           className="flex-1 flex flex-col items-center py-2 text-xs text-muted-foreground transition-colors"
         >
-          {theme === 'dark'
-            ? <Sun className="h-5 w-5 mb-0.5" />
-            : <Moon className="h-5 w-5 mb-0.5" />}
-          Tema
+          <LogOut className="h-5 w-5 mb-0.5" />
+          Sair
         </button>
       </div>
 
