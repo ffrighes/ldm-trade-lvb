@@ -219,6 +219,22 @@ export function useUpdateSolicitacao() {
   });
 }
 
+export function useUpdateSolicitacaoItemCosts() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (items: Array<{ id: string; custo_unitario: number; custo_total: number }>) => {
+      for (const item of items) {
+        const { error } = await supabase
+          .from('solicitacao_itens')
+          .update({ custo_unitario: item.custo_unitario, custo_total: item.custo_total })
+          .eq('id', item.id);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['solicitacoes'] }),
+  });
+}
+
 export function useDeleteSolicitacao() {
   const qc = useQueryClient();
   return useMutation({

@@ -1,12 +1,12 @@
 import { useState, useMemo } from 'react';
-import { useSolicitacoes, useProjects, useDeleteSolicitacao } from '@/hooks/useSupabaseData';
+import { useSolicitacoes, useProjects, useMaterials, useDeleteSolicitacao, useUpdateSolicitacaoItemCosts } from '@/hooks/useSupabaseData';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Eye, Trash2, FileText } from 'lucide-react';
+import { Plus, Search, Eye, Trash2, FileText, RefreshCw } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useNavigate } from 'react-router-dom';
 import { formatBRL } from '@/lib/formatCurrency';
@@ -26,7 +26,9 @@ const statusColors: Record<SolicitacaoStatus, string> = {
 export default function SolicitacoesPage() {
   const { data: solicitacoes = [] } = useSolicitacoes();
   const { data: projects = [] } = useProjects();
+  const { data: materials = [] } = useMaterials();
   const deleteSolicitacao = useDeleteSolicitacao();
+  const updateItemCosts = useUpdateSolicitacaoItemCosts();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -52,6 +54,29 @@ export default function SolicitacoesPage() {
   const getProjetoNome = (id: string) => {
     const p = projects.find(x => x.id === id);
     return p ? `${p.numero} - ${p.descricao}` : 'N/A';
+  };
+
+  const calcCustoAtualizado = (itens: any[]) =>
+    itens.reduce((acc, item) => {
+      const mat = item.material_id ? materials.find((m: any) => m.id === item.material_id) : null;
+      return acc + item.quantidade * (mat?.custo ?? 0);
+    }, 0);
+
+  const handleAtualizarCustos = async (e: React.MouseEvent, solicitacaoId: string, itens: any[]) => {
+    e.stopPropagation();
+    const updates = itens
+      .filter((item: any) => item.material_id)
+      .map((item: any) => {
+        const mat = materials.find((m: any) => m.id === item.material_id);
+        const custo_unitario = mat?.custo ?? 0;
+        return { id: item.id, custo_unitario, custo_total: item.quantidade * custo_unitario };
+      });
+    try {
+      await updateItemCosts.mutateAsync(updates);
+      toast.success('Custos atualizados com sucesso');
+    } catch {
+      toast.error('Erro ao atualizar custos');
+    }
   };
 
   return (
@@ -117,6 +142,7 @@ export default function SolicitacoesPage() {
                   <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhuma solicitação encontrada</TableCell></TableRow>
                 ) : filtered.map(s => {
                   const itens = s.solicitacao_itens || [];
+                  const custoAtualizado = calcCustoAtualizado(itens);
                   return (
                     <TableRow key={s.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/solicitacoes/${s.id}`)}>
                       <TableCell className="font-mono font-medium">{s.numero}</TableCell>
@@ -126,7 +152,7 @@ export default function SolicitacoesPage() {
                       <TableCell className="text-muted-foreground">{s.data_solicitacao}</TableCell>
                       <TableCell className="text-center">{itens.length}</TableCell>
                       <TableCell className="font-mono">{s.erp || '-'}</TableCell>
-                      <TableCell className="text-right font-mono">{formatBRL(itens.reduce((a: number, i: any) => a + (i.custo_total || 0), 0))}</TableCell>
+                      <TableCell className="text-right font-mono">{formatBRL(custoAtualizado)}</TableCell>
                       <TableCell>
                         <div className="flex gap-1">
                           <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); navigate(`/solicitacoes/${s.id}`); }}><Eye className="h-4 w-4" /></Button>
@@ -138,21 +164,32 @@ export default function SolicitacoesPage() {
                             </a>
                           )}
                           {s.status === 'Aberta' && (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Excluir solicitação {s.numero}?</AlertDialogTitle>
-                                  <AlertDialogDescription>Esta ação excluirá a solicitação e todos os seus itens. Não pode ser desfeita.</AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction onClick={(e) => { e.stopPropagation(); deleteSolicitacao.mutate(s.id); toast.success('Solicitação excluída'); }}>Excluir</AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                title="Atualizar custos"
+                                disabled={updateItemCosts.isPending}
+                                onClick={(e) => handleAtualizarCustos(e, s.id, itens)}
+                              >
+                                <RefreshCw className="h-4 w-4 text-primary" />
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Excluir solicitação {s.numero}?</AlertDialogTitle>
+                                    <AlertDialogDescription>Esta ação excluirá a solicitação e todos os seus itens. Não pode ser desfeita.</AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={(e) => { e.stopPropagation(); deleteSolicitacao.mutate(s.id); toast.success('Solicitação excluída'); }}>Excluir</AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </>
                           )}
                         </div>
                       </TableCell>
