@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Trash2, ArrowLeft, Save, Upload, FileText, X, Download, Star } from 'lucide-react';
 import { toast } from 'sonner';
@@ -107,9 +108,25 @@ export default function SolicitacaoFormPage() {
 
   const descriptions = useMemo(() => [...new Set(materials.map(m => m.descricao))].sort(), [materials]);
 
+  const parseBitolaValue = (b: string): number => {
+    const trimmed = b.trim();
+    const spaceParts = trimmed.split(' ');
+    if (spaceParts.length === 2) {
+      const whole = parseFloat(spaceParts[0]) || 0;
+      const fracParts = spaceParts[1].split('/');
+      const frac = fracParts.length === 2 ? (parseFloat(fracParts[0]) || 0) / (parseFloat(fracParts[1]) || 1) : 0;
+      return whole + frac;
+    }
+    if (trimmed.includes('/')) {
+      const fracParts = trimmed.split('/');
+      return (parseFloat(fracParts[0]) || 0) / (parseFloat(fracParts[1]) || 1);
+    }
+    return parseFloat(trimmed) || 0;
+  };
+
   const getBitolas = (desc: string) => {
     const bitolas = materials.filter(m => m.descricao === desc).map(m => m.bitola);
-    return [...new Set(bitolas)];
+    return [...new Set(bitolas)].sort((a, b) => parseBitolaValue(a) - parseBitolaValue(b));
   };
 
   const handleDescChange = (index: number, desc: string) => {
@@ -551,16 +568,15 @@ export default function SolicitacaoFormPage() {
                             placeholder="Descrição livre"
                           />
                         ) : (
-                          <Select
+                          <SearchableSelect
+                            options={descriptions}
                             value={item.descricao}
                             onValueChange={v => handleDescChange(idx, v)}
                             disabled={isReadOnly}
-                          >
-                            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                            <SelectContent>
-                              {descriptions.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
+                            placeholder="Selecione"
+                            searchPlaceholder="Buscar material..."
+                            emptyMessage="Nenhum material encontrado."
+                          />
                         )}
                       </TableCell>
                       <TableCell>
@@ -572,18 +588,15 @@ export default function SolicitacaoFormPage() {
                             placeholder="Bitola (opcional)"
                           />
                         ) : (
-                          <Select
+                          <SearchableSelect
+                            options={getBitolas(item.descricao)}
                             value={item.bitola}
                             onValueChange={v => handleBitolaChange(idx, v)}
                             disabled={isReadOnly || !item.descricao}
-                          >
-                            <SelectTrigger><SelectValue placeholder="Bitola" /></SelectTrigger>
-                            <SelectContent>
-                              {getBitolas(item.descricao).map(b => (
-                                <SelectItem key={b} value={b}>{b}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            placeholder="Bitola"
+                            searchPlaceholder="Buscar bitola..."
+                            emptyMessage="Nenhuma bitola encontrada."
+                          />
                         )}
                       </TableCell>
                       <TableCell>
