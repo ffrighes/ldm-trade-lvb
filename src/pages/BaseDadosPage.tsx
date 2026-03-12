@@ -250,12 +250,33 @@ export default function BaseDadosPage() {
     }
     setRenamingFamily_saving(true);
     try {
+      // 1. Atualizar a tabela materials
       const { error } = await supabase
         .from("materials")
         .update({ descricao: trimmed })
         .eq("descricao", renamingFamily);
       if (error) throw error;
+
+      // 2. Buscar solicitações ativas (não Finalizada nem Cancelada)
+      const { data: activeSols, error: solError } = await supabase
+        .from("solicitacoes")
+        .select("id")
+        .not("status", "in", '("Finalizada","Cancelada")');
+      if (solError) throw solError;
+
+      // 3. Atualizar descrição nos itens das solicitações ativas
+      if (activeSols && activeSols.length > 0) {
+        const activeIds = activeSols.map((s) => s.id);
+        const { error: itensError } = await supabase
+          .from("solicitacao_itens")
+          .update({ descricao: trimmed })
+          .eq("descricao", renamingFamily)
+          .in("solicitacao_id", activeIds);
+        if (itensError) throw itensError;
+      }
+
       queryClient.invalidateQueries({ queryKey: ["materials"] });
+      queryClient.invalidateQueries({ queryKey: ["solicitacoes"] });
       toast.success("Família renomeada com sucesso");
       setRenameFamilyOpen(false);
     } catch (err: any) {
