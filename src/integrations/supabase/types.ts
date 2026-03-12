@@ -25,7 +25,8 @@ export type Database = {
           material_id: string | null
           projeto_id: string
           quantidade: number
-          solicitacao_id: string
+          solicitacao_id: string | null
+          tipo: string
           unidade: string
         }
         Insert: {
@@ -38,7 +39,8 @@ export type Database = {
           material_id?: string | null
           projeto_id: string
           quantidade?: number
-          solicitacao_id: string
+          solicitacao_id?: string | null
+          tipo?: string
           unidade?: string
         }
         Update: {
@@ -51,7 +53,8 @@ export type Database = {
           material_id?: string | null
           projeto_id?: string
           quantidade?: number
-          solicitacao_id?: string
+          solicitacao_id?: string | null
+          tipo?: string
           unidade?: string
         }
         Relationships: [
