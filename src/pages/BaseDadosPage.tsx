@@ -45,6 +45,8 @@ export default function BaseDadosPage() {
   const [renamingFamily, setRenamingFamily] = useState("");
   const [newFamilyName, setNewFamilyName] = useState("");
   const [renamingFamily_saving, setRenamingFamily_saving] = useState(false);
+  const [newFamilyDialogOpen, setNewFamilyDialogOpen] = useState(false);
+  const [newFamilyInput, setNewFamilyInput] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
@@ -269,6 +271,14 @@ export default function BaseDadosPage() {
     setOpen(true);
   };
 
+  const handleConfirmNewFamily = () => {
+    const name = newFamilyInput.trim();
+    if (!name) return;
+    setNewFamilyDialogOpen(false);
+    setNewFamilyInput("");
+    openNew(name);
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -310,12 +320,39 @@ export default function BaseDadosPage() {
             <Upload className="h-4 w-4 mr-2" />
             {importing ? "Importando..." : "Importar XLSX"}
           </Button>
-          <Button onClick={openNew}>
+          <Button onClick={() => { setNewFamilyInput(""); setNewFamilyDialogOpen(true); }}>
             <Plus className="h-4 w-4 mr-2" />
-            Novo Item
+            Nova Família
           </Button>
         </div>
       </div>
+
+      <Dialog open={newFamilyDialogOpen} onOpenChange={setNewFamilyDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nova Família</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <Label>Nome da família *</Label>
+            <Input
+              className="mt-2"
+              value={newFamilyInput}
+              onChange={(e) => setNewFamilyInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleConfirmNewFamily()}
+              placeholder="Ex: Tubo Sem Costura ASTM A106 Gr B"
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancelar</Button>
+            </DialogClose>
+            <Button onClick={handleConfirmNewFamily} disabled={!newFamilyInput.trim()}>
+              Continuar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={renameFamilyOpen} onOpenChange={setRenameFamilyOpen}>
         <DialogContent className="max-w-md">
