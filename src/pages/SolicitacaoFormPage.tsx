@@ -527,19 +527,7 @@ export default function SolicitacaoFormPage() {
 
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Itens da Solicitação</CardTitle>
-              {!isReadOnly && (
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={addItem}>
-                    <Plus className="h-4 w-4 mr-1" />Adicionar Item
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={addSpecialItem}>
-                    <Star className="h-4 w-4 mr-1" />Item Especial
-                  </Button>
-                </div>
-              )}
-            </div>
+            <CardTitle>Itens da Solicitação</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
@@ -650,8 +638,18 @@ export default function SolicitacaoFormPage() {
                 </TableBody>
               </Table>
             </div>
-            <div className="flex justify-end mt-4 pt-4 border-t">
-              <div className="text-right">
+            <div className="flex items-center justify-between mt-4 pt-4 border-t">
+              {!isReadOnly && (
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={addItem}>
+                    <Plus className="h-4 w-4 mr-1" />Adicionar Item
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={addSpecialItem}>
+                    <Star className="h-4 w-4 mr-1" />Item Especial
+                  </Button>
+                </div>
+              )}
+              <div className="text-right ml-auto">
                 <span className="text-sm text-muted-foreground mr-3">Total Geral:</span>
                 <span className="text-xl font-bold font-mono">{formatBRL(totalGeral)}</span>
               </div>
