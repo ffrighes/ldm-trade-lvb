@@ -14,6 +14,7 @@ import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Trash2, ArrowLeft, Save, Upload, FileText, X, Download, Star } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatBRL } from '@/lib/formatCurrency';
 import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
   AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel,
@@ -68,6 +69,7 @@ export default function SolicitacaoFormPage() {
   const [desenho, setDesenho] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [exportingCostPdf, setExportingCostPdf] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [itens, setItens] = useState<FormItem[]>([emptyItem()]);
   const [loaded, setLoaded] = useState(false);
@@ -310,6 +312,128 @@ export default function SolicitacaoFormPage() {
   };
   // ──────────────────────────────────────────────────────────────────────────
 
+  // ─── Exportar Relatório de Custos ─────────────────────────────────────────
+  const handleExportCostPDF = () => {
+    if (!existing) return;
+    setExportingCostPdf(true);
+
+    try {
+      const projeto = projects.find(p => p.id === projetoId);
+      const dataGeracao =
+        new Date().toLocaleDateString('pt-BR') +
+        ' às ' +
+        new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+      const doc = new jsPDF('l', 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.getWidth();
+
+      // Header
+      doc.setFontSize(15);
+      doc.setFont('helvetica', 'bold');
+      doc.text('LDM TRADE', 14, 16);
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Relatório de Custos — Solicitação ${existing.numero}`, pageWidth - 14, 16, { align: 'right' });
+      doc.setDrawColor(34, 34, 34);
+      doc.setLineWidth(0.5);
+      doc.line(14, 19, pageWidth - 14, 19);
+
+      // Info section
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Informações Gerais', 14, 26);
+      doc.setLineWidth(0.2);
+      doc.setDrawColor(200, 200, 200);
+      doc.line(14, 27.5, pageWidth - 14, 27.5);
+
+      doc.setFontSize(8.5);
+      const infoLines: [string, string][] = [
+        ['Projeto:', projeto ? `${projeto.numero} - ${projeto.descricao}` : '—'],
+        ['Motivo:', motivo || '—'],
+        ['Data da Solicitação:', dataSolicitacao || '—'],
+        ['Status:', status || '—'],
+      ];
+      if (revisao) infoLines.push(['Revisão:', revisao]);
+      if (erp) infoLines.push(['ERP:', erp]);
+
+      let infoY = 32;
+      infoLines.forEach(([label, value]) => {
+        doc.setFont('helvetica', 'bold');
+        doc.text(label, 14, infoY);
+        doc.setFont('helvetica', 'normal');
+        doc.text(value, 50, infoY);
+        infoY += 5;
+      });
+
+      // Build rows with costs from materials DB
+      let totalGeral = 0;
+      const tableData = itens.map((item, i) => {
+        const mat = item.material_id ? materials.find(m => m.id === item.material_id) : null;
+        const custoUnit = mat?.custo ?? 0;
+        const custoTotal = item.quantidade * custoUnit;
+        totalGeral += custoTotal;
+        return [
+          String(i + 1),
+          item.descricao,
+          item.bitola,
+          item.erp_item || '',
+          String(item.quantidade),
+          item.unidade,
+          formatBRL(custoUnit),
+          formatBRL(custoTotal),
+        ];
+      });
+
+      // Items table
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Itens da Solicitação', 14, infoY + 4);
+      doc.setLineWidth(0.2);
+      doc.line(14, infoY + 5.5, pageWidth - 14, infoY + 5.5);
+
+      autoTable(doc, {
+        startY: infoY + 8,
+        head: [['#', 'Descrição', 'Bitola', 'ERP', 'Qtd', 'Un.', 'Custo Unit.', 'Custo Total']],
+        body: tableData,
+        styles: { fontSize: 8, cellPadding: 1.5 },
+        headStyles: { fillColor: [34, 34, 34], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [245, 245, 245] },
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 8 },
+          2: { cellWidth: 22 },
+          3: { cellWidth: 28 },
+          4: { halign: 'center', cellWidth: 14 },
+          5: { halign: 'center', cellWidth: 12 },
+          6: { halign: 'right', cellWidth: 32 },
+          7: { halign: 'right', cellWidth: 32 },
+        },
+        margin: { left: 14, right: 14 },
+      });
+
+      // Total Geral
+      const finalY = (doc as any).lastAutoTable.finalY + 6;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(34, 34, 34);
+      doc.text('Total Geral:', pageWidth - 14 - 60, finalY);
+      doc.text(formatBRL(totalGeral), pageWidth - 14, finalY, { align: 'right' });
+
+      // Footer
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(136, 136, 136);
+      doc.text(`Gerado em ${dataGeracao}`, 14, doc.internal.pageSize.getHeight() - 8);
+
+      doc.save(`relatorio-custos-${existing.numero}.pdf`);
+      setExportingCostPdf(false);
+    } catch (err) {
+      console.error(err);
+      toast.error('Erro ao gerar relatório de custos');
+      setExportingCostPdf(false);
+    }
+  };
+  // ──────────────────────────────────────────────────────────────────────────
+
   const handleSave = async () => {
     if (!projetoId) { toast.error('Selecione um projeto'); return; }
     if (!motivo.trim()) { toast.error('Informe o motivo'); return; }
@@ -398,7 +522,11 @@ export default function SolicitacaoFormPage() {
           {existing ? `Solicitação ${existing.numero}` : 'Nova Solicitação'}
         </h1>
         {existing && (
-          <div className="ml-auto">
+          <div className="ml-auto flex gap-2">
+            <Button variant="outline" onClick={handleExportCostPDF} disabled={exportingCostPdf}>
+              <Download className="h-4 w-4 mr-2" />
+              {exportingCostPdf ? 'Gerando...' : 'Relatório de Custos'}
+            </Button>
             <Button variant="outline" onClick={handleExportPDF} disabled={exportingPdf}>
               <Download className="h-4 w-4 mr-2" />
               {exportingPdf ? 'Gerando PDF...' : 'Exportar PDF'}
