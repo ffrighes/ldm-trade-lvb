@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useProjects, useMaterials, useAddInventarioAjuste } from '@/hooks/useSupabaseData';
+import { useProjects, useMaterials, useAddInventarioAjuste, useDeleteInventarioItem } from '@/hooks/useSupabaseData';
 import { useInventario } from '@/hooks/useInventario';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -7,9 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Package, ChevronDown, ChevronRight, Plus } from 'lucide-react';
+import { Package, ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { formatBRL } from '@/lib/formatCurrency';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
@@ -26,13 +27,22 @@ interface InventarioItem {
   tipo: string;
 }
 
+interface Origem {
+  id: string;
+  solicitacao_numero: string;
+  quantidade: number;
+  custo_unitario: number;
+  custo_total: number;
+  tipo: string;
+}
+
 interface GroupedItem {
   descricao: string;
   bitola: string;
   unidade: string;
   totalQuantidade: number;
   totalCusto: number;
-  origens: { solicitacao_numero: string; quantidade: number; custo_unitario: number; custo_total: number; tipo: string }[];
+  origens: Origem[];
 }
 
 const EMPTY_FORM = {
@@ -55,6 +65,10 @@ export default function InventarioPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const addAjuste = useAddInventarioAjuste();
 
+  // Delete confirmation state
+  const [deleteTarget, setDeleteTarget] = useState<{ ids: string[]; label: string } | null>(null);
+  const deleteItem = useDeleteInventarioItem();
+
   const selectedProject = projects?.find(p => p.id === selectedProjectId);
 
   const grouped = useMemo(() => {
@@ -63,7 +77,8 @@ export default function InventarioPage() {
     for (const item of inventario as InventarioItem[]) {
       const key = `${item.descricao}||${item.bitola}||${item.unidade}`;
       const existing = map.get(key);
-      const origem = {
+      const origem: Origem = {
+        id: item.id,
         solicitacao_numero: item.tipo === 'ajuste' ? 'AJUSTE' : item.solicitacao_numero,
         quantidade: Number(item.quantidade),
         custo_unitario: Number(item.custo_unitario),
@@ -141,6 +156,12 @@ export default function InventarioPage() {
     });
     setForm(EMPTY_FORM);
     setDialogOpen(false);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    await deleteItem.mutateAsync({ ids: deleteTarget.ids, projeto_id: selectedProjectId });
+    setDeleteTarget(null);
   };
 
   // Unique description options from materials for datalist
@@ -323,6 +344,7 @@ export default function InventarioPage() {
                       <TableHead>Unidade</TableHead>
                       <TableHead className="text-right">Custo Total</TableHead>
                       <TableHead>Origens</TableHead>
+                      <TableHead className="w-10"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -330,12 +352,13 @@ export default function InventarioPage() {
                       const key = `${group.descricao}||${group.bitola}||${group.unidade}`;
                       const isOpen = openGroups.has(key);
                       const hasMultiple = group.origens.length > 1;
+                      const allIds = group.origens.map(o => o.id);
 
                       return (
                         <Collapsible key={key} open={isOpen} onOpenChange={() => toggleGroup(key)} asChild>
                           <>
                             <CollapsibleTrigger asChild>
-                              <TableRow className={hasMultiple ? 'cursor-pointer hover:bg-muted/50' : ''}>
+                              <TableRow className={hasMultiple ? 'cursor-pointer hover:bg-muted/50' : 'hover:bg-muted/50'}>
                                 <TableCell className="w-8 px-2">
                                   {hasMultiple && (
                                     isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -359,6 +382,22 @@ export default function InventarioPage() {
                                     ))}
                                   </div>
                                 </TableCell>
+                                <TableCell className="w-10 px-2" onClick={e => e.stopPropagation()}>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                    onClick={e => {
+                                      e.stopPropagation();
+                                      setDeleteTarget({
+                                        ids: allIds,
+                                        label: `${group.descricao}${group.bitola ? ` (${group.bitola})` : ''}`,
+                                      });
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </TableCell>
                               </TableRow>
                             </CollapsibleTrigger>
                             <CollapsibleContent asChild>
@@ -376,6 +415,19 @@ export default function InventarioPage() {
                                         {o.solicitacao_numero}
                                       </Badge>
                                     </TableCell>
+                                    <TableCell className="w-10 px-2">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                        onClick={() => setDeleteTarget({
+                                          ids: [o.id],
+                                          label: `${group.descricao} — ${o.solicitacao_numero}`,
+                                        })}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </TableCell>
                                   </TableRow>
                                 ))}
                               </>
@@ -391,6 +443,33 @@ export default function InventarioPage() {
           )}
         </>
       )}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={open => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover do inventário?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget && (
+                <>
+                  O{deleteTarget.ids.length > 1 ? 's' : ''} registro{deleteTarget.ids.length > 1 ? 's' : ''} de{' '}
+                  <span className="font-medium text-foreground">{deleteTarget.label}</span>{' '}
+                  {deleteTarget.ids.length > 1 ? 'serão removidos' : 'será removido'} permanentemente do inventário.
+                  Esta ação não pode ser desfeita.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteItem.isPending ? 'Removendo...' : 'Remover'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

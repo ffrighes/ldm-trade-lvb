@@ -265,6 +265,21 @@ export function useAddInventarioAjuste() {
   });
 }
 
+export function useDeleteInventarioItem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ ids, projeto_id }: { ids: string[]; projeto_id: string }) => {
+      const { error } = await supabase.from('inventario').delete().in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      qc.invalidateQueries({ queryKey: ['inventario', variables.projeto_id] });
+      toast.success('Item removido do inventário.');
+    },
+    onError: () => toast.error('Erro ao remover item do inventário.'),
+  });
+}
+
 export function useDeleteSolicitacao() {
   const qc = useQueryClient();
   return useMutation({
