@@ -14,7 +14,6 @@ import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Trash2, ArrowLeft, Save, Upload, FileText, X, Download, Star } from 'lucide-react';
 import { toast } from 'sonner';
-import { formatBRL } from '@/lib/formatCurrency';
 import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
   AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel,
@@ -389,8 +388,6 @@ export default function SolicitacaoFormPage() {
     }
   };
 
-  const totalGeral = itens.reduce((a, i) => a + i.custo_total, 0);
-
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
@@ -537,8 +534,6 @@ export default function SolicitacaoFormPage() {
                     <TableHead className="w-28">ERP</TableHead>
                     <TableHead className="w-24">Qtd *</TableHead>
                     <TableHead className="w-20">Unid.</TableHead>
-                    <TableHead className="text-right w-32">Custo Unit.</TableHead>
-                    <TableHead className="text-right">Custo Total</TableHead>
                     <TableHead className="w-12"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -610,20 +605,6 @@ export default function SolicitacaoFormPage() {
                           <span className="text-center text-sm block">{item.unidade}</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-right">
-                        <Input
-                          type="number"
-                          min={0}
-                          step={0.01}
-                          value={item.custo_unitario}
-                          onChange={e => handleCustoChange(idx, parseFloat(e.target.value) || 0)}
-                          disabled={isReadOnly}
-                          className="w-28 text-right"
-                        />
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-sm">
-                        {formatBRL(item.custo_total)}
-                      </TableCell>
                       <TableCell>
                         {!isReadOnly && (
                           <Button variant="ghost" size="icon" onClick={() => removeItem(idx)}>
@@ -636,22 +617,16 @@ export default function SolicitacaoFormPage() {
                 </TableBody>
               </Table>
             </div>
-            <div className="flex items-center justify-between mt-4 pt-4 border-t">
-              {!isReadOnly && (
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={addItem}>
-                    <Plus className="h-4 w-4 mr-1" />Adicionar Item
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={addSpecialItem}>
-                    <Star className="h-4 w-4 mr-1" />Item Especial
-                  </Button>
-                </div>
-              )}
-              <div className="text-right ml-auto">
-                <span className="text-sm text-muted-foreground mr-3">Total Geral:</span>
-                <span className="text-xl font-bold font-mono">{formatBRL(totalGeral)}</span>
+            {!isReadOnly && (
+              <div className="flex gap-2 mt-4 pt-4 border-t">
+                <Button variant="outline" size="sm" onClick={addItem}>
+                  <Plus className="h-4 w-4 mr-1" />Adicionar Item
+                </Button>
+                <Button variant="outline" size="sm" onClick={addSpecialItem}>
+                  <Star className="h-4 w-4 mr-1" />Item Especial
+                </Button>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
 
