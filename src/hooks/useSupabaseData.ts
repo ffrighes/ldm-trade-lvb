@@ -21,7 +21,7 @@ export function useMaterials() {
 export function useAddMaterial() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (m: { descricao: string; bitola: string; sch: string; unidade: string; erp: string; custo: number; notas: string }) => {
+    mutationFn: async (m: { descricao: string; bitola: string; unidade: string; erp: string; custo: number; notas: string }) => {
       const { data, error } = await supabase.from('materials').insert(m).select().single();
       if (error) throw error;
       return data;
@@ -33,7 +33,7 @@ export function useAddMaterial() {
 export function useUpdateMaterial() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...data }: { id: string; descricao?: string; bitola?: string; sch?: string; unidade?: string; erp?: string; custo?: number; notas?: string }) => {
+    mutationFn: async ({ id, ...data }: { id: string; descricao?: string; bitola?: string; unidade?: string; erp?: string; custo?: number; notas?: string }) => {
       const { error } = await supabase.from('materials').update(data).eq('id', id);
       if (error) throw error;
     },

@@ -87,7 +87,6 @@ export type Database = {
           erp: string
           id: string
           notas: string
-          sch: string
           unidade: string
         }
         Insert: {
@@ -98,7 +97,6 @@ export type Database = {
           erp?: string
           id?: string
           notas?: string
-          sch?: string
           unidade?: string
         }
         Update: {
@@ -109,7 +107,6 @@ export type Database = {
           erp?: string
           id?: string
           notas?: string
-          sch?: string
           unidade?: string
         }
         Relationships: []

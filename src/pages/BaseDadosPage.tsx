@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, Search, ChevronDown, ChevronRight, Upload, Download } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, ChevronDown, ChevronRight, Upload, Download, PlusCircle } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
@@ -37,7 +37,7 @@ export default function BaseDadosPage() {
   const [descFilter, setDescFilter] = useState("all");
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ descricao: "", bitola: "", sch: "", unidade: "m", erp: "", custo: "", notas: "" });
+  const [form, setForm] = useState({ descricao: "", bitola: "", unidade: "m", erp: "", custo: "", notas: "" });
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [importing, setImporting] = useState(false);
   const [clearBeforeImport, setClearBeforeImport] = useState(false);
@@ -61,8 +61,6 @@ export default function BaseDadosPage() {
         Ø: "bitola",
         Bitola: "bitola",
         bitola: "bitola",
-        SCH: "sch",
-        sch: "sch",
         "Un.": "unidade",
         Unidade: "unidade",
         unidade: "unidade",
@@ -86,7 +84,6 @@ export default function BaseDadosPage() {
           return {
             descricao: String(mapped.descricao).trim(),
             bitola: String(mapped.bitola).trim(),
-            sch: String(mapped.sch || "").trim(),
             unidade: unRaw === "M" ? "m" : unRaw === "STK" ? "un" : unRaw.toLowerCase() || "un",
             erp: String(mapped.erp || "").trim(),
             custo: parseFloat(String(mapped.custo || "0").replace(",", ".")) || 0,
@@ -193,7 +190,6 @@ export default function BaseDadosPage() {
           id: editingId,
           descricao: form.descricao,
           bitola: form.bitola,
-          sch: form.sch,
           unidade: form.unidade,
           erp: form.erp,
           custo,
@@ -204,7 +200,6 @@ export default function BaseDadosPage() {
         await addMaterial.mutateAsync({
           descricao: form.descricao,
           bitola: form.bitola,
-          sch: form.sch,
           unidade: form.unidade,
           erp: form.erp,
           custo,
@@ -227,7 +222,6 @@ export default function BaseDadosPage() {
     setForm({
       descricao: m.descricao,
       bitola: m.bitola,
-      sch: (m as any).sch || "",
       unidade: m.unidade,
       erp: (m as any).erp || "",
       custo: m.custo.toString(),
@@ -236,9 +230,9 @@ export default function BaseDadosPage() {
     setOpen(true);
   };
 
-  const openNew = () => {
+  const openNew = (familiaDescricao?: string) => {
     setEditingId(null);
-    setForm({ descricao: "", bitola: "", sch: "", unidade: "m", erp: "", custo: "", notas: "" });
+    setForm({ descricao: familiaDescricao ?? "", bitola: "", unidade: "m", erp: "", custo: "", notas: "" });
     setOpen(true);
   };
 
@@ -254,7 +248,6 @@ export default function BaseDadosPage() {
               const exportData = materials.map((m) => ({
                 "Descrição (Família)": m.descricao,
                 Ø: m.bitola,
-                SCH: m.sch,
                 "Un.": m.unidade,
                 ERP: m.erp,
                 Custo: m.custo,
@@ -301,19 +294,9 @@ export default function BaseDadosPage() {
               <Label>Descrição (Família) *</Label>
               <Input value={form.descricao} onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Ø (Bitola) *</Label>
-                <Input value={form.bitola} onChange={(e) => setForm((f) => ({ ...f, bitola: e.target.value }))} />
-              </div>
-              <div>
-                <Label>SCH</Label>
-                <Input
-                  value={form.sch}
-                  onChange={(e) => setForm((f) => ({ ...f, sch: e.target.value }))}
-                  placeholder="Ex: SCH10S"
-                />
-              </div>
+            <div>
+              <Label>Ø (Bitola) *</Label>
+              <Input value={form.bitola} onChange={(e) => setForm((f) => ({ ...f, bitola: e.target.value }))} />
             </div>
             {/* CORRIGIDO: grid-cols-5 para dar mais espaço ao campo ERP */}
             <div className="grid grid-cols-5 gap-4">
@@ -411,29 +394,39 @@ export default function BaseDadosPage() {
               const isExpanded = expandedGroups.has(descricao);
               return (
                 <div key={descricao} className="border rounded-lg overflow-hidden">
-                  <button
-                    onClick={() => toggleGroup(descricao)}
-                    className="w-full flex items-center gap-3 px-4 py-3 bg-muted/50 hover:bg-muted transition-colors text-left"
-                  >
-                    {isExpanded ? (
-                      <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                    )}
-                    <span className="font-medium text-sm flex-1">{descricao}</span>
-                    <span className="text-xs text-muted-foreground bg-background px-2 py-0.5 rounded-full">
-                      {items.length} Ø
-                    </span>
-                  </button>
+                  <div className="flex items-center bg-muted/50 hover:bg-muted transition-colors">
+                    <button
+                      onClick={() => toggleGroup(descricao)}
+                      className="flex-1 flex items-center gap-3 px-4 py-3 text-left"
+                    >
+                      {isExpanded ? (
+                        <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                      )}
+                      <span className="font-medium text-sm flex-1">{descricao}</span>
+                      <span className="text-xs text-muted-foreground bg-background px-2 py-0.5 rounded-full">
+                        {items.length} Ø
+                      </span>
+                    </button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="mr-2 h-7 px-2 text-muted-foreground hover:text-foreground"
+                      onClick={(e) => { e.stopPropagation(); openNew(descricao); }}
+                      title="Adicionar bitola a esta família"
+                    >
+                      <PlusCircle className="h-4 w-4 mr-1" />
+                      <span className="text-xs">Bitola</span>
+                    </Button>
+                  </div>
                   {isExpanded && (
                     <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
                             <TableHead>Ø</TableHead>
-                            <TableHead>SCH</TableHead>
                             <TableHead>Un.</TableHead>
-                            {/* CORRIGIDO: min-width para garantir espaço adequado ao código ERP */}
                             <TableHead className="min-w-[160px]">ERP</TableHead>
                             <TableHead className="text-right">Custo</TableHead>
                             <TableHead>Notas</TableHead>
@@ -444,9 +437,7 @@ export default function BaseDadosPage() {
                           {items.map((m) => (
                             <TableRow key={m.id}>
                               <TableCell className="font-mono">{m.bitola}</TableCell>
-                              <TableCell className="text-muted-foreground">{(m as any).sch || "-"}</TableCell>
                               <TableCell>{m.unidade}</TableCell>
-                              {/* CORRIGIDO: removido text-xs para melhor legibilidade do código ERP */}
                               <TableCell className="font-mono">{(m as any).erp || "-"}</TableCell>
                               <TableCell className="text-right font-mono">
                                 {m.custo > 0 ? formatBRL(m.custo) : "-"}
