@@ -289,8 +289,27 @@ export default function BaseDadosPage() {
 
   const handleDeleteFamily = async (descricao: string) => {
     try {
+      // 1. Obter IDs dos materiais da família
+      const { data: familyMaterials, error: fetchError } = await supabase
+        .from("materials")
+        .select("id")
+        .eq("descricao", descricao);
+      if (fetchError) throw fetchError;
+
+      // 2. Nulificar referências em solicitacao_itens (respeitar FK)
+      if (familyMaterials && familyMaterials.length > 0) {
+        const ids = familyMaterials.map((m) => m.id);
+        const { error: itensError } = await supabase
+          .from("solicitacao_itens")
+          .update({ material_id: null })
+          .in("material_id", ids);
+        if (itensError) throw itensError;
+      }
+
+      // 3. Deletar os materiais
       const { error } = await supabase.from("materials").delete().eq("descricao", descricao);
       if (error) throw error;
+
       queryClient.invalidateQueries({ queryKey: ["materials"] });
       toast.success(`Família "${descricao}" excluída`);
     } catch (err: any) {
