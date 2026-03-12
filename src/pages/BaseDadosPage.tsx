@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, Search, ChevronDown, ChevronRight, Upload, Download, PlusCircle } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, ChevronDown, ChevronRight, Upload, Download, PlusCircle, FolderPen } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
@@ -41,6 +41,10 @@ export default function BaseDadosPage() {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [importing, setImporting] = useState(false);
   const [clearBeforeImport, setClearBeforeImport] = useState(false);
+  const [renameFamilyOpen, setRenameFamilyOpen] = useState(false);
+  const [renamingFamily, setRenamingFamily] = useState("");
+  const [newFamilyName, setNewFamilyName] = useState("");
+  const [renamingFamily_saving, setRenamingFamily_saving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
@@ -230,6 +234,35 @@ export default function BaseDadosPage() {
     setOpen(true);
   };
 
+  const openRenameFamily = (descricao: string) => {
+    setRenamingFamily(descricao);
+    setNewFamilyName(descricao);
+    setRenameFamilyOpen(true);
+  };
+
+  const handleRenameFamily = async () => {
+    const trimmed = newFamilyName.trim();
+    if (!trimmed || trimmed === renamingFamily) {
+      setRenameFamilyOpen(false);
+      return;
+    }
+    setRenamingFamily_saving(true);
+    try {
+      const { error } = await supabase
+        .from("materials")
+        .update({ descricao: trimmed })
+        .eq("descricao", renamingFamily);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["materials"] });
+      toast.success("Família renomeada com sucesso");
+      setRenameFamilyOpen(false);
+    } catch (err: any) {
+      toast.error("Erro ao renomear família: " + (err.message || "erro desconhecido"));
+    } finally {
+      setRenamingFamily_saving(false);
+    }
+  };
+
   const openNew = (familiaDescricao?: string) => {
     setEditingId(null);
     setForm({ descricao: familiaDescricao ?? "", bitola: "", unidade: "m", erp: "", custo: "", notas: "" });
@@ -283,6 +316,37 @@ export default function BaseDadosPage() {
           </Button>
         </div>
       </div>
+
+      <Dialog open={renameFamilyOpen} onOpenChange={setRenameFamilyOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Renomear Família</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-4">
+            <div>
+              <Label>Nome atual</Label>
+              <p className="text-sm text-muted-foreground mt-1 font-mono">{renamingFamily}</p>
+            </div>
+            <div>
+              <Label>Novo nome *</Label>
+              <Input
+                value={newFamilyName}
+                onChange={(e) => setNewFamilyName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleRenameFamily()}
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancelar</Button>
+            </DialogClose>
+            <Button onClick={handleRenameFamily} disabled={renamingFamily_saving || !newFamilyName.trim()}>
+              {renamingFamily_saving ? "Salvando..." : "Renomear"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">
@@ -409,6 +473,16 @@ export default function BaseDadosPage() {
                         {items.length} Ø
                       </span>
                     </button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-muted-foreground hover:text-foreground"
+                      onClick={(e) => { e.stopPropagation(); openRenameFamily(descricao); }}
+                      title="Renomear família"
+                    >
+                      <FolderPen className="h-4 w-4 mr-1" />
+                      <span className="text-xs">Renomear</span>
+                    </Button>
                     <Button
                       variant="ghost"
                       size="sm"
