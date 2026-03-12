@@ -26,6 +26,7 @@ interface FormItem {
   descricao: string;
   bitola: string;
   erp_item: string;
+  notas: string;
   quantidade: number;
   unidade: string;
   custo_unitario: number;
@@ -39,6 +40,7 @@ const emptyItem = (): FormItem => ({
   descricao: '',
   bitola: '',
   erp_item: '',
+  notas: '',
   quantidade: 1,
   unidade: 'un',
   custo_unitario: 0,
@@ -94,6 +96,7 @@ export default function SolicitacaoFormPage() {
             descricao: i.descricao,
             bitola: i.bitola,
             erp_item: mat?.erp || '',
+            notas: (mat as any)?.notas || '',
             quantidade: i.quantidade,
             unidade: i.unidade,
             custo_unitario: i.custo_unitario,
@@ -143,6 +146,7 @@ export default function SolicitacaoFormPage() {
       const custo_unitario = mat?.custo || 0;
       const unidade = mat?.unidade || 'un';
       const erp_item = mat?.erp || '';
+      const notas = (mat as any)?.notas || '';
       return {
         ...item,
         bitola,
@@ -150,6 +154,7 @@ export default function SolicitacaoFormPage() {
         custo_unitario,
         unidade,
         erp_item,
+        notas,
         custo_total: item.quantidade * custo_unitario,
       };
     }));
@@ -270,13 +275,12 @@ export default function SolicitacaoFormPage() {
         item.erp_item || '',
         String(item.quantidade),
         item.unidade,
-        formatBRL(item.custo_unitario),
-        formatBRL(item.custo_total),
+        item.notas || '',
       ]);
 
       autoTable(doc, {
         startY: infoY + 8,
-        head: [['#', 'Descrição', 'Bitola', 'ERP', 'Qtd', 'Un.', 'Custo Unit.', 'Custo Total']],
+        head: [['#', 'Descrição', 'Bitola', 'ERP', 'Qtd', 'Un.', 'Notas']],
         body: tableData,
         styles: { fontSize: 8, cellPadding: 1.5 },
         headStyles: { fillColor: [34, 34, 34], textColor: 255, fontStyle: 'bold' },
@@ -285,17 +289,9 @@ export default function SolicitacaoFormPage() {
           0: { halign: 'center', cellWidth: 8 },
           4: { halign: 'center', cellWidth: 12 },
           5: { halign: 'center', cellWidth: 10 },
-          6: { halign: 'right', cellWidth: 22 },
-          7: { halign: 'right', cellWidth: 22 },
         },
         margin: { left: 14, right: 14 },
       });
-
-      // Total
-      const finalY = (doc as any).lastAutoTable?.finalY || infoY + 40;
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`Total Geral: ${formatBRL(totalGeral)}`, pageWidth - 14, finalY + 8, { align: 'right' });
 
       // Footer
       doc.setFontSize(7);
