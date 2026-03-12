@@ -59,7 +59,8 @@ export default function SolicitacoesPage() {
   const calcCustoAtualizado = (itens: any[]) =>
     itens.reduce((acc, item) => {
       const mat = item.material_id ? materials.find((m: any) => m.id === item.material_id) : null;
-      return acc + item.quantidade * (mat?.custo ?? 0);
+      const custo = mat ? (mat.custo ?? 0) : (item.custo_unitario ?? 0);
+      return acc + item.quantidade * custo;
     }, 0);
 
   const handleAtualizarCustos = async (e: React.MouseEvent, solicitacaoId: string, itens: any[]) => {
