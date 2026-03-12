@@ -204,7 +204,7 @@ export default function SolicitacaoFormPage() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  // ─── Exportar PDF: A4 vertical, sem dependências externas ─────────────────
+  // ─── Exportar PDF: A4 horizontal ──────────────────────────────────────────
   const handleExportPDF = () => {
     if (!existing) return;
     setExportingPdf(true);
@@ -219,7 +219,7 @@ export default function SolicitacaoFormPage() {
 
 
 
-      const doc = new jsPDF('p', 'mm', 'a4');
+      const doc = new jsPDF('l', 'mm', 'a4');
       const pageWidth = doc.internal.pageSize.getWidth();
 
       // Header
@@ -287,8 +287,10 @@ export default function SolicitacaoFormPage() {
         alternateRowStyles: { fillColor: [245, 245, 245] },
         columnStyles: {
           0: { halign: 'center', cellWidth: 8 },
-          4: { halign: 'center', cellWidth: 12 },
-          5: { halign: 'center', cellWidth: 10 },
+          2: { cellWidth: 22, overflow: 'hidden' },
+          3: { cellWidth: 28, overflow: 'hidden' },
+          4: { halign: 'center', cellWidth: 14, overflow: 'hidden' },
+          5: { halign: 'center', cellWidth: 12, overflow: 'hidden' },
         },
         margin: { left: 14, right: 14 },
       });
