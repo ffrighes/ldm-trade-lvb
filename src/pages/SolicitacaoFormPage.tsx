@@ -370,7 +370,7 @@ export default function SolicitacaoFormPage() {
       notas,
       status,
       desenho,
-      itens: itens.map(({ key, erp_item, isSpecial, ...rest }) => rest),
+      itens: itens.map(({ key, erp_item, notas: _notas, isSpecial, ...rest }) => rest),
     };
 
     try {
