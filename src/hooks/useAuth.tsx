@@ -89,6 +89,7 @@ function translateError(message: string): string {
     'Password should be at least 6 characters': 'A senha deve ter pelo menos 6 caracteres.',
     'Email rate limit exceeded': 'Muitas tentativas. Aguarde alguns minutos.',
     'For security purposes, you can only request this once every 60 seconds': 'Por segurança, aguarde 60 segundos antes de tentar novamente.',
+    'Signups not allowed for this instance': 'O cadastro de novos usuários está desabilitado. Contate um administrador.',
   };
   return map[message] || `Erro: ${message}`;
 }

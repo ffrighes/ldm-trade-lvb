@@ -9,18 +9,25 @@ export interface AdminUser {
   last_sign_in_at: string | null;
 }
 
+async function callManageUsers(action: string, payload: Record<string, string> = {}) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('Não autenticado.');
+
+  const res = await supabase.functions.invoke('manage-users', {
+    body: { action, ...payload },
+  });
+
+  if (res.error) throw new Error(res.error.message);
+  if (res.data?.error) throw new Error(res.data.error);
+  return res.data;
+}
+
 export function useAdminUsers() {
   return useQuery({
     queryKey: ['admin-users'],
     queryFn: async () => {
-      const { data, error } = await supabase.auth.admin.listUsers();
-      if (error) throw error;
-      return data.users.map((u) => ({
-        id: u.id,
-        email: u.email ?? '',
-        created_at: u.created_at,
-        last_sign_in_at: u.last_sign_in_at ?? null,
-      })) as AdminUser[];
+      const data = await callManageUsers('list');
+      return data.users as AdminUser[];
     },
   });
 }
@@ -29,13 +36,7 @@ export function useCreateUser() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ email, password }: { email: string; password: string }) => {
-      const { data, error } = await supabase.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-      });
-      if (error) throw error;
-      return data;
+      return callManageUsers('create', { email, password });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-users'] });
@@ -51,11 +52,10 @@ export function useUpdateUser() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, email, password }: { id: string; email?: string; password?: string }) => {
-      const updates: Record<string, string> = {};
-      if (email) updates.email = email;
-      if (password) updates.password = password;
-      const { error } = await supabase.auth.admin.updateUserById(id, updates);
-      if (error) throw error;
+      const payload: Record<string, string> = { id };
+      if (email) payload.email = email;
+      if (password) payload.password = password;
+      return callManageUsers('update', payload);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-users'] });
@@ -71,8 +71,7 @@ export function useDeleteUser() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.auth.admin.deleteUser(id);
-      if (error) throw error;
+      return callManageUsers('delete', { id });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-users'] });
