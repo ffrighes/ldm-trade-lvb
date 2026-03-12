@@ -14,7 +14,6 @@ import BaseDadosPage from "@/pages/BaseDadosPage";
 import InventarioPage from "@/pages/InventarioPage";
 import AdminUsersPage from "@/pages/AdminUsersPage";
 import LoginPage from "@/pages/LoginPage";
-import RegisterPage from "@/pages/RegisterPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import UpdatePasswordPage from "@/pages/UpdatePasswordPage";
 import NotFound from "@/pages/NotFound";
@@ -31,7 +30,6 @@ const App = () => (
           <Routes>
             {/* Public routes */}
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/registro" element={<RegisterPage />} />
             <Route path="/redefinir-senha" element={<ResetPasswordPage />} />
             <Route path="/atualizar-senha" element={<UpdatePasswordPage />} />
 

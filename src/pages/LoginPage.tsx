@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+// NOTE: Self-registration is disabled in Supabase. New users are created by admins via /admin/usuarios.
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -85,17 +86,9 @@ export default function LoginPage() {
                 </>
               )}
             </Button>
-            <div className="flex flex-col items-center gap-1 text-sm">
-              <Link to="/redefinir-senha" className="text-primary hover:underline">
-                Esqueceu sua senha?
-              </Link>
-              <span className="text-muted-foreground">
-                Não tem conta?{' '}
-                <Link to="/registro" className="text-primary hover:underline">
-                  Cadastre-se
-                </Link>
-              </span>
-            </div>
+            <Link to="/redefinir-senha" className="text-sm text-primary hover:underline">
+              Esqueceu sua senha?
+            </Link>
           </CardFooter>
         </form>
       </Card>
