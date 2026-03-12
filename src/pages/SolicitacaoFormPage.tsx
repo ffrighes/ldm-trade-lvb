@@ -365,11 +365,11 @@ export default function SolicitacaoFormPage() {
         infoY += 5;
       });
 
-      // Build rows with costs from materials DB
+      // Build rows with costs from materials DB (or stored custo_unitario for special items)
       let totalGeral = 0;
       const tableData = itens.map((item, i) => {
         const mat = item.material_id ? materials.find(m => m.id === item.material_id) : null;
-        const custoUnit = mat?.custo ?? 0;
+        const custoUnit = mat ? (mat.custo ?? 0) : (item.custo_unitario ?? 0);
         const custoTotal = item.quantidade * custoUnit;
         totalGeral += custoTotal;
         return [
@@ -662,6 +662,7 @@ export default function SolicitacaoFormPage() {
                     <TableHead className="w-28">ERP</TableHead>
                     <TableHead className="w-24">Qtd *</TableHead>
                     <TableHead className="w-20">Unid.</TableHead>
+                    <TableHead className="w-32">Custo Unit.</TableHead>
                     <TableHead className="w-12"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -731,6 +732,22 @@ export default function SolicitacaoFormPage() {
                           />
                         ) : (
                           <span className="text-center text-sm block">{item.unidade}</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {item.isSpecial ? (
+                          <Input
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            value={item.custo_unitario}
+                            onChange={e => handleCustoChange(idx, parseFloat(e.target.value) || 0)}
+                            disabled={isReadOnly}
+                            className="w-28"
+                            placeholder="0,00"
+                          />
+                        ) : (
+                          <span className="text-sm text-muted-foreground block text-right pr-2">{formatBRL(item.custo_unitario)}</span>
                         )}
                       </TableCell>
                       <TableCell>
