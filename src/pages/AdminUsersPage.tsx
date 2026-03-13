@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAdminUsers, useCreateUser, useUpdateUser, useDeleteUser, AdminUser } from '@/hooks/useAdminUsers';
+import { useIsAdmin } from '@/hooks/useUserRole';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,7 +9,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Plus, Pencil, Trash2, Users, AlertCircle } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, Plus, Pencil, Trash2, Users, AlertCircle, ShieldAlert } from 'lucide-react';
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: 'Administrador',
+  gerente: 'Gerente',
+  projetista: 'Projetista',
+  comprador: 'Comprador',
+  coordenador_campo: 'Coordenador de Campo',
+};
 
 function validatePassword(password: string): string | null {
   if (password.length < 8) return 'A senha deve ter no mínimo 8 caracteres.';
@@ -18,6 +29,7 @@ function validatePassword(password: string): string | null {
 }
 
 export default function AdminUsersPage() {
+  const { isAdmin, isLoading: roleLoading } = useIsAdmin();
   const { data: users, isLoading, error: fetchError } = useAdminUsers();
   const createUser = useCreateUser();
   const updateUser = useUpdateUser();
@@ -29,12 +41,32 @@ export default function AdminUsersPage() {
   const [deletingUser, setDeletingUser] = useState<AdminUser | null>(null);
   const [formEmail, setFormEmail] = useState('');
   const [formPassword, setFormPassword] = useState('');
+  const [formRole, setFormRole] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
+
+  if (roleLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 gap-4">
+        <ShieldAlert className="h-16 w-16 text-destructive" />
+        <h1 className="text-2xl font-bold">Acesso negado</h1>
+        <p className="text-muted-foreground">Apenas administradores podem acessar esta página.</p>
+      </div>
+    );
+  }
 
   const openCreate = () => {
     setEditingUser(null);
     setFormEmail('');
     setFormPassword('');
+    setFormRole('');
     setFormError(null);
     setDialogOpen(true);
   };
@@ -43,6 +75,7 @@ export default function AdminUsersPage() {
     setEditingUser(user);
     setFormEmail(user.email);
     setFormPassword('');
+    setFormRole(user.role ?? '');
     setFormError(null);
     setDialogOpen(true);
   };
@@ -65,21 +98,24 @@ export default function AdminUsersPage() {
     }
 
     if (editingUser) {
-      if (!formPassword && formEmail === editingUser.email) {
-        setFormError('Altere o email ou defina uma nova senha.');
+      const emailChanged = formEmail !== editingUser.email;
+      const roleChanged = formRole !== (editingUser.role ?? '');
+      if (!formPassword && !emailChanged && !roleChanged) {
+        setFormError('Altere o email, perfil ou defina uma nova senha.');
         return;
       }
       await updateUser.mutateAsync({
         id: editingUser.id,
-        email: formEmail !== editingUser.email ? formEmail : undefined,
+        email: emailChanged ? formEmail : undefined,
         password: formPassword || undefined,
+        role: roleChanged ? formRole : undefined,
       });
     } else {
       if (!formPassword) {
         setFormError('Defina uma senha para o novo usuário.');
         return;
       }
-      await createUser.mutateAsync({ email: formEmail, password: formPassword });
+      await createUser.mutateAsync({ email: formEmail, password: formPassword, role: formRole || undefined });
     }
     setDialogOpen(false);
   };
@@ -137,6 +173,7 @@ export default function AdminUsersPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Email</TableHead>
+                    <TableHead>Perfil</TableHead>
                     <TableHead>Criado em</TableHead>
                     <TableHead>Último login</TableHead>
                     <TableHead className="w-[100px]">Ações</TableHead>
@@ -147,6 +184,15 @@ export default function AdminUsersPage() {
                     users.map((user) => (
                       <TableRow key={user.id}>
                         <TableCell className="font-medium">{user.email}</TableCell>
+                        <TableCell>
+                          {user.role ? (
+                            <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
+                              {ROLE_LABELS[user.role] ?? user.role}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">Sem perfil</span>
+                          )}
+                        </TableCell>
                         <TableCell>{new Date(user.created_at).toLocaleDateString('pt-BR')}</TableCell>
                         <TableCell>
                           {user.last_sign_in_at
@@ -167,7 +213,7 @@ export default function AdminUsersPage() {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                         Nenhum usuário encontrado.
                       </TableCell>
                     </TableRow>
@@ -186,7 +232,7 @@ export default function AdminUsersPage() {
             <DialogTitle>{editingUser ? 'Editar Usuário' : 'Novo Usuário'}</DialogTitle>
             <DialogDescription>
               {editingUser
-                ? 'Altere o email ou defina uma nova senha.'
+                ? 'Altere o email, perfil ou defina uma nova senha.'
                 : 'Preencha os dados para criar um novo usuário.'}
             </DialogDescription>
           </DialogHeader>
@@ -225,6 +271,21 @@ export default function AdminUsersPage() {
                 <p className="text-xs text-muted-foreground">
                   Mínimo 8 caracteres, incluindo letras e números.
                 </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Perfil</Label>
+                <Select value={formRole} onValueChange={setFormRole} disabled={isMutating}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um perfil" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(ROLE_LABELS).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <DialogFooter className="mt-4">
