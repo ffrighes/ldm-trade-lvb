@@ -10,6 +10,7 @@ import { Plus, Search, Eye, Trash2, FileText, RefreshCw } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useNavigate } from 'react-router-dom';
 import { formatBRL } from '@/lib/formatCurrency';
+import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
 
 type SolicitacaoStatus = 'Aberta' | 'Aprovada' | 'Finalizada' | 'Material Comprado' | 'Material enviado para Obra' | 'Cancelada';
@@ -30,6 +31,7 @@ export default function SolicitacoesPage() {
   const deleteSolicitacao = useDeleteSolicitacao();
   const updateItemCosts = useUpdateSolicitacaoItemCosts();
   const navigate = useNavigate();
+  const { canCreateSolicitacao, canDeleteSolicitacao } = usePermissions();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [projetoFilter, setProjetoFilter] = useState('all');
@@ -84,7 +86,9 @@ export default function SolicitacoesPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Solicitações</h1>
-        <Button onClick={() => navigate('/solicitacoes/nova')}><Plus className="h-4 w-4 mr-2" />Criar Nova Solicitação</Button>
+        {canCreateSolicitacao && (
+          <Button onClick={() => navigate('/solicitacoes/nova')}><Plus className="h-4 w-4 mr-2" />Criar Nova Solicitação</Button>
+        )}
       </div>
 
       <Card>
@@ -165,32 +169,32 @@ export default function SolicitacoesPage() {
                             </a>
                           )}
                           {s.status === 'Aberta' && (
-                            <>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                title="Atualizar custos"
-                                disabled={updateItemCosts.isPending}
-                                onClick={(e) => handleAtualizarCustos(e, s.id, itens)}
-                              >
-                                <RefreshCw className="h-4 w-4 text-primary" />
-                              </Button>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Excluir solicitação {s.numero}?</AlertDialogTitle>
-                                    <AlertDialogDescription>Esta ação excluirá a solicitação e todos os seus itens. Não pode ser desfeita.</AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={(e) => { e.stopPropagation(); deleteSolicitacao.mutate(s.id); toast.success('Solicitação excluída'); }}>Excluir</AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Atualizar custos"
+                              disabled={updateItemCosts.isPending}
+                              onClick={(e) => handleAtualizarCustos(e, s.id, itens)}
+                            >
+                              <RefreshCw className="h-4 w-4 text-primary" />
+                            </Button>
+                          )}
+                          {canDeleteSolicitacao(s.status) && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Excluir solicitação {s.numero}?</AlertDialogTitle>
+                                  <AlertDialogDescription>Esta ação excluirá a solicitação e todos os seus itens. Não pode ser desfeita.</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction onClick={(e) => { e.stopPropagation(); deleteSolicitacao.mutate(s.id); toast.success('Solicitação excluída'); }}>Excluir</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           )}
                         </div>
                       </TableCell>
