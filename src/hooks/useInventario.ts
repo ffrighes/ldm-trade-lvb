@@ -15,7 +15,7 @@ export function useInventario(projectId: string) {
       return data.map(item => ({
         ...item,
         solicitacao_numero: (item.solicitacoes as any)?.numero ?? '',
-        tipo: item.tipo ?? 'solicitacao',
+        tipo: (item as any).tipo ?? 'solicitacao',
       }));
     },
   });

@@ -155,6 +155,6 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: `Ação desconhecida: ${action}` }, 400);
     }
   } catch (e) {
-    return jsonResponse({ error: e.message }, 500);
+    return jsonResponse({ error: (e as Error).message }, 500);
   }
 });
