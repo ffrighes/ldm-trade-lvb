@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from "sonner";
 import { formatBRL, parseBRL } from "@/lib/formatCurrency";
 import * as XLSX from "xlsx";
@@ -32,6 +33,7 @@ export default function BaseDadosPage() {
   const addMaterial = useAddMaterial();
   const updateMaterial = useUpdateMaterial();
   const deleteMaterial = useDeleteMaterial();
+  const { canModifyBaseDados } = usePermissions();
 
   const [search, setSearch] = useState("");
   const [descFilter, setDescFilter] = useState("all");
@@ -360,24 +362,28 @@ export default function BaseDadosPage() {
             <Download className="h-4 w-4 mr-2" />
             Exportar XLSX
           </Button>
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="clearBeforeImport"
-              checked={clearBeforeImport}
-              onCheckedChange={(v) => setClearBeforeImport(!!v)}
-            />
-            <Label htmlFor="clearBeforeImport" className="text-sm cursor-pointer">
-              Limpar base antes de importar
-            </Label>
-          </div>
-          <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importing}>
-            <Upload className="h-4 w-4 mr-2" />
-            {importing ? "Importando..." : "Importar XLSX"}
-          </Button>
-          <Button onClick={() => { setNewFamilyInput(""); setNewFamilyDialogOpen(true); }}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nova Família
-          </Button>
+          {canModifyBaseDados && (
+            <>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="clearBeforeImport"
+                  checked={clearBeforeImport}
+                  onCheckedChange={(v) => setClearBeforeImport(!!v)}
+                />
+                <Label htmlFor="clearBeforeImport" className="text-sm cursor-pointer">
+                  Limpar base antes de importar
+                </Label>
+              </div>
+              <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importing}>
+                <Upload className="h-4 w-4 mr-2" />
+                {importing ? "Importando..." : "Importar XLSX"}
+              </Button>
+              <Button onClick={() => { setNewFamilyInput(""); setNewFamilyDialogOpen(true); }}>
+                <Plus className="h-4 w-4 mr-2" />
+                Nova Família
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -585,36 +591,40 @@ export default function BaseDadosPage() {
                         {items.length} Ø
                       </span>
                     </button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 px-2 text-muted-foreground hover:text-foreground"
-                      onClick={(e) => { e.stopPropagation(); openRenameFamily(descricao); }}
-                      title="Renomear família"
-                    >
-                      <FolderPen className="h-4 w-4 mr-1" />
-                      <span className="text-xs">Renomear</span>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 px-2 text-muted-foreground hover:text-foreground"
-                      onClick={(e) => { e.stopPropagation(); openNew(descricao); }}
-                      title="Adicionar bitola a esta família"
-                    >
-                      <PlusCircle className="h-4 w-4 mr-1" />
-                      <span className="text-xs">Bitola</span>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="mr-2 h-7 px-2 text-destructive hover:text-destructive"
-                      onClick={(e) => { e.stopPropagation(); setDeleteFamilyTarget(descricao); }}
-                      title="Excluir família"
-                    >
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      <span className="text-xs">Excluir</span>
-                    </Button>
+                    {canModifyBaseDados && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-muted-foreground hover:text-foreground"
+                          onClick={(e) => { e.stopPropagation(); openRenameFamily(descricao); }}
+                          title="Renomear família"
+                        >
+                          <FolderPen className="h-4 w-4 mr-1" />
+                          <span className="text-xs">Renomear</span>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-muted-foreground hover:text-foreground"
+                          onClick={(e) => { e.stopPropagation(); openNew(descricao); }}
+                          title="Adicionar bitola a esta família"
+                        >
+                          <PlusCircle className="h-4 w-4 mr-1" />
+                          <span className="text-xs">Bitola</span>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="mr-2 h-7 px-2 text-destructive hover:text-destructive"
+                          onClick={(e) => { e.stopPropagation(); setDeleteFamilyTarget(descricao); }}
+                          title="Excluir família"
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          <span className="text-xs">Excluir</span>
+                        </Button>
+                      </>
+                    )}
                   </div>
                   {isExpanded && (
                     <div className="overflow-x-auto">
@@ -626,7 +636,7 @@ export default function BaseDadosPage() {
                             <TableHead className="min-w-[160px]">ERP</TableHead>
                             <TableHead className="text-right">Custo</TableHead>
                             <TableHead>Notas</TableHead>
-                            <TableHead className="w-24">Ações</TableHead>
+                            {canModifyBaseDados && <TableHead className="w-24">Ações</TableHead>}
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -641,45 +651,47 @@ export default function BaseDadosPage() {
                               <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
                                 {(m as any).notas || "-"}
                               </TableCell>
-                              <TableCell>
-                                <div className="flex gap-1">
-                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(m)}>
-                                    <Pencil className="h-3.5 w-3.5" />
-                                  </Button>
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-7 w-7 text-destructive hover:text-destructive"
-                                      >
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                      </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>Excluir item?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          Esta ação não pode ser desfeita. O item{" "}
-                                          <strong>
-                                            {m.descricao} {m.bitola}
-                                          </strong>{" "}
-                                          será removido permanentemente.
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                        <AlertDialogAction
-                                          onClick={() => deleteMaterial.mutate(m.id)}
-                                          className="bg-destructive hover:bg-destructive/90"
+                              {canModifyBaseDados && (
+                                <TableCell>
+                                  <div className="flex gap-1">
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(m)}>
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-7 w-7 text-destructive hover:text-destructive"
                                         >
-                                          Excluir
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
-                                </div>
-                              </TableCell>
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>Excluir item?</AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            Esta ação não pode ser desfeita. O item{" "}
+                                            <strong>
+                                              {m.descricao} {m.bitola}
+                                            </strong>{" "}
+                                            será removido permanentemente.
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                          <AlertDialogAction
+                                            onClick={() => deleteMaterial.mutate(m.id)}
+                                            className="bg-destructive hover:bg-destructive/90"
+                                          >
+                                            Excluir
+                                          </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
+                                  </div>
+                                </TableCell>
+                              )}
                             </TableRow>
                           ))}
                         </TableBody>

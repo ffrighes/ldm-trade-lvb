@@ -9,11 +9,13 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Pencil, Trash2, Search } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
 
 export default function ProjectsPage() {
   const { data: projects = [] } = useProjects();
   const { data: solicitacoes = [] } = useSolicitacoes();
+  const { canCreateProject, canEditProject, canDeleteProject } = usePermissions();
 
   const projectCosts = useMemo(() => {
     const costs: Record<string, number> = {};
@@ -78,7 +80,9 @@ export default function ProjectsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Projetos</h1>
-        <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" />Novo Projeto</Button>
+        {canCreateProject && (
+          <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" />Novo Projeto</Button>
+        )}
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -118,7 +122,7 @@ export default function ProjectsPage() {
                 <TableHead>Descrição</TableHead>
                 <TableHead>Data de Criação</TableHead>
                 <TableHead className="text-right">Custo Total</TableHead>
-                <TableHead className="w-24">Ações</TableHead>
+                {(canEditProject || canDeleteProject) && <TableHead className="w-24">Ações</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -130,26 +134,32 @@ export default function ProjectsPage() {
                   <TableCell>{p.descricao}</TableCell>
                   <TableCell className="text-muted-foreground">{p.data_criacao}</TableCell>
                   <TableCell className="text-right font-mono font-medium">{formatBRL(projectCosts[p.id] || 0)}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /></Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Excluir projeto?</AlertDialogTitle>
-                            <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => { deleteProject.mutate(p.id); toast.success('Projeto excluído'); }}>Excluir</AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </TableCell>
+                  {(canEditProject || canDeleteProject) && (
+                    <TableCell>
+                      <div className="flex gap-1">
+                        {canEditProject && (
+                          <Button variant="ghost" size="icon" onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /></Button>
+                        )}
+                        {canDeleteProject && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Excluir projeto?</AlertDialogTitle>
+                                <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => { deleteProject.mutate(p.id); toast.success('Projeto excluído'); }}>Excluir</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                      </div>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>

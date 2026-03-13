@@ -15,6 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Plus, Trash2, ArrowLeft, Save, Upload, FileText, X, Download, Star } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatBRL } from '@/lib/formatCurrency';
+import { usePermissions } from '@/hooks/usePermissions';
 import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
   AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel,
@@ -56,8 +57,12 @@ export default function SolicitacaoFormPage() {
   const addSolicitacao = useAddSolicitacao();
   const updateSolicitacao = useUpdateSolicitacao();
 
+  const { canCreateSolicitacao, canEditSolicitacao, canChangeStatus, getAllowedStatuses } = usePermissions();
+
   const isNew = !id || id === 'nova';
-  const isReadOnly = !isNew && existing?.status !== 'Aberta';
+  const isReadOnly = isNew
+    ? !canCreateSolicitacao
+    : !canEditSolicitacao(existing?.status || 'Aberta');
 
   const [projetoId, setProjetoId] = useState('');
   const [motivo, setMotivo] = useState('');
@@ -573,17 +578,21 @@ export default function SolicitacaoFormPage() {
               </div>
               <div>
                 <Label>Status</Label>
-                <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Aberta">Aberta</SelectItem>
-                    <SelectItem value="Aprovada">Aprovada</SelectItem>
-                    <SelectItem value="Material Comprado">Material Comprado</SelectItem>
-                    <SelectItem value="Material enviado para Obra">Material enviado para Obra</SelectItem>
-                    <SelectItem value="Finalizada">Finalizada</SelectItem>
-                    <SelectItem value="Cancelada">Cancelada</SelectItem>
-                  </SelectContent>
-                </Select>
+                {(() => {
+                  const currentStatus = existing?.status || 'Aberta';
+                  const allowedStatuses = getAllowedStatuses(currentStatus);
+                  const statusDisabled = isNew || (!canChangeStatus && !isNew) || allowedStatuses.length <= 1;
+                  return (
+                    <Select value={status} onValueChange={setStatus} disabled={statusDisabled}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {allowedStatuses.map(s => (
+                          <SelectItem key={s} value={s}>{s}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  );
+                })()}
               </div>
               {!isNew && (
                 <>
@@ -780,7 +789,9 @@ export default function SolicitacaoFormPage() {
           <Button
             onClick={handleSave}
             disabled={
-              (isReadOnly && !statusChanged) ||
+              (isNew && !canCreateSolicitacao) ||
+              (!isNew && isReadOnly && !statusChanged) ||
+              (!isNew && statusChanged && !canChangeStatus) ||
               addSolicitacao.isPending ||
               updateSolicitacao.isPending
             }
