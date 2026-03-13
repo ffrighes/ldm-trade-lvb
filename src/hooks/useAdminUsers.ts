@@ -1,15 +1,19 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import type { Database } from '@/integrations/supabase/types';
+
+type AppRole = Database['public']['Enums']['app_role'];
 
 export interface AdminUser {
   id: string;
   email: string;
   created_at: string;
   last_sign_in_at: string | null;
+  role: AppRole | null;
 }
 
-async function callManageUsers(action: string, payload: Record<string, string> = {}) {
+async function callManageUsers(action: string, payload: Record<string, string | undefined> = {}) {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) throw new Error('Não autenticado.');
 
@@ -35,8 +39,8 @@ export function useAdminUsers() {
 export function useCreateUser() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ email, password }: { email: string; password: string }) => {
-      return callManageUsers('create', { email, password });
+    mutationFn: async ({ email, password, role }: { email: string; password: string; role?: string }) => {
+      return callManageUsers('create', { email, password, role });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-users'] });
@@ -51,10 +55,11 @@ export function useCreateUser() {
 export function useUpdateUser() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, email, password }: { id: string; email?: string; password?: string }) => {
-      const payload: Record<string, string> = { id };
+    mutationFn: async ({ id, email, password, role }: { id: string; email?: string; password?: string; role?: string }) => {
+      const payload: Record<string, string | undefined> = { id };
       if (email) payload.email = email;
       if (password) payload.password = password;
+      if (role !== undefined) payload.role = role;
       return callManageUsers('update', payload);
     },
     onSuccess: () => {
