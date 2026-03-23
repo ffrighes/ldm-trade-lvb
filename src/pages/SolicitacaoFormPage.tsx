@@ -672,6 +672,7 @@ export default function SolicitacaoFormPage() {
                     <TableHead className="w-24">Qtd *</TableHead>
                     <TableHead className="w-20">Unid.</TableHead>
                     <TableHead className="w-32">Custo Unit.</TableHead>
+                    <TableHead className="min-w-[180px]">Notas</TableHead>
                     <TableHead className="w-12"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -757,6 +758,18 @@ export default function SolicitacaoFormPage() {
                           />
                         ) : (
                           <span className="text-sm text-muted-foreground block text-right pr-2">{formatBRL(item.custo_unitario)}</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {item.isSpecial ? (
+                          <Input
+                            value={item.notas}
+                            onChange={e => setItens(prev => prev.map((it, i) => i === idx ? { ...it, notas: e.target.value } : it))}
+                            disabled={isReadOnly}
+                            placeholder="Observações"
+                          />
+                        ) : (
+                          <span className="text-sm text-muted-foreground">{item.notas || '—'}</span>
                         )}
                       </TableCell>
                       <TableCell>
