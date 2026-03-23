@@ -102,7 +102,7 @@ export default function SolicitacaoFormPage() {
             descricao: i.descricao,
             bitola: i.bitola,
             erp_item: mat?.erp || '',
-            notas: (mat as any)?.notas || '',
+            notas: i.notas || '',
             quantidade: i.quantidade,
             unidade: i.unidade,
             custo_unitario: i.custo_unitario,
@@ -500,7 +500,7 @@ export default function SolicitacaoFormPage() {
       notas,
       status,
       desenho,
-      itens: itens.map(({ key, erp_item, notas: _notas, isSpecial, ...rest }) => rest),
+      itens: itens.map(({ key, erp_item, isSpecial, ...rest }) => rest),
     };
 
     try {

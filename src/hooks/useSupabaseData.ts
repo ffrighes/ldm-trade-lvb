@@ -150,6 +150,7 @@ export function useAddSolicitacao() {
         material_id?: string | null;
         descricao: string;
         bitola: string;
+        notas?: string;
         quantidade: number;
         unidade: string;
         custo_unitario: number;
@@ -194,6 +195,7 @@ export function useUpdateSolicitacao() {
         material_id?: string | null;
         descricao: string;
         bitola: string;
+        notas?: string;
         quantidade: number;
         unidade: string;
         custo_unitario: number;
