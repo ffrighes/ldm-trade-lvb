@@ -134,6 +134,32 @@ export function useSolicitacao(id: string | undefined) {
   });
 }
 
+type ItemInput = {
+  material_id?: string | null;
+  descricao: string;
+  bitola: string;
+  notas?: string;
+  quantidade: number;
+  unidade: string;
+  custo_unitario: number;
+  custo_total: number;
+  solicitacao_id: string;
+};
+
+/** Insert items; if DB column 'notas' doesn't exist yet, retry without it. */
+async function insertItens(rows: ItemInput[]) {
+  const { error } = await supabase.from('solicitacao_itens').insert(rows);
+  if (error) {
+    if (error.message?.includes('notas')) {
+      const rowsSemNotas = rows.map(({ notas: _n, ...r }) => r);
+      const { error: err2 } = await supabase.from('solicitacao_itens').insert(rowsSemNotas);
+      if (err2) throw err2;
+    } else {
+      throw error;
+    }
+  }
+}
+
 export function useAddSolicitacao() {
   const qc = useQueryClient();
   return useMutation({
@@ -167,10 +193,7 @@ export function useAddSolicitacao() {
       if (error) throw error;
 
       if (itens.length > 0) {
-        const { error: itensError } = await supabase
-          .from('solicitacao_itens')
-          .insert(itens.map(i => ({ ...i, solicitacao_id: sol.id })));
-        if (itensError) throw itensError;
+        await insertItens(itens.map(i => ({ ...i, solicitacao_id: sol.id })));
       }
       return sol;
     },
@@ -211,10 +234,7 @@ export function useUpdateSolicitacao() {
       if (delError) throw delError;
 
       if (itens.length > 0) {
-        const { error: insError } = await supabase
-          .from('solicitacao_itens')
-          .insert(itens.map(i => ({ ...i, solicitacao_id: id })));
-        if (insError) throw insError;
+        await insertItens(itens.map(i => ({ ...i, solicitacao_id: id })));
       }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['solicitacoes'] }),
