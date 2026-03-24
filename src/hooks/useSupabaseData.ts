@@ -146,18 +146,9 @@ type ItemInput = {
   solicitacao_id: string;
 };
 
-/** Insert items; if DB column 'notas' doesn't exist yet, retry without it. */
 async function insertItens(rows: ItemInput[]) {
   const { error } = await supabase.from('solicitacao_itens').insert(rows);
-  if (error) {
-    if (error.message?.includes('notas')) {
-      const rowsSemNotas = rows.map(({ notas: _n, ...r }) => r);
-      const { error: err2 } = await supabase.from('solicitacao_itens').insert(rowsSemNotas);
-      if (err2) throw err2;
-    } else {
-      throw error;
-    }
-  }
+  if (error) throw error;
 }
 
 export function useAddSolicitacao() {
