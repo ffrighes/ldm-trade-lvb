@@ -1,0 +1,1 @@
+ALTER TABLE public.solicitacao_itens ADD COLUMN notas text NOT NULL DEFAULT '';
