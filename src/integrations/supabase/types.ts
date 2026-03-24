@@ -167,7 +167,6 @@ export type Database = {
           descricao: string
           id: string
           material_id: string | null
-          notas: string
           quantidade: number
           solicitacao_id: string
           unidade: string
@@ -179,7 +178,6 @@ export type Database = {
           descricao: string
           id?: string
           material_id?: string | null
-          notas?: string
           quantidade?: number
           solicitacao_id: string
           unidade?: string
@@ -191,7 +189,6 @@ export type Database = {
           descricao?: string
           id?: string
           material_id?: string | null
-          notas?: string
           quantidade?: number
           solicitacao_id?: string
           unidade?: string
