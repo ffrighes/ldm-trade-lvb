@@ -564,6 +564,10 @@ export default function SolicitacaoFormPage() {
         </h1>
         {existing && (
           <div className="ml-auto flex gap-2">
+            <Button variant="outline" onClick={handleExportXLSX}>
+              <Download className="h-4 w-4 mr-2" />
+              Exportar XLSX
+            </Button>
             <Button variant="outline" onClick={handleExportCostPDF} disabled={exportingCostPdf}>
               <Download className="h-4 w-4 mr-2" />
               {exportingCostPdf ? 'Gerando...' : 'Relatório de Custos'}
