@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMaterials, useProjects, useSolicitacao, useAddSolicitacao, useUpdateSolicitacao } from '@/hooks/useSupabaseData';
 import { supabase } from '@/integrations/supabase/client';
@@ -315,6 +316,41 @@ export default function SolicitacaoFormPage() {
       setExportingPdf(false);
     }
   };
+  // ─── Exportar XLSX ─────────────────────────────────────────────────────────
+  const handleExportXLSX = () => {
+    if (!existing) return;
+    const projeto = projects.find(p => p.id === projetoId);
+
+    const rows = itens.map((item, i) => ({
+      '#': i + 1,
+      'Descrição': item.descricao,
+      'Bitola': item.bitola,
+      'ERP': item.erp_item || '',
+      'Quantidade': item.quantidade,
+      'Unidade': item.unidade,
+      'Notas': item.notas || '',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+
+    // Add header info as a separate sheet
+    const infoRows = [
+      ['Solicitação', existing.numero],
+      ['Projeto', projeto ? `${projeto.numero} - ${projeto.descricao}` : ''],
+      ['Motivo', motivo],
+      ['Data', dataSolicitacao],
+      ['Status', status],
+      ['Revisão', revisao],
+      ['ERP', erp],
+      ['Notas', notas],
+    ];
+    const wsInfo = XLSX.utils.aoa_to_sheet(infoRows);
+    XLSX.utils.book_append_sheet(wb, wsInfo, 'Informações');
+    XLSX.utils.book_append_sheet(wb, ws, 'Itens');
+
+    XLSX.writeFile(wb, `solicitacao-${existing.numero}.xlsx`);
+  };
   // ──────────────────────────────────────────────────────────────────────────
 
   // ─── Exportar Relatório de Custos ─────────────────────────────────────────
@@ -528,6 +564,10 @@ export default function SolicitacaoFormPage() {
         </h1>
         {existing && (
           <div className="ml-auto flex gap-2">
+            <Button variant="outline" onClick={handleExportXLSX}>
+              <Download className="h-4 w-4 mr-2" />
+              Exportar XLSX
+            </Button>
             <Button variant="outline" onClick={handleExportCostPDF} disabled={exportingCostPdf}>
               <Download className="h-4 w-4 mr-2" />
               {exportingCostPdf ? 'Gerando...' : 'Relatório de Custos'}
