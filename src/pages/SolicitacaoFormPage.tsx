@@ -663,16 +663,10 @@ export default function SolicitacaoFormPage() {
                 })()}
               </div>
               {!isNew && (
-                <>
-                  <div>
-                    <Label>Revisão</Label>
-                    <Input value={revisao} onChange={e => setRevisao(e.target.value)} disabled={isReadOnly} />
-                  </div>
-                  <div>
-                    <Label>ERP</Label>
-                    <Input value={erp} onChange={e => setErp(e.target.value)} disabled={isReadOnly} />
-                  </div>
-                </>
+                <div>
+                  <Label>Revisão</Label>
+                  <Input value={revisao} onChange={e => setRevisao(e.target.value)} disabled={isReadOnly} />
+                </div>
               )}
               <div className="md:col-span-2 lg:col-span-3">
                 <Label>Notas{motivo === 'Material Faltante' ? ' *' : ''}</Label>
