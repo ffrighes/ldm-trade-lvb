@@ -320,35 +320,63 @@ export default function SolicitacaoFormPage() {
   const handleExportXLSX = () => {
     if (!existing) return;
     const projeto = projects.find(p => p.id === projetoId);
+    const dataGeracao =
+      new Date().toLocaleDateString('pt-BR') +
+      ' às ' +
+      new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-    const rows = itens.map((item, i) => ({
-      '#': i + 1,
-      'Descrição': item.descricao,
-      'Bitola': item.bitola,
-      'ERP': item.erp_item || '',
-      'Quantidade': item.quantidade,
-      'Unidade': item.unidade,
-      'Notas': item.notas || '',
-    }));
+    const data: (string | number)[][] = [];
 
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
+    // Header
+    data.push(['LDM TRADE', '', '', '', '', '', `Solicitação ${existing.numero}`]);
+    data.push([]);
 
-    // Add header info as a separate sheet
-    const infoRows = [
-      ['Solicitação', existing.numero],
-      ['Projeto', projeto ? `${projeto.numero} - ${projeto.descricao}` : ''],
-      ['Motivo', motivo],
-      ['Data', dataSolicitacao],
-      ['Status', status],
-      ['Revisão', revisao],
-      ['ERP', erp],
-      ['Notas', notas],
+    // Info section
+    data.push(['Informações Gerais']);
+    data.push(['Projeto:', projeto ? `${projeto.numero} - ${projeto.descricao}` : '—']);
+    data.push(['Motivo:', motivo || '—']);
+    data.push(['Data da Solicitação:', dataSolicitacao || '—']);
+    data.push(['Status:', status || '—']);
+    if (revisao) data.push(['Revisão:', revisao]);
+    if (erp) data.push(['ERP:', erp]);
+    if (notas) data.push(['Notas:', notas]);
+    data.push([]);
+
+    // Items table header
+    data.push(['Itens da Solicitação']);
+    data.push(['#', 'Descrição', 'Bitola', 'ERP', 'Qtd', 'Un.', 'Notas']);
+
+    // Items rows
+    itens.forEach((item, i) => {
+      data.push([
+        i + 1,
+        item.descricao,
+        item.bitola,
+        item.erp_item || '',
+        item.quantidade,
+        item.unidade,
+        item.notas || '',
+      ]);
+    });
+
+    data.push([]);
+    data.push([`Gerado em ${dataGeracao}`]);
+
+    const ws = XLSX.utils.aoa_to_sheet(data);
+
+    // Column widths matching PDF proportions
+    ws['!cols'] = [
+      { wch: 6 },   // #
+      { wch: 40 },  // Descrição
+      { wch: 14 },  // Bitola
+      { wch: 18 },  // ERP
+      { wch: 10 },  // Qtd
+      { wch: 8 },   // Un.
+      { wch: 30 },  // Notas
     ];
-    const wsInfo = XLSX.utils.aoa_to_sheet(infoRows);
-    XLSX.utils.book_append_sheet(wb, wsInfo, 'Informações');
-    XLSX.utils.book_append_sheet(wb, ws, 'Itens');
 
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Solicitação');
     XLSX.writeFile(wb, `solicitacao-${existing.numero}.xlsx`);
   };
   // ──────────────────────────────────────────────────────────────────────────
