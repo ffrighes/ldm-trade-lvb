@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Trash2, ArrowLeft, Save, Upload, FileText, X, Download, Star } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, Save, Upload, FileText, X, Download, Star, Pencil, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatBRL } from '@/lib/formatCurrency';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -77,7 +77,9 @@ export default function SolicitacaoFormPage() {
   const [exportingPdf, setExportingPdf] = useState(false);
   const [exportingCostPdf, setExportingCostPdf] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [itens, setItens] = useState<FormItem[]>([emptyItem()]);
+  const [initialItem] = useState<FormItem>(() => emptyItem());
+  const [itens, setItens] = useState<FormItem[]>([initialItem]);
+  const [editingKeys, setEditingKeys] = useState<Set<string>>(() => new Set([initialItem.key]));
   const [loaded, setLoaded] = useState(false);
   const [showDuplicateAlert, setShowDuplicateAlert] = useState(false);
   const [duplicateMessage, setDuplicateMessage] = useState('');
@@ -112,6 +114,7 @@ export default function SolicitacaoFormPage() {
           };
         })
       );
+      setEditingKeys(new Set());
       setLoaded(true);
     }
   }, [existing, loaded]);
@@ -181,9 +184,35 @@ export default function SolicitacaoFormPage() {
     }));
   };
 
-  const addItem = () => setItens(prev => [...prev, emptyItem()]);
-  const addSpecialItem = () => setItens(prev => [...prev, { ...emptyItem(), isSpecial: true }]);
-  const removeItem = (index: number) => setItens(prev => prev.filter((_, i) => i !== index));
+  const addItem = () => {
+    const item = emptyItem();
+    setItens(prev => [...prev, item]);
+    setEditingKeys(prev => new Set(prev).add(item.key));
+  };
+  const addSpecialItem = () => {
+    const item = { ...emptyItem(), isSpecial: true };
+    setItens(prev => [...prev, item]);
+    setEditingKeys(prev => new Set(prev).add(item.key));
+  };
+  const removeItem = (index: number) => {
+    const removed = itens[index];
+    setItens(prev => prev.filter((_, i) => i !== index));
+    if (removed) {
+      setEditingKeys(prev => {
+        const next = new Set(prev);
+        next.delete(removed.key);
+        return next;
+      });
+    }
+  };
+  const toggleEditItem = (key: string) => {
+    setEditingKeys(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -735,18 +764,21 @@ export default function SolicitacaoFormPage() {
                     <TableHead className="w-20">Unid.</TableHead>
                     <TableHead className="w-32">Custo Unit.</TableHead>
                     <TableHead className="min-w-[180px]">Notas</TableHead>
-                    <TableHead className="w-12"></TableHead>
+                    <TableHead className="w-24"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {itens.map((item, idx) => (
+                  {itens.map((item, idx) => {
+                    const isEditing = editingKeys.has(item.key);
+                    const itemDisabled = isReadOnly || !isEditing;
+                    return (
                     <TableRow key={item.key}>
                       <TableCell>
                         {item.isSpecial ? (
                           <Input
                             value={item.descricao}
                             onChange={e => setItens(prev => prev.map((it, i) => i === idx ? { ...it, descricao: e.target.value } : it))}
-                            disabled={isReadOnly}
+                            disabled={itemDisabled}
                             placeholder="Descrição livre"
                           />
                         ) : (
@@ -754,7 +786,7 @@ export default function SolicitacaoFormPage() {
                             options={descriptions}
                             value={item.descricao}
                             onValueChange={v => handleDescChange(idx, v)}
-                            disabled={isReadOnly}
+                            disabled={itemDisabled}
                             placeholder="Selecione"
                             searchPlaceholder="Buscar material..."
                             emptyMessage="Nenhum material encontrado."
@@ -766,7 +798,7 @@ export default function SolicitacaoFormPage() {
                           <Input
                             value={item.bitola}
                             onChange={e => setItens(prev => prev.map((it, i) => i === idx ? { ...it, bitola: e.target.value } : it))}
-                            disabled={isReadOnly}
+                            disabled={itemDisabled}
                             placeholder="Bitola (opcional)"
                           />
                         ) : (
@@ -774,7 +806,7 @@ export default function SolicitacaoFormPage() {
                             options={getBitolas(item.descricao)}
                             value={item.bitola}
                             onValueChange={v => handleBitolaChange(idx, v)}
-                            disabled={isReadOnly || !item.descricao}
+                            disabled={itemDisabled || !item.descricao}
                             placeholder="Bitola"
                             searchPlaceholder="Buscar bitola..."
                             emptyMessage="Nenhuma bitola encontrada."
@@ -790,7 +822,7 @@ export default function SolicitacaoFormPage() {
                           min={0}
                           value={item.quantidade}
                           onChange={e => handleQtdChange(idx, parseFloat(e.target.value) || 0)}
-                          disabled={isReadOnly}
+                          disabled={itemDisabled}
                           className="w-20"
                         />
                       </TableCell>
@@ -799,7 +831,7 @@ export default function SolicitacaoFormPage() {
                           <Input
                             value={item.unidade}
                             onChange={e => setItens(prev => prev.map((it, i) => i === idx ? { ...it, unidade: e.target.value } : it))}
-                            disabled={isReadOnly}
+                            disabled={itemDisabled}
                             className="w-20 text-sm"
                           />
                         ) : (
@@ -814,7 +846,7 @@ export default function SolicitacaoFormPage() {
                             step={0.01}
                             value={item.custo_unitario}
                             onChange={e => handleCustoChange(idx, parseFloat(e.target.value) || 0)}
-                            disabled={isReadOnly}
+                            disabled={itemDisabled}
                             className="w-28"
                             placeholder="0,00"
                           />
@@ -827,7 +859,7 @@ export default function SolicitacaoFormPage() {
                           <Input
                             value={item.notas}
                             onChange={e => setItens(prev => prev.map((it, i) => i === idx ? { ...it, notas: e.target.value } : it))}
-                            disabled={isReadOnly}
+                            disabled={itemDisabled}
                             placeholder="Observações"
                           />
                         ) : (
@@ -836,13 +868,28 @@ export default function SolicitacaoFormPage() {
                       </TableCell>
                       <TableCell>
                         {!isReadOnly && (
-                          <Button variant="ghost" size="icon" onClick={() => removeItem(idx)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => toggleEditItem(item.key)}
+                              title={isEditing ? 'Concluir edição' : 'Editar item'}
+                            >
+                              {isEditing ? (
+                                <Check className="h-4 w-4 text-primary" />
+                              ) : (
+                                <Pencil className="h-4 w-4" />
+                              )}
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => removeItem(idx)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
                         )}
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
