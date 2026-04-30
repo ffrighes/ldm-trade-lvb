@@ -481,3 +481,46 @@ export function useDeleteSolicitacao() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['solicitacoes'] }),
   });
 }
+
+// ============= BULK SOLICITAÇÃO ACTIONS =============
+
+export function useBulkUpdateSolicitacaoStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ ids, status }: { ids: string[]; status: string }) => {
+      if (ids.length === 0) return;
+      // Single statement → atomic; the existing per-row trigger
+      // (Finalizada → inventário) fires for each affected row.
+      const { error } = await supabase.from('solicitacoes').update({ status }).in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['solicitacoes'] }),
+  });
+}
+
+export function useBulkDeleteSolicitacoes() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      if (ids.length === 0) return;
+      const { error } = await supabase.from('solicitacoes').delete().in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['solicitacoes'] }),
+  });
+}
+
+export function useSolicitacoesByIds(ids: string[]) {
+  return useQuery({
+    queryKey: ['solicitacoes', 'by-ids', ids],
+    enabled: ids.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('solicitacoes')
+        .select('*, solicitacao_itens(*)')
+        .in('id', ids);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
