@@ -194,6 +194,108 @@ export function useSolicitacoesPaginated(params: SolicitacoesQueryParams) {
   });
 }
 
+export interface SolicitacoesKpis {
+  total_solicitacoes: number;
+  total_abertas: number;
+  valor_abertas: number;
+  valor_total: number;
+  itens_pendentes: number;
+  ticket_medio: number;
+}
+
+export function useSolicitacoesKpis(params: Omit<SolicitacoesQueryParams, 'page' | 'pageSize' | 'sortBy' | 'sortDir'>) {
+  return useQuery({
+    queryKey: ['solicitacoes', 'kpis', params],
+    placeholderData: (prev) => prev,
+    queryFn: async () => {
+      const { search, status, projetoId, dateFrom, dateTo } = params;
+      const cleanSearch = search ? search.replace(/[,()*]/g, ' ').trim() : '';
+
+      let projectIdsForSearch: string[] | null = null;
+      if (cleanSearch) {
+        const { data: matched, error: pErr } = await supabase
+          .from('projects')
+          .select('id')
+          .or(`numero.ilike.%${cleanSearch}%,descricao.ilike.%${cleanSearch}%`);
+        if (pErr) throw pErr;
+        projectIdsForSearch = (matched ?? []).map((p) => p.id);
+      }
+
+      const { data, error } = await supabase.rpc('get_solicitacoes_kpis', {
+        p_search: cleanSearch || null,
+        p_status: status && status.length > 0 ? status : null,
+        p_projeto: projetoId || null,
+        p_from: dateFrom || null,
+        p_to: dateTo || null,
+        p_project_ids: projectIdsForSearch,
+      });
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      // Postgres returns numeric/bigint as strings; coerce to number.
+      const k = (row ?? {}) as Record<string, string | number | null>;
+      const num = (v: string | number | null | undefined) => Number(v ?? 0);
+      const result: SolicitacoesKpis = {
+        total_solicitacoes: num(k.total_solicitacoes),
+        total_abertas: num(k.total_abertas),
+        valor_abertas: num(k.valor_abertas),
+        valor_total: num(k.valor_total),
+        itens_pendentes: num(k.itens_pendentes),
+        ticket_medio: num(k.ticket_medio),
+      };
+      return result;
+    },
+  });
+}
+
+// ============= SOLICITAÇÃO SAVED VIEWS =============
+
+export interface SavedView {
+  id: string;
+  name: string;
+  filters: Record<string, unknown>;
+  created_at: string;
+}
+
+export function useSavedViews() {
+  return useQuery({
+    queryKey: ['solicitacao_saved_views'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('solicitacao_saved_views' as never)
+        .select('id, name, filters, created_at')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as unknown as SavedView[];
+    },
+  });
+}
+
+export function useSaveView() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ name, filters }: { name: string; filters: Record<string, unknown> }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Não autenticado');
+      const { error } = await supabase
+        .from('solicitacao_saved_views' as never)
+        .upsert({ user_id: user.id, name, filters } as never, { onConflict: 'user_id,name' });
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['solicitacao_saved_views'] }),
+  });
+}
+
+export function useDeleteSavedView() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('solicitacao_saved_views' as never).delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['solicitacao_saved_views'] }),
+  });
+}
+
 export function useSolicitacao(id: string | undefined) {
   return useQuery({
     queryKey: ['solicitacoes', id],
