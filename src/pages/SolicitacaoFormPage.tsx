@@ -613,7 +613,7 @@ export default function SolicitacaoFormPage() {
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/solicitacoes')}>
+        <Button variant="ghost" size="icon" aria-label="Voltar para Solicitações" onClick={() => navigate('/solicitacoes')}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <h1 className="text-2xl font-bold">
@@ -717,7 +717,7 @@ export default function SolicitacaoFormPage() {
                       </a>
                     </Button>
                     {!isReadOnly && (
-                      <Button variant="ghost" size="icon" onClick={removeDesenho}>
+                      <Button variant="ghost" size="icon" aria-label="Remover desenho" onClick={removeDesenho}>
                         <X className="h-4 w-4 text-destructive" />
                       </Button>
                     )}
@@ -872,6 +872,7 @@ export default function SolicitacaoFormPage() {
                             <Button
                               variant="ghost"
                               size="icon"
+                              aria-label={isEditing ? 'Concluir edição do item' : 'Editar item'}
                               onClick={() => toggleEditItem(item.key)}
                               title={isEditing ? 'Concluir edição' : 'Editar item'}
                             >
@@ -881,7 +882,7 @@ export default function SolicitacaoFormPage() {
                                 <Pencil className="h-4 w-4" />
                               )}
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => removeItem(idx)}>
+                            <Button variant="ghost" size="icon" aria-label="Remover item" onClick={() => removeItem(idx)}>
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                           </div>
