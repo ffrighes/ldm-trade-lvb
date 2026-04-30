@@ -1,17 +1,21 @@
-import { useState, useMemo } from 'react';
-import { useSolicitacoes, useProjects, useMaterials, useDeleteSolicitacao, useUpdateSolicitacaoItemCosts } from '@/hooks/useSupabaseData';
+import { useEffect, useMemo, useState } from 'react';
+import { useSolicitacoesPaginated, useProjects, useMaterials, useDeleteSolicitacao, useUpdateSolicitacaoItemCosts } from '@/hooks/useSupabaseData';
+import { useSolicitacoesFilters, ALL_STATUSES, type StatusValue } from '@/hooks/useSolicitacoesFilters';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Eye, Trash2, FileText, RefreshCw } from 'lucide-react';
+import { Plus, Search, Eye, Trash2, FileText, RefreshCw, Loader2 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useNavigate } from 'react-router-dom';
 import { formatBRL } from '@/lib/formatCurrency';
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
+import { DateRangeFilter } from '@/components/solicitacoes/DateRangeFilter';
+import { SortableHeader } from '@/components/solicitacoes/SortableHeader';
+import { SolicitacoesPagination } from '@/components/solicitacoes/SolicitacoesPagination';
 
 type SolicitacaoStatus = 'Aberta' | 'Aprovada' | 'Finalizada' | 'Material Comprado' | 'Material enviado para Obra' | 'Cancelada';
 
@@ -24,37 +28,64 @@ const statusColors: Record<SolicitacaoStatus, string> = {
   Cancelada: 'bg-destructive/20 text-destructive',
 };
 
+// Status sets used by the quick toggle buttons.
+const PRESET_STATUSES = {
+  abertas: ALL_STATUSES.filter((s) => s !== 'Finalizada' && s !== 'Cancelada') as unknown as StatusValue[],
+  finalizadas: ['Finalizada'] as StatusValue[],
+};
+
 export default function SolicitacoesPage() {
-  const { data: solicitacoes = [] } = useSolicitacoes();
+  const { state, update, pageSizes } = useSolicitacoesFilters();
+  const [searchInput, setSearchInput] = useState(state.search);
+
+  // Debounce search input → URL/query.
+  useEffect(() => {
+    if (searchInput === state.search) return;
+    const t = setTimeout(() => update({ search: searchInput }), 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput]);
+
+  // Sync external URL changes back into the controlled input.
+  useEffect(() => {
+    if (state.search !== searchInput) setSearchInput(state.search);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.search]);
+
+  const queryParams = useMemo(() => {
+    const presetStatuses =
+      state.preset === 'abertas'
+        ? PRESET_STATUSES.abertas
+        : state.preset === 'finalizadas'
+          ? PRESET_STATUSES.finalizadas
+          : [];
+    const effectiveStatuses = state.status.length > 0 ? state.status : presetStatuses;
+    return {
+      page: state.page,
+      pageSize: state.pageSize,
+      sortBy: state.sortBy,
+      sortDir: state.sortDir,
+      search: state.search,
+      status: effectiveStatuses,
+      projetoId: state.projetoId || undefined,
+      dateFrom: state.dateFrom || undefined,
+      dateTo: state.dateTo || undefined,
+    };
+  }, [state]);
+
+  const { data, isLoading, isFetching } = useSolicitacoesPaginated(queryParams);
   const { data: projects = [] } = useProjects();
   const { data: materials = [] } = useMaterials();
   const deleteSolicitacao = useDeleteSolicitacao();
   const updateItemCosts = useUpdateSolicitacaoItemCosts();
   const navigate = useNavigate();
   const { canCreateSolicitacao, canDeleteSolicitacao } = usePermissions();
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [projetoFilter, setProjetoFilter] = useState('all');
-  const [orderFilter, setOrderFilter] = useState<'all' | 'abertas' | 'finalizadas'>('all');
 
-  const filtered = useMemo(() => solicitacoes.filter(s => {
-    if (orderFilter === 'abertas' && s.status === 'Finalizada') return false;
-    if (orderFilter === 'finalizadas' && s.status !== 'Finalizada') return false;
-    if (statusFilter !== 'all' && s.status !== statusFilter) return false;
-    if (projetoFilter !== 'all' && s.projeto_id !== projetoFilter) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      const proj = projects.find(p => p.id === s.projeto_id);
-      return s.numero.toLowerCase().includes(q) ||
-        s.motivo.toLowerCase().includes(q) ||
-        s.erp.toLowerCase().includes(q) ||
-        (proj?.descricao.toLowerCase().includes(q) ?? false);
-    }
-    return true;
-  }), [solicitacoes, search, statusFilter, projetoFilter, orderFilter, projects]);
+  const rows = data?.rows ?? [];
+  const total = data?.total ?? 0;
 
   const getProjetoNome = (id: string) => {
-    const p = projects.find(x => x.id === id);
+    const p = projects.find((x) => x.id === id);
     return p ? `${p.numero} - ${p.descricao}` : 'N/A';
   };
 
@@ -65,7 +96,7 @@ export default function SolicitacoesPage() {
       return acc + item.quantidade * custo;
     }, 0);
 
-  const handleAtualizarCustos = async (e: React.MouseEvent, solicitacaoId: string, itens: any[]) => {
+  const handleAtualizarCustos = async (e: React.MouseEvent, _solicitacaoId: string, itens: any[]) => {
     e.stopPropagation();
     const updates = itens
       .filter((item: any) => item.material_id)
@@ -80,6 +111,20 @@ export default function SolicitacoesPage() {
     } catch {
       toast.error('Erro ao atualizar custos');
     }
+  };
+
+  const handleSort = (field: typeof state.sortBy) => {
+    if (state.sortBy === field) {
+      update({ sortDir: state.sortDir === 'asc' ? 'desc' : 'asc' });
+    } else {
+      update({ sortBy: field, sortDir: 'asc' });
+    }
+  };
+
+  const statusFilterValue = state.status.length === 1 ? state.status[0] : 'all';
+  const onStatusFilterChange = (value: string) => {
+    if (value === 'all') update({ status: [], preset: 'all' });
+    else update({ status: [value as StatusValue], preset: 'all' });
   };
 
   return (
@@ -97,32 +142,45 @@ export default function SolicitacoesPage() {
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input className="pl-10" placeholder="Buscar solicitações..." value={search} onChange={e => setSearch(e.target.value)} />
+                <Input
+                  className="pl-10"
+                  placeholder="Buscar por número, motivo, ERP ou projeto..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  aria-label="Buscar solicitações"
+                />
               </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="Status" /></SelectTrigger>
+              <Select value={statusFilterValue} onValueChange={onStatusFilterChange}>
+                <SelectTrigger className="w-full sm:w-44" aria-label="Filtrar por status"><SelectValue placeholder="Status" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os Status</SelectItem>
-                   <SelectItem value="Aberta">Aberta</SelectItem>
-                   <SelectItem value="Aprovada">Aprovada</SelectItem>
-                   <SelectItem value="Material Comprado">Material Comprado</SelectItem>
-                   <SelectItem value="Material enviado para Obra">Material enviado para Obra</SelectItem>
-                   <SelectItem value="Finalizada">Finalizada</SelectItem>
-                   <SelectItem value="Cancelada">Cancelada</SelectItem>
+                  {ALL_STATUSES.map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-              <Select value={projetoFilter} onValueChange={setProjetoFilter}>
-                <SelectTrigger className="w-full sm:w-56"><SelectValue placeholder="Projeto" /></SelectTrigger>
+              <Select value={state.projetoId || 'all'} onValueChange={(v) => update({ projetoId: v === 'all' ? '' : v })}>
+                <SelectTrigger className="w-full sm:w-56" aria-label="Filtrar por projeto"><SelectValue placeholder="Projeto" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os Projetos</SelectItem>
-                  {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.numero} - {p.descricao}</SelectItem>)}
+                  {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.numero} - {p.descricao}</SelectItem>)}
                 </SelectContent>
               </Select>
+              <DateRangeFilter
+                from={state.dateFrom}
+                to={state.dateTo}
+                onChange={({ from, to }) => update({ dateFrom: from, dateTo: to })}
+              />
             </div>
-            <div className="flex gap-2">
-              <Button variant={orderFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setOrderFilter('all')}>Todas</Button>
-              <Button variant={orderFilter === 'abertas' ? 'default' : 'outline'} size="sm" onClick={() => setOrderFilter('abertas')}>Abertas</Button>
-              <Button variant={orderFilter === 'finalizadas' ? 'default' : 'outline'} size="sm" onClick={() => setOrderFilter('finalizadas')}>Finalizadas</Button>
+            <div className="flex gap-2 items-center">
+              <Button variant={state.preset === 'all' && state.status.length === 0 ? 'default' : 'outline'} size="sm" onClick={() => update({ preset: 'all', status: [] })}>Todas</Button>
+              <Button variant={state.preset === 'abertas' ? 'default' : 'outline'} size="sm" onClick={() => update({ preset: 'abertas', status: [] })}>Abertas</Button>
+              <Button variant={state.preset === 'finalizadas' ? 'default' : 'outline'} size="sm" onClick={() => update({ preset: 'finalizadas', status: [] })}>Finalizadas</Button>
+              {isFetching && !isLoading && (
+                <span className="ml-auto text-xs text-muted-foreground inline-flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Atualizando…
+                </span>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -131,21 +189,27 @@ export default function SolicitacoesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nº</TableHead>
+                  <SortableHeader field="numero" activeField={state.sortBy} direction={state.sortDir} onSort={handleSort}>Nº</SortableHeader>
                   <TableHead>Projeto</TableHead>
-                  <TableHead>Status</TableHead>
+                  <SortableHeader field="status" activeField={state.sortBy} direction={state.sortDir} onSort={handleSort}>Status</SortableHeader>
                   <TableHead>Motivo</TableHead>
-                  <TableHead>Data</TableHead>
+                  <SortableHeader field="data_solicitacao" activeField={state.sortBy} direction={state.sortDir} onSort={handleSort}>Data</SortableHeader>
                   <TableHead className="text-center">Itens</TableHead>
-                  <TableHead>ERP</TableHead>
+                  <SortableHeader field="erp" activeField={state.sortBy} direction={state.sortDir} onSort={handleSort}>ERP</SortableHeader>
                   <TableHead className="text-right">Custo Total</TableHead>
                   <TableHead className="w-24">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.length === 0 ? (
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+                      <Loader2 className="h-5 w-5 animate-spin inline-block mr-2" />Carregando…
+                    </TableCell>
+                  </TableRow>
+                ) : rows.length === 0 ? (
                   <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhuma solicitação encontrada</TableCell></TableRow>
-                ) : filtered.map(s => {
+                ) : rows.map((s) => {
                   const itens = s.solicitacao_itens || [];
                   const custoAtualizado = calcCustoAtualizado(itens);
                   return (
@@ -160,10 +224,10 @@ export default function SolicitacoesPage() {
                       <TableCell className="text-right font-mono">{formatBRL(custoAtualizado)}</TableCell>
                       <TableCell>
                         <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); navigate(`/solicitacoes/${s.id}`); }}><Eye className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" aria-label="Ver solicitação" onClick={(e) => { e.stopPropagation(); navigate(`/solicitacoes/${s.id}`); }}><Eye className="h-4 w-4" /></Button>
                           {s.desenho && (
                             <a href={s.desenho} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} title="Ver desenho">
-                              <Button variant="ghost" size="icon" asChild>
+                              <Button variant="ghost" size="icon" asChild aria-label="Ver desenho">
                                 <span><FileText className="h-4 w-4 text-primary" /></span>
                               </Button>
                             </a>
@@ -172,6 +236,7 @@ export default function SolicitacoesPage() {
                             <Button
                               variant="ghost"
                               size="icon"
+                              aria-label="Atualizar custos"
                               title="Atualizar custos"
                               disabled={updateItemCosts.isPending}
                               onClick={(e) => handleAtualizarCustos(e, s.id, itens)}
@@ -182,7 +247,7 @@ export default function SolicitacoesPage() {
                           {canDeleteSolicitacao(s.status) && (
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                <Button variant="ghost" size="icon" aria-label="Excluir solicitação" onClick={(e) => e.stopPropagation()}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
@@ -204,6 +269,15 @@ export default function SolicitacoesPage() {
               </TableBody>
             </Table>
           </div>
+
+          <SolicitacoesPagination
+            page={state.page}
+            pageSize={state.pageSize}
+            total={total}
+            pageSizes={pageSizes}
+            onPageChange={(page) => update({ page })}
+            onPageSizeChange={(pageSize) => update({ pageSize, page: 0 })}
+          />
         </CardContent>
       </Card>
     </div>

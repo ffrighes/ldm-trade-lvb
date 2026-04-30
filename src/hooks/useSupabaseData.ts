@@ -118,6 +118,82 @@ export function useSolicitacoes() {
   });
 }
 
+export type SolicitacoesSortField =
+  | 'numero'
+  | 'data_solicitacao'
+  | 'status'
+  | 'erp'
+  | 'created_at';
+
+export interface SolicitacoesQueryParams {
+  page: number;
+  pageSize: number;
+  sortBy: SolicitacoesSortField;
+  sortDir: 'asc' | 'desc';
+  search?: string;
+  status?: string[];
+  projetoId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+// PostgREST .or() uses `,` and `()` as separators. Strip them from the user
+// input rather than trying to escape, since they have no business in a search
+// query and would otherwise corrupt the filter expression.
+function sanitizeForOrFilter(s: string): string {
+  return s.replace(/[,()*]/g, ' ').trim();
+}
+
+export function useSolicitacoesPaginated(params: SolicitacoesQueryParams) {
+  return useQuery({
+    queryKey: ['solicitacoes', 'list', params],
+    placeholderData: (prev) => prev,
+    queryFn: async () => {
+      const { page, pageSize, sortBy, sortDir, search, status, projetoId, dateFrom, dateTo } = params;
+      const from = page * pageSize;
+      const to = from + pageSize - 1;
+
+      let projectIdsForSearch: string[] | null = null;
+      const cleanSearch = search ? sanitizeForOrFilter(search) : '';
+      if (cleanSearch) {
+        const { data: matched, error: pErr } = await supabase
+          .from('projects')
+          .select('id')
+          .or(`numero.ilike.%${cleanSearch}%,descricao.ilike.%${cleanSearch}%`);
+        if (pErr) throw pErr;
+        projectIdsForSearch = (matched ?? []).map((p) => p.id);
+      }
+
+      let query = supabase
+        .from('solicitacoes')
+        .select('*, solicitacao_itens(*)', { count: 'exact' });
+
+      if (status && status.length > 0) query = query.in('status', status);
+      if (projetoId) query = query.eq('projeto_id', projetoId);
+      if (dateFrom) query = query.gte('data_solicitacao', dateFrom);
+      if (dateTo) query = query.lte('data_solicitacao', dateTo);
+
+      if (cleanSearch) {
+        const orParts = [
+          `numero.ilike.%${cleanSearch}%`,
+          `motivo.ilike.%${cleanSearch}%`,
+          `erp.ilike.%${cleanSearch}%`,
+        ];
+        if (projectIdsForSearch && projectIdsForSearch.length > 0) {
+          orParts.push(`projeto_id.in.(${projectIdsForSearch.join(',')})`);
+        }
+        query = query.or(orParts.join(','));
+      }
+
+      query = query.order(sortBy, { ascending: sortDir === 'asc' }).range(from, to);
+
+      const { data, error, count } = await query;
+      if (error) throw error;
+      return { rows: data ?? [], total: count ?? 0 };
+    },
+  });
+}
+
 export function useSolicitacao(id: string | undefined) {
   return useQuery({
     queryKey: ['solicitacoes', id],
