@@ -56,12 +56,43 @@ export default function BaseDadosPage() {
   const handleImportXlsx = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+    const MAX_ROWS = 5000;
+
+    if (!canModifyBaseDados) {
+      toast.error("Você não tem permissão para importar materiais.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error("Arquivo muito grande (máx. 5 MB).");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    if (clearBeforeImport) {
+      const confirmed = window.confirm(
+        "ATENÇÃO: Esta ação removerá PERMANENTEMENTE todos os materiais e itens de solicitação existentes antes da importação. Deseja continuar?"
+      );
+      if (!confirmed) {
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
+    }
+
     setImporting(true);
     try {
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: "array" });
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+      if (rows.length > MAX_ROWS) {
+        toast.error(`Planilha muito grande (máx. ${MAX_ROWS} linhas).`);
+        return;
+      }
 
       const headerMap: Record<string, string> = {
         "Descrição (Família)": "descricao",
