@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useSolicitacoesPaginated, useProjects, useMaterials, useDeleteSolicitacao, useUpdateSolicitacaoItemCosts } from '@/hooks/useSupabaseData';
-import { useSolicitacoesFilters, ALL_STATUSES, type StatusValue } from '@/hooks/useSolicitacoesFilters';
+import { useSolicitacoesPaginated, useSolicitacoesKpis, useProjects, useMaterials, useDeleteSolicitacao, useUpdateSolicitacaoItemCosts } from '@/hooks/useSupabaseData';
+import { useSolicitacoesFilters, ALL_STATUSES, type StatusValue, type SolicitacoesFiltersState } from '@/hooks/useSolicitacoesFilters';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -16,6 +16,8 @@ import { toast } from 'sonner';
 import { DateRangeFilter } from '@/components/solicitacoes/DateRangeFilter';
 import { SortableHeader } from '@/components/solicitacoes/SortableHeader';
 import { SolicitacoesPagination } from '@/components/solicitacoes/SolicitacoesPagination';
+import { KpiCards } from '@/components/solicitacoes/KpiCards';
+import { SavedViewsMenu } from '@/components/solicitacoes/SavedViewsMenu';
 
 type SolicitacaoStatus = 'Aberta' | 'Aprovada' | 'Finalizada' | 'Material Comprado' | 'Material enviado para Obra' | 'Cancelada';
 
@@ -74,6 +76,13 @@ export default function SolicitacoesPage() {
   }, [state]);
 
   const { data, isLoading, isFetching } = useSolicitacoesPaginated(queryParams);
+  const { data: kpis, isLoading: kpisLoading } = useSolicitacoesKpis({
+    search: queryParams.search,
+    status: queryParams.status,
+    projetoId: queryParams.projetoId,
+    dateFrom: queryParams.dateFrom,
+    dateTo: queryParams.dateTo,
+  });
   const { data: projects = [] } = useProjects();
   const { data: materials = [] } = useMaterials();
   const deleteSolicitacao = useDeleteSolicitacao();
@@ -121,6 +130,29 @@ export default function SolicitacoesPage() {
     }
   };
 
+  // Subset of filter state persisted in saved views. Page/sort/pageSize are
+  // intentionally excluded so a saved view restores the filter intent, not the
+  // current scroll position.
+  const savableFilters: Partial<SolicitacoesFiltersState> = useMemo(() => ({
+    search: state.search,
+    status: state.status,
+    projetoId: state.projetoId,
+    dateFrom: state.dateFrom,
+    dateTo: state.dateTo,
+    preset: state.preset,
+  }), [state.search, state.status, state.projetoId, state.dateFrom, state.dateTo, state.preset]);
+
+  const applySavedView = (filters: Record<string, unknown>) => {
+    update({
+      search: typeof filters.search === 'string' ? filters.search : '',
+      status: Array.isArray(filters.status) ? (filters.status as StatusValue[]) : [],
+      projetoId: typeof filters.projetoId === 'string' ? filters.projetoId : '',
+      dateFrom: typeof filters.dateFrom === 'string' ? filters.dateFrom : '',
+      dateTo: typeof filters.dateTo === 'string' ? filters.dateTo : '',
+      preset: filters.preset === 'abertas' || filters.preset === 'finalizadas' ? filters.preset : 'all',
+    });
+  };
+
   const statusFilterValue = state.status.length === 1 ? state.status[0] : 'all';
   const onStatusFilterChange = (value: string) => {
     if (value === 'all') update({ status: [], preset: 'all' });
@@ -131,10 +163,15 @@ export default function SolicitacoesPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Solicitações</h1>
-        {canCreateSolicitacao && (
-          <Button onClick={() => navigate('/solicitacoes/nova')}><Plus className="h-4 w-4 mr-2" />Criar Nova Solicitação</Button>
-        )}
+        <div className="flex items-center gap-2">
+          <SavedViewsMenu currentFilters={savableFilters as Record<string, unknown>} onApply={applySavedView} />
+          {canCreateSolicitacao && (
+            <Button onClick={() => navigate('/solicitacoes/nova')}><Plus className="h-4 w-4 mr-2" />Criar Nova Solicitação</Button>
+          )}
+        </div>
       </div>
+
+      <KpiCards kpis={kpis} isLoading={kpisLoading} />
 
       <Card>
         <CardHeader>
