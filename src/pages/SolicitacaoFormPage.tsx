@@ -21,6 +21,14 @@ import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
   AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { History, MessageSquare, FileText as FileTextIcon } from 'lucide-react';
+import { AuditTimeline } from '@/components/solicitacoes/AuditTimeline';
+import { CommentsPanel } from '@/components/solicitacoes/CommentsPanel';
+import { DrawingsManager } from '@/components/solicitacoes/DrawingsManager';
+import { useAuth } from '@/hooks/useAuth';
+import { useSolicitacaoRealtime } from '@/hooks/useSolicitacaoRealtime';
+import { useSolicitacaoComments } from '@/hooks/useSolicitacaoActivity';
 
 interface FormItem {
   key: string;
@@ -59,6 +67,9 @@ export default function SolicitacaoFormPage() {
   const updateSolicitacao = useUpdateSolicitacao();
 
   const { canCreateSolicitacao, canEditSolicitacao, canChangeStatus, getAllowedStatuses } = usePermissions();
+  const { user } = useAuth();
+  useSolicitacaoRealtime(existing?.id, { currentUserId: user?.id });
+  const { data: comments = [] } = useSolicitacaoComments(existing?.id);
 
   const isNew = !id || id === 'nova';
   const isReadOnly = isNew
@@ -906,6 +917,42 @@ export default function SolicitacaoFormPage() {
             )}
           </CardContent>
         </Card>
+
+        {existing?.id && (
+          <Card>
+            <CardContent className="pt-6">
+              <Tabs defaultValue="historico">
+                <TabsList className="grid w-full grid-cols-3 sm:w-auto sm:inline-grid">
+                  <TabsTrigger value="historico" className="gap-1.5">
+                    <History className="h-4 w-4" />
+                    <span>Histórico</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="comentarios" className="gap-1.5">
+                    <MessageSquare className="h-4 w-4" />
+                    <span>Comentários{comments.length > 0 ? ` (${comments.length})` : ''}</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="desenhos" className="gap-1.5">
+                    <FileTextIcon className="h-4 w-4" />
+                    <span>Desenhos</span>
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="historico" className="mt-4">
+                  <AuditTimeline solicitacaoId={existing.id} />
+                </TabsContent>
+                <TabsContent value="comentarios" className="mt-4">
+                  <CommentsPanel solicitacaoId={existing.id} />
+                </TabsContent>
+                <TabsContent value="desenhos" className="mt-4">
+                  <DrawingsManager
+                    solicitacaoId={existing.id}
+                    legacyDesenho={existing.desenho ?? null}
+                    isReadOnly={isReadOnly}
+                  />
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="flex justify-end gap-3">
           <Button variant="outline" onClick={() => navigate('/solicitacoes')}>Voltar</Button>
