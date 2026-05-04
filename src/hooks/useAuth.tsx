@@ -21,29 +21,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
+    // Subscribe FIRST so we don't miss the INITIAL_SESSION event or any
+    // auth event that fires while getSession() is in flight.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+      })
+      .catch(() => {
+        // Stale refresh token or network failure — clear local auth so the
+        // user can sign in fresh instead of being stuck on the loader.
+        supabase.auth.signOut().catch(() => {});
+      })
+      .finally(() => setLoading(false));
+
     return () => subscription.unsubscribe();
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
     if (error) return { error: translateError(error.message) };
     return { error: null };
   };
 
   const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { error } = await supabase.auth.signUp({ email: email.trim(), password });
     if (error) return { error: translateError(error.message) };
     return { error: null };
   };
@@ -53,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const resetPassword = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo: `${window.location.origin}/atualizar-senha`,
     });
     if (error) return { error: translateError(error.message) };
