@@ -5,9 +5,8 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const FALLBACK_URL = 'https://kpnuxyyqcsguaajzgons.supabase.co';
-const FALLBACK_PUBLISHABLE_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwbnV4eXlxY3NndWFhanpnb25zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0NzUzMDUsImV4cCI6MjA4ODA1MTMwNX0.Nw-_fVpD83PyJ_AE66WMRzQg9tmZD1Gr4osaeXkYu-Y';
+const FALLBACK_URL = 'https://fahnoyptdvnjgubonakg.supabase.co';
+const FALLBACK_PUBLISHABLE_KEY = 'sb_publishable_uHPOfjlJj21V2q9sYpvqYA_IYlaLX4O';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || FALLBACK_URL;
 const SUPABASE_PUBLISHABLE_KEY =

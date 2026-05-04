@@ -6,11 +6,11 @@ import { componentTagger } from "lovable-tagger";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
-  const supabaseUrl = env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL || "https://kpnuxyyqcsguaajzgons.supabase.co";
+  const supabaseUrl = env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL || "https://fahnoyptdvnjgubonakg.supabase.co";
   const supabasePublishableKey =
     env.VITE_SUPABASE_PUBLISHABLE_KEY ||
     process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwbnV4eXlxY3NndWFhanpnb25zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0NzUzMDUsImV4cCI6MjA4ODA1MTMwNX0.Nw-_fVpD83PyJ_AE66WMRzQg9tmZD1Gr4osaeXkYu-Y";
+    "sb_publishable_uHPOfjlJj21V2q9sYpvqYA_IYlaLX4O";
 
   return {
     define: {
