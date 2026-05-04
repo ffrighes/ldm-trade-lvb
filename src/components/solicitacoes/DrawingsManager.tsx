@@ -19,7 +19,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useSolicitacaoDrawings, useUploadDrawing, useDeleteDrawing } from '@/hooks/useSolicitacaoActivity';
 import { useAuth } from '@/hooks/useAuth';
-import { useUserRole } from '@/hooks/useUserRole';
 import { toast } from 'sonner';
 
 interface Props {
@@ -30,8 +29,6 @@ interface Props {
 
 export function DrawingsManager({ solicitacaoId, legacyDesenho, isReadOnly }: Props) {
   const { user } = useAuth();
-  const { data: role } = useUserRole();
-  const isPrivileged = role === 'admin' || role === 'gerente' || role === 'projetista';
 
   const { data: drawings = [], isLoading } = useSolicitacaoDrawings(solicitacaoId);
   const uploadDrawing = useUploadDrawing();
@@ -183,7 +180,7 @@ export function DrawingsManager({ solicitacaoId, legacyDesenho, isReadOnly }: Pr
             </div>
           ) : (
             drawings.map((d) => {
-              const canDelete = !isReadOnly && (d.uploaded_by === user?.id || isPrivileged);
+              const canDelete = !isReadOnly;
               return (
                 <div key={d.id} className="flex items-start gap-3 rounded-md border p-2.5">
                   <FileText className="h-5 w-5 text-primary shrink-0 mt-0.5" />

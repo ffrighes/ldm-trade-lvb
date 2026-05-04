@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useAdminUsers, useCreateUser, useUpdateUser, useDeleteUser, AdminUser } from '@/hooks/useAdminUsers';
-import { useIsAdmin } from '@/hooks/useUserRole';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,7 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Plus, Pencil, Trash2, Users, AlertCircle, ShieldAlert } from 'lucide-react';
+import { Loader2, Plus, Pencil, Trash2, Users, AlertCircle } from 'lucide-react';
 
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Administrador',
@@ -29,7 +28,6 @@ function validatePassword(password: string): string | null {
 }
 
 export default function AdminUsersPage() {
-  const { isAdmin, isLoading: roleLoading } = useIsAdmin();
   const { data: users, isLoading, error: fetchError } = useAdminUsers();
   const createUser = useCreateUser();
   const updateUser = useUpdateUser();
@@ -43,24 +41,6 @@ export default function AdminUsersPage() {
   const [formPassword, setFormPassword] = useState('');
   const [formRole, setFormRole] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
-
-  if (roleLoading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!isAdmin) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 gap-4">
-        <ShieldAlert className="h-16 w-16 text-destructive" />
-        <h1 className="text-2xl font-bold">Acesso negado</h1>
-        <p className="text-muted-foreground">Apenas administradores podem acessar esta página.</p>
-      </div>
-    );
-  }
 
   const openCreate = () => {
     setEditingUser(null);

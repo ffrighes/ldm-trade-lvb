@@ -42,16 +42,6 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Check if caller has admin role
-    const { data: isAdmin } = await adminClient.rpc("has_role", {
-      _user_id: caller.id,
-      _role: "admin",
-    });
-
-    if (!isAdmin) {
-      return jsonResponse({ error: "Acesso negado. Apenas administradores podem gerenciar usuários." }, 403);
-    }
-
     const { action, ...payload } = await req.json();
 
     switch (action) {

@@ -18,7 +18,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useSolicitacaoComments, useAddComment, useDeleteComment } from '@/hooks/useSolicitacaoActivity';
 import { useAuth } from '@/hooks/useAuth';
-import { useUserRole } from '@/hooks/useUserRole';
 import { toast } from 'sonner';
 
 interface Props {
@@ -35,8 +34,6 @@ function authorInitials(email: string): string {
 
 export function CommentsPanel({ solicitacaoId }: Props) {
   const { user } = useAuth();
-  const { data: role } = useUserRole();
-  const isPrivileged = role === 'admin' || role === 'gerente';
 
   const { data: comments = [], isLoading } = useSolicitacaoComments(solicitacaoId);
   const addComment = useAddComment();
@@ -111,7 +108,7 @@ export function CommentsPanel({ solicitacaoId }: Props) {
         <ul className="space-y-3">
           {comments.map((c) => {
             const isOwn = !!user && c.author_id === user.id;
-            const canDelete = isOwn || isPrivileged;
+            const canDelete = true;
             return (
               <li key={c.id} className="flex gap-3">
                 <Avatar className="h-8 w-8 shrink-0">

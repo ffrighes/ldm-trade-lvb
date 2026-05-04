@@ -38,15 +38,6 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // ---- AuthZ: admin or gerente ----
-    const [{ data: isAdmin }, { data: isGerente }] = await Promise.all([
-      adminClient.rpc("has_role", { _user_id: user.id, _role: "admin" }),
-      adminClient.rpc("has_role", { _user_id: user.id, _role: "gerente" }),
-    ]);
-    if (!isAdmin && !isGerente) {
-      return jsonResponse({ error: "Acesso negado." }, 403);
-    }
-
     // ---- Body size guard ----
     const contentLength = Number(req.headers.get("content-length") || 0);
     if (contentLength > MAX_BODY_BYTES) {
