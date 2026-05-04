@@ -159,6 +159,132 @@ export type Database = {
         }
         Relationships: []
       }
+      solicitacao_audit: {
+        Row: {
+          action: string
+          actor_email: string | null
+          actor_id: string | null
+          after: Json | null
+          at: string
+          before: Json | null
+          changed_fields: string[] | null
+          id: number
+          solicitacao_id: string | null
+          solicitacao_numero: string | null
+        }
+        Insert: {
+          action: string
+          actor_email?: string | null
+          actor_id?: string | null
+          after?: Json | null
+          at?: string
+          before?: Json | null
+          changed_fields?: string[] | null
+          id?: number
+          solicitacao_id?: string | null
+          solicitacao_numero?: string | null
+        }
+        Update: {
+          action?: string
+          actor_email?: string | null
+          actor_id?: string | null
+          after?: Json | null
+          at?: string
+          before?: Json | null
+          changed_fields?: string[] | null
+          id?: number
+          solicitacao_id?: string | null
+          solicitacao_numero?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitacao_audit_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "solicitacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      solicitacao_comments: {
+        Row: {
+          author_email: string
+          author_id: string | null
+          body: string
+          created_at: string
+          id: string
+          solicitacao_id: string
+        }
+        Insert: {
+          author_email: string
+          author_id?: string | null
+          body: string
+          created_at?: string
+          id?: string
+          solicitacao_id: string
+        }
+        Update: {
+          author_email?: string
+          author_id?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          solicitacao_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitacao_comments_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "solicitacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      solicitacao_drawings: {
+        Row: {
+          id: string
+          notas: string | null
+          revisao: string
+          solicitacao_id: string
+          storage_path: string | null
+          uploaded_at: string
+          uploaded_by: string | null
+          uploaded_by_email: string | null
+          url: string
+        }
+        Insert: {
+          id?: string
+          notas?: string | null
+          revisao?: string
+          solicitacao_id: string
+          storage_path?: string | null
+          uploaded_at?: string
+          uploaded_by?: string | null
+          uploaded_by_email?: string | null
+          url: string
+        }
+        Update: {
+          id?: string
+          notas?: string | null
+          revisao?: string
+          solicitacao_id?: string
+          storage_path?: string | null
+          uploaded_at?: string
+          uploaded_by?: string | null
+          uploaded_by_email?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitacao_drawings_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "solicitacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       solicitacao_itens: {
         Row: {
           bitola: string
@@ -212,6 +338,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      solicitacao_saved_views: {
+        Row: {
+          created_at: string
+          filters: Json
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          filters?: Json
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          filters?: Json
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       solicitacoes: {
         Row: {
@@ -286,6 +436,24 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_solicitacoes_kpis: {
+        Args: {
+          p_from?: string
+          p_project_ids?: string[]
+          p_projeto?: string
+          p_search?: string
+          p_status?: string[]
+          p_to?: string
+        }
+        Returns: {
+          itens_pendentes: number
+          ticket_medio: number
+          total_abertas: number
+          total_solicitacoes: number
+          valor_abertas: number
+          valor_total: number
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
