@@ -409,7 +409,7 @@ export default function SolicitacoesPage() {
                       <TableRow
                         key={s.id}
                         className={`cursor-pointer hover:bg-muted/50 ${checked ? 'bg-muted/30' : ''}`}
-                        onClick={() => navigate(`/solicitacoes/${s.id}`)}
+                        onClick={() => openDetails(s.id)}
                       >
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <Checkbox
