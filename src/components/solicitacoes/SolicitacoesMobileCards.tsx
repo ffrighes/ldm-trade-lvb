@@ -50,6 +50,7 @@ interface Props {
   calcCustoAtualizado: (itens: Row['solicitacao_itens']) => number;
   onRefreshCosts: (id: string, itens: Row['solicitacao_itens']) => void;
   onDelete: (id: string, numero: string) => void;
+  onView: (id: string) => void;
   refreshingCosts: boolean;
 }
 
@@ -62,9 +63,9 @@ export function SolicitacoesMobileCards({
   calcCustoAtualizado,
   onRefreshCosts,
   onDelete,
+  onView,
   refreshingCosts,
 }: Props) {
-  const navigate = useNavigate();
   const { canDeleteSolicitacao } = usePermissions();
 
   if (isLoading) {
