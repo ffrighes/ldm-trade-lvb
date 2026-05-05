@@ -367,6 +367,7 @@ export default function SolicitacoesPage() {
               calcCustoAtualizado={calcCustoAtualizado}
               onRefreshCosts={(id, itens) => handleAtualizarCustos(undefined, id, itens ?? [])}
               onDelete={(id, numero) => { deleteSolicitacao.mutate(id); toast.success(`Solicitação ${numero} excluída`); }}
+              onView={openDetails}
               refreshingCosts={updateItemCosts.isPending}
             />
           ) : (
