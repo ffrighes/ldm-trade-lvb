@@ -486,6 +486,12 @@ export default function SolicitacoesPage() {
           />
         </CardContent>
       </Card>
+
+      <SolicitacaoDetailsDialog
+        solicitacaoId={viewSolicitacaoId}
+        open={!!viewSolicitacaoId}
+        onOpenChange={(open) => { if (!open) setViewSolicitacaoId(null); }}
+      />
     </div>
   );
 }
