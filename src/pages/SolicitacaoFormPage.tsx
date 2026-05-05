@@ -786,112 +786,127 @@ export default function SolicitacaoFormPage() {
             <CardTitle>Itens da Solicitação</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {itens.map((item, idx) => {
-                const isEditing = editingKeys.has(item.key);
-                const itemDisabled = isReadOnly || !isEditing;
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="border-b text-left text-xs font-normal text-muted-foreground">
+                    <th className="py-2 px-2 font-normal w-10">#</th>
+                    <th className="py-2 px-2 font-normal">Descrição</th>
+                    <th className="py-2 px-2 font-normal">Bitola</th>
+                    <th className="py-2 px-2 font-normal">ERP</th>
+                    <th className="py-2 px-2 font-normal text-right">Qtd</th>
+                    <th className="py-2 px-2 font-normal">Un.</th>
+                    <th className="py-2 px-2 font-normal text-right">Custo Unit.</th>
+                    <th className="py-2 px-2 font-normal">Notas</th>
+                    {!isReadOnly && <th className="py-2 px-2 font-normal w-1"></th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {itens.map((item, idx) => {
+                    const isEditing = editingKeys.has(item.key);
+                    const itemDisabled = isReadOnly || !isEditing;
+                    const colCount = isReadOnly ? 8 : 9;
 
-                const actionButtons = !isReadOnly && (
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={isEditing ? 'Concluir edição do item' : 'Editar item'}
-                      onClick={() => toggleEditItem(item.key)}
-                      title={isEditing ? 'Concluir edição' : 'Editar item'}
-                    >
-                      {isEditing ? (
-                        <Check className="h-4 w-4 text-primary" />
-                      ) : (
-                        <Pencil className="h-4 w-4" />
-                      )}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label="Copiar item"
-                      onClick={() => copyItem(idx)}
-                      title="Copiar item"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label="Remover item"
-                      onClick={() => removeItem(idx)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                );
-
-                if (!isEditing) {
-                  return (
-                    <div
-                      key={item.key}
-                      className="rounded-lg border bg-card/40 px-3 py-2 flex items-center gap-3 text-sm"
-                    >
-                      <span className="font-semibold text-foreground shrink-0">
-                        {idx + 1}.
-                      </span>
-                      {item.isSpecial && (
-                        <Badge variant="secondary" className="gap-1 shrink-0">
-                          <Star className="h-3 w-3" />
-                          Especial
-                        </Badge>
-                      )}
-                      <span className="font-medium truncate min-w-0 flex-1" title={item.descricao || '—'}>
-                        {item.descricao || <span className="text-muted-foreground italic">Sem descrição</span>}
-                        {item.bitola && (
-                          <span className="text-foreground/70 font-normal"> · {item.bitola}</span>
-                        )}
-                      </span>
-                      {item.erp_item && (
-                        <span className="text-xs text-muted-foreground shrink-0 hidden md:inline">
-                          ERP {item.erp_item}
-                        </span>
-                      )}
-                      <span className="tabular-nums text-foreground/80 shrink-0">
-                        {item.quantidade} {item.unidade}
-                      </span>
-                      <span className="tabular-nums font-medium shrink-0 hidden sm:inline">
-                        {formatBRL(item.custo_unitario)}
-                      </span>
-                      {item.notas && (
-                        <span
-                          className="text-xs text-muted-foreground truncate max-w-[12rem] hidden lg:inline"
-                          title={item.notas}
+                    const actionButtons = !isReadOnly && (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label={isEditing ? 'Concluir edição do item' : 'Editar item'}
+                          onClick={() => toggleEditItem(item.key)}
+                          title={isEditing ? 'Concluir edição' : 'Editar item'}
                         >
-                          {item.notas}
-                        </span>
-                      )}
-                      {actionButtons}
-                    </div>
-                  );
-                }
-
-                return (
-                  <div
-                    key={item.key}
-                    className="rounded-lg border bg-card/40 p-3 sm:p-4"
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-foreground">
-                          Item {idx + 1}
-                        </span>
-                        {item.isSpecial && (
-                          <Badge variant="secondary" className="gap-1">
-                            <Star className="h-3 w-3" />
-                            Especial
-                          </Badge>
-                        )}
+                          {isEditing ? (
+                            <Check className="h-4 w-4 text-primary" />
+                          ) : (
+                            <Pencil className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Copiar item"
+                          onClick={() => copyItem(idx)}
+                          title="Copiar item"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Remover item"
+                          onClick={() => removeItem(idx)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
                       </div>
-                      {actionButtons}
-                    </div>
+                    );
 
-                    <div className="grid grid-cols-2 sm:grid-cols-6 lg:grid-cols-12 gap-3">
+                    if (!isEditing) {
+                      return (
+                        <tr key={item.key} className="border-b hover:bg-muted/30">
+                          <td className="py-2 px-2 align-middle font-normal text-foreground">
+                            <div className="flex items-center gap-1.5">
+                              <span>{idx + 1}</span>
+                              {item.isSpecial && (
+                                <Star className="h-3 w-3 text-muted-foreground" aria-label="Item especial" />
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-2 px-2 align-middle font-normal text-foreground max-w-[20rem]">
+                            <span className="block truncate" title={item.descricao || '—'}>
+                              {item.descricao || '—'}
+                            </span>
+                          </td>
+                          <td className="py-2 px-2 align-middle font-normal text-foreground">
+                            {item.bitola || '—'}
+                          </td>
+                          <td className="py-2 px-2 align-middle font-normal text-foreground">
+                            {item.erp_item || '—'}
+                          </td>
+                          <td className="py-2 px-2 align-middle font-normal text-foreground text-right tabular-nums">
+                            {item.quantidade}
+                          </td>
+                          <td className="py-2 px-2 align-middle font-normal text-foreground">
+                            {item.unidade}
+                          </td>
+                          <td className="py-2 px-2 align-middle font-normal text-foreground text-right tabular-nums">
+                            {formatBRL(item.custo_unitario)}
+                          </td>
+                          <td className="py-2 px-2 align-middle font-normal text-foreground max-w-[14rem]">
+                            <span className="block truncate" title={item.notas || ''}>
+                              {item.notas || '—'}
+                            </span>
+                          </td>
+                          {!isReadOnly && (
+                            <td className="py-1 px-2 align-middle">
+                              {actionButtons}
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    }
+
+                    return (
+                      <tr key={item.key} className="border-b">
+                        <td colSpan={colCount} className="p-0">
+                          <div className="bg-card/40 p-3 sm:p-4">
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-semibold text-foreground">
+                                  Item {idx + 1}
+                                </span>
+                                {item.isSpecial && (
+                                  <Badge variant="secondary" className="gap-1">
+                                    <Star className="h-3 w-3" />
+                                    Especial
+                                  </Badge>
+                                )}
+                              </div>
+                              {actionButtons}
+                            </div>
+
+                            <div className="grid grid-cols-2 sm:grid-cols-6 lg:grid-cols-12 gap-3">
                       <div className="col-span-2 sm:col-span-6 lg:col-span-5">
                         <Label className="text-xs font-medium text-foreground/80">
                           Descrição *
@@ -998,27 +1013,31 @@ export default function SolicitacaoFormPage() {
                         )}
                       </div>
 
-                      <div className="col-span-2 sm:col-span-6 lg:col-span-12">
-                        <Label className="text-xs font-medium text-foreground/80">
-                          Notas
-                        </Label>
-                        {item.isSpecial ? (
-                          <Input
-                            value={item.notas}
-                            onChange={e => setItens(prev => prev.map((it, i) => i === idx ? { ...it, notas: e.target.value } : it))}
-                            disabled={itemDisabled}
-                            placeholder="Observações"
-                          />
-                        ) : (
-                          <div className="min-h-10 flex items-center px-3 rounded-md border border-input bg-muted/40 text-sm text-foreground/80">
-                            {item.notas || '—'}
+                            <div className="col-span-2 sm:col-span-6 lg:col-span-12">
+                              <Label className="text-xs font-medium text-foreground/80">
+                                Notas
+                              </Label>
+                              {item.isSpecial ? (
+                                <Input
+                                  value={item.notas}
+                                  onChange={e => setItens(prev => prev.map((it, i) => i === idx ? { ...it, notas: e.target.value } : it))}
+                                  disabled={itemDisabled}
+                                  placeholder="Observações"
+                                />
+                              ) : (
+                                <div className="min-h-10 flex items-center px-3 rounded-md border border-input bg-muted/40 text-sm text-foreground/80">
+                                  {item.notas || '—'}
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                </tbody>
+              </table>
             </div>
             {!isReadOnly && (
               <div className="flex gap-2 mt-4 pt-4 border-t">
