@@ -32,6 +32,7 @@ import { KpiCards } from '@/components/solicitacoes/KpiCards';
 import { SavedViewsMenu } from '@/components/solicitacoes/SavedViewsMenu';
 import { BulkActionsBar } from '@/components/solicitacoes/BulkActionsBar';
 import { SolicitacoesMobileCards } from '@/components/solicitacoes/SolicitacoesMobileCards';
+import { SolicitacaoDetailsDialog } from '@/components/solicitacoes/SolicitacaoDetailsDialog';
 import { exportSolicitacoesToXlsx } from '@/lib/exportSolicitacoes';
 
 type SolicitacaoStatus = 'Aberta' | 'Aprovada' | 'Finalizada' | 'Material Comprado' | 'Material enviado para Obra' | 'Cancelada';
