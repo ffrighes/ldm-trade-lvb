@@ -428,7 +428,7 @@ export default function SolicitacoesPage() {
                         <TableCell className="text-right font-mono">{formatBRL(custoAtualizado)}</TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" aria-label="Ver solicitação" onClick={(e) => { e.stopPropagation(); navigate(`/solicitacoes/${s.id}`); }}><Eye className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" aria-label="Ver solicitação" onClick={(e) => { e.stopPropagation(); openDetails(s.id); }}><Eye className="h-4 w-4" /></Button>
                             {s.desenho && (
                               <a href={s.desenho} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} title="Ver desenho">
                                 <Button variant="ghost" size="icon" asChild aria-label="Ver desenho">
