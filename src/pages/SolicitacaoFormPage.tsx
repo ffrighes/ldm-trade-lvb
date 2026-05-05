@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SearchableSelect } from '@/components/ui/searchable-select';
-import { Plus, Trash2, ArrowLeft, Save, Upload, FileText, X, Download, Star, Pencil, Check } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, Save, Upload, FileText, X, Download, Star, Pencil, Check, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatBRL } from '@/lib/formatCurrency';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -204,6 +204,20 @@ export default function SolicitacaoFormPage() {
     const item = { ...emptyItem(), isSpecial: true };
     setItens(prev => [...prev, item]);
     setEditingKeys(prev => new Set(prev).add(item.key));
+  };
+  const copyItem = (index: number) => {
+    const source = itens[index];
+    if (!source) return;
+    const copy: FormItem = {
+      ...source,
+      key: `item-${Date.now()}-${Math.random()}`,
+    };
+    setItens(prev => {
+      const next = [...prev];
+      next.splice(index + 1, 0, copy);
+      return next;
+    });
+    setEditingKeys(prev => new Set(prev).add(copy.key));
   };
   const removeItem = (index: number) => {
     const removed = itens[index];
@@ -799,6 +813,15 @@ export default function SolicitacaoFormPage() {
                             ) : (
                               <Pencil className="h-4 w-4" />
                             )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Copiar item"
+                            onClick={() => copyItem(idx)}
+                            title="Copiar item"
+                          >
+                            <Copy className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
