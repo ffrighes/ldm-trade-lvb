@@ -8,11 +8,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SearchableSelect } from '@/components/ui/searchable-select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Trash2, ArrowLeft, Save, Upload, FileText, X, Download, Star, Pencil, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatBRL } from '@/lib/formatCurrency';
@@ -764,27 +764,59 @@ export default function SolicitacaoFormPage() {
             <CardTitle>Itens da Solicitação</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="min-w-[250px]">Descrição *</TableHead>
-                    <TableHead className="min-w-[150px]">Bitola *</TableHead>
-                    <TableHead className="w-28">ERP</TableHead>
-                    <TableHead className="w-24">Qtd *</TableHead>
-                    <TableHead className="w-20">Unid.</TableHead>
-                    <TableHead className="w-32">Custo Unit.</TableHead>
-                    <TableHead className="min-w-[180px]">Notas</TableHead>
-                    <TableHead className="w-24"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {itens.map((item, idx) => {
-                    const isEditing = editingKeys.has(item.key);
-                    const itemDisabled = isReadOnly || !isEditing;
-                    return (
-                    <TableRow key={item.key}>
-                      <TableCell>
+            <div className="space-y-3">
+              {itens.map((item, idx) => {
+                const isEditing = editingKeys.has(item.key);
+                const itemDisabled = isReadOnly || !isEditing;
+                return (
+                  <div
+                    key={item.key}
+                    className="rounded-lg border bg-card/40 p-3 sm:p-4"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-foreground">
+                          Item {idx + 1}
+                        </span>
+                        {item.isSpecial && (
+                          <Badge variant="secondary" className="gap-1">
+                            <Star className="h-3 w-3" />
+                            Especial
+                          </Badge>
+                        )}
+                      </div>
+                      {!isReadOnly && (
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={isEditing ? 'Concluir edição do item' : 'Editar item'}
+                            onClick={() => toggleEditItem(item.key)}
+                            title={isEditing ? 'Concluir edição' : 'Editar item'}
+                          >
+                            {isEditing ? (
+                              <Check className="h-4 w-4 text-primary" />
+                            ) : (
+                              <Pencil className="h-4 w-4" />
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Remover item"
+                            onClick={() => removeItem(idx)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-6 lg:grid-cols-12 gap-3">
+                      <div className="col-span-2 sm:col-span-6 lg:col-span-5">
+                        <Label className="text-xs font-medium text-foreground/80">
+                          Descrição *
+                        </Label>
                         {item.isSpecial ? (
                           <Input
                             value={item.descricao}
@@ -803,8 +835,12 @@ export default function SolicitacaoFormPage() {
                             emptyMessage="Nenhum material encontrado."
                           />
                         )}
-                      </TableCell>
-                      <TableCell>
+                      </div>
+
+                      <div className="col-span-2 sm:col-span-3 lg:col-span-3">
+                        <Label className="text-xs font-medium text-foreground/80">
+                          Bitola *
+                        </Label>
                         {item.isSpecial ? (
                           <Input
                             value={item.bitola}
@@ -823,33 +859,49 @@ export default function SolicitacaoFormPage() {
                             emptyMessage="Nenhuma bitola encontrada."
                           />
                         )}
-                      </TableCell>
-                      <TableCell>
-                        <Input value={item.erp_item} disabled className="w-24 text-xs" />
-                      </TableCell>
-                      <TableCell>
+                      </div>
+
+                      <div className="col-span-1 sm:col-span-3 lg:col-span-2">
+                        <Label className="text-xs font-medium text-foreground/80">
+                          ERP
+                        </Label>
+                        <Input value={item.erp_item} disabled className="text-sm" />
+                      </div>
+
+                      <div className="col-span-1 sm:col-span-2 lg:col-span-1">
+                        <Label className="text-xs font-medium text-foreground/80">
+                          Qtd *
+                        </Label>
                         <Input
                           type="number"
                           min={0}
                           value={item.quantidade}
                           onChange={e => handleQtdChange(idx, parseFloat(e.target.value) || 0)}
                           disabled={itemDisabled}
-                          className="w-20"
                         />
-                      </TableCell>
-                      <TableCell>
+                      </div>
+
+                      <div className="col-span-1 sm:col-span-2 lg:col-span-1">
+                        <Label className="text-xs font-medium text-foreground/80">
+                          Unid.
+                        </Label>
                         {item.isSpecial ? (
                           <Input
                             value={item.unidade}
                             onChange={e => setItens(prev => prev.map((it, i) => i === idx ? { ...it, unidade: e.target.value } : it))}
                             disabled={itemDisabled}
-                            className="w-20 text-sm"
                           />
                         ) : (
-                          <span className="text-center text-sm block">{item.unidade}</span>
+                          <div className="h-10 flex items-center px-3 rounded-md border border-input bg-muted/40 text-sm">
+                            {item.unidade}
+                          </div>
                         )}
-                      </TableCell>
-                      <TableCell>
+                      </div>
+
+                      <div className="col-span-2 sm:col-span-2 lg:col-span-3">
+                        <Label className="text-xs font-medium text-foreground/80">
+                          Custo Unit.
+                        </Label>
                         {item.isSpecial ? (
                           <Input
                             type="number"
@@ -858,14 +910,19 @@ export default function SolicitacaoFormPage() {
                             value={item.custo_unitario}
                             onChange={e => handleCustoChange(idx, parseFloat(e.target.value) || 0)}
                             disabled={itemDisabled}
-                            className="w-28"
                             placeholder="0,00"
                           />
                         ) : (
-                          <span className="text-sm text-muted-foreground block text-right pr-2">{formatBRL(item.custo_unitario)}</span>
+                          <div className="h-10 flex items-center justify-end px-3 rounded-md border border-input bg-muted/40 text-sm font-medium tabular-nums">
+                            {formatBRL(item.custo_unitario)}
+                          </div>
                         )}
-                      </TableCell>
-                      <TableCell>
+                      </div>
+
+                      <div className="col-span-2 sm:col-span-6 lg:col-span-12">
+                        <Label className="text-xs font-medium text-foreground/80">
+                          Notas
+                        </Label>
                         {item.isSpecial ? (
                           <Input
                             value={item.notas}
@@ -874,36 +931,15 @@ export default function SolicitacaoFormPage() {
                             placeholder="Observações"
                           />
                         ) : (
-                          <span className="text-sm text-muted-foreground">{item.notas || '—'}</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {!isReadOnly && (
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              aria-label={isEditing ? 'Concluir edição do item' : 'Editar item'}
-                              onClick={() => toggleEditItem(item.key)}
-                              title={isEditing ? 'Concluir edição' : 'Editar item'}
-                            >
-                              {isEditing ? (
-                                <Check className="h-4 w-4 text-primary" />
-                              ) : (
-                                <Pencil className="h-4 w-4" />
-                              )}
-                            </Button>
-                            <Button variant="ghost" size="icon" aria-label="Remover item" onClick={() => removeItem(idx)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
+                          <div className="min-h-10 flex items-center px-3 rounded-md border border-input bg-muted/40 text-sm text-foreground/80">
+                            {item.notas || '—'}
                           </div>
                         )}
-                      </TableCell>
-                    </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
             {!isReadOnly && (
               <div className="flex gap-2 mt-4 pt-4 border-t">
