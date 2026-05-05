@@ -959,7 +959,12 @@ export default function SolicitacaoFormPage() {
                         <Label className="text-xs font-medium text-foreground/80">
                           ERP
                         </Label>
-                        <Input value={item.erp_item} disabled className="text-sm" />
+                        <Input
+                          value={item.erp_item}
+                          onChange={e => setItens(prev => prev.map((it, i) => i === idx ? { ...it, erp_item: e.target.value } : it))}
+                          disabled={itemDisabled}
+                          className="text-sm"
+                        />
                       </div>
 
                       <div className="col-span-1 sm:col-span-2 lg:col-span-1">
@@ -996,39 +1001,27 @@ export default function SolicitacaoFormPage() {
                         <Label className="text-xs font-medium text-foreground/80">
                           Custo Unit.
                         </Label>
-                        {item.isSpecial ? (
-                          <Input
-                            type="number"
-                            min={0}
-                            step={0.01}
-                            value={item.custo_unitario}
-                            onChange={e => handleCustoChange(idx, parseFloat(e.target.value) || 0)}
-                            disabled={itemDisabled}
-                            placeholder="0,00"
-                          />
-                        ) : (
-                          <div className="h-10 flex items-center justify-end px-3 rounded-md border border-input bg-muted/40 text-sm font-medium tabular-nums">
-                            {formatBRL(item.custo_unitario)}
-                          </div>
-                        )}
+                        <Input
+                          type="number"
+                          min={0}
+                          step={0.01}
+                          value={item.custo_unitario}
+                          onChange={e => handleCustoChange(idx, parseFloat(e.target.value) || 0)}
+                          disabled={itemDisabled}
+                          placeholder="0,00"
+                        />
                       </div>
 
                             <div className="col-span-2 sm:col-span-6 lg:col-span-12">
                               <Label className="text-xs font-medium text-foreground/80">
                                 Notas
                               </Label>
-                              {item.isSpecial ? (
-                                <Input
-                                  value={item.notas}
-                                  onChange={e => setItens(prev => prev.map((it, i) => i === idx ? { ...it, notas: e.target.value } : it))}
-                                  disabled={itemDisabled}
-                                  placeholder="Observações"
-                                />
-                              ) : (
-                                <div className="min-h-10 flex items-center px-3 rounded-md border border-input bg-muted/40 text-sm text-foreground/80">
-                                  {item.notas || '—'}
-                                </div>
-                              )}
+                              <Input
+                                value={item.notas}
+                                onChange={e => setItens(prev => prev.map((it, i) => i === idx ? { ...it, notas: e.target.value } : it))}
+                                disabled={itemDisabled}
+                                placeholder="Observações"
+                              />
                             </div>
                           </div>
                         </div>
