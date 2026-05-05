@@ -790,6 +790,87 @@ export default function SolicitacaoFormPage() {
               {itens.map((item, idx) => {
                 const isEditing = editingKeys.has(item.key);
                 const itemDisabled = isReadOnly || !isEditing;
+
+                const actionButtons = !isReadOnly && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={isEditing ? 'Concluir edição do item' : 'Editar item'}
+                      onClick={() => toggleEditItem(item.key)}
+                      title={isEditing ? 'Concluir edição' : 'Editar item'}
+                    >
+                      {isEditing ? (
+                        <Check className="h-4 w-4 text-primary" />
+                      ) : (
+                        <Pencil className="h-4 w-4" />
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Copiar item"
+                      onClick={() => copyItem(idx)}
+                      title="Copiar item"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Remover item"
+                      onClick={() => removeItem(idx)}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                );
+
+                if (!isEditing) {
+                  return (
+                    <div
+                      key={item.key}
+                      className="rounded-lg border bg-card/40 px-3 py-2 flex items-center gap-3 text-sm"
+                    >
+                      <span className="font-semibold text-foreground shrink-0">
+                        {idx + 1}.
+                      </span>
+                      {item.isSpecial && (
+                        <Badge variant="secondary" className="gap-1 shrink-0">
+                          <Star className="h-3 w-3" />
+                          Especial
+                        </Badge>
+                      )}
+                      <span className="font-medium truncate min-w-0 flex-1" title={item.descricao || '—'}>
+                        {item.descricao || <span className="text-muted-foreground italic">Sem descrição</span>}
+                        {item.bitola && (
+                          <span className="text-foreground/70 font-normal"> · {item.bitola}</span>
+                        )}
+                      </span>
+                      {item.erp_item && (
+                        <span className="text-xs text-muted-foreground shrink-0 hidden md:inline">
+                          ERP {item.erp_item}
+                        </span>
+                      )}
+                      <span className="tabular-nums text-foreground/80 shrink-0">
+                        {item.quantidade} {item.unidade}
+                      </span>
+                      <span className="tabular-nums font-medium shrink-0 hidden sm:inline">
+                        {formatBRL(item.custo_unitario)}
+                      </span>
+                      {item.notas && (
+                        <span
+                          className="text-xs text-muted-foreground truncate max-w-[12rem] hidden lg:inline"
+                          title={item.notas}
+                        >
+                          {item.notas}
+                        </span>
+                      )}
+                      {actionButtons}
+                    </div>
+                  );
+                }
+
                 return (
                   <div
                     key={item.key}
@@ -807,40 +888,7 @@ export default function SolicitacaoFormPage() {
                           </Badge>
                         )}
                       </div>
-                      {!isReadOnly && (
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            aria-label={isEditing ? 'Concluir edição do item' : 'Editar item'}
-                            onClick={() => toggleEditItem(item.key)}
-                            title={isEditing ? 'Concluir edição' : 'Editar item'}
-                          >
-                            {isEditing ? (
-                              <Check className="h-4 w-4 text-primary" />
-                            ) : (
-                              <Pencil className="h-4 w-4" />
-                            )}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            aria-label="Copiar item"
-                            onClick={() => copyItem(idx)}
-                            title="Copiar item"
-                          >
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            aria-label="Remover item"
-                            onClick={() => removeItem(idx)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      )}
+                      {actionButtons}
                     </div>
 
                     <div className="grid grid-cols-2 sm:grid-cols-6 lg:grid-cols-12 gap-3">
