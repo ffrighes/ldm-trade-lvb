@@ -101,33 +101,33 @@ export function SolicitacoesMobileCards({
                   onClick={() => onView(s.id)}
                 >
                   <div className="flex items-center gap-2">
-                    <span className="font-mono font-medium">{s.numero}</span>
+                    <span className="font-mono font-semibold text-foreground">{s.numero}</span>
                     <Badge className={statusColors[s.status as SolicitacaoStatus] || ''}>{s.status}</Badge>
                   </div>
-                  <div className="text-sm text-muted-foreground truncate">{getProjetoNome(s.projeto_id)}</div>
+                  <div className="text-sm font-medium text-foreground/80 truncate">{getProjetoNome(s.projeto_id)}</div>
                 </button>
               </div>
 
-              <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
+              <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
                 <div>
-                  <dt className="text-xs text-muted-foreground">Motivo</dt>
+                  <dt className="text-[11px] font-semibold uppercase tracking-wider text-foreground/60">Motivo</dt>
                   <dd className="truncate">{s.motivo}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">Data</dt>
+                  <dt className="text-[11px] font-semibold uppercase tracking-wider text-foreground/60">Data</dt>
                   <dd>{s.data_solicitacao}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">Itens</dt>
+                  <dt className="text-[11px] font-semibold uppercase tracking-wider text-foreground/60">Itens</dt>
                   <dd>{itens.length}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">ERP</dt>
+                  <dt className="text-[11px] font-semibold uppercase tracking-wider text-foreground/60">ERP</dt>
                   <dd className="font-mono">{s.erp || '-'}</dd>
                 </div>
                 <div className="col-span-2">
-                  <dt className="text-xs text-muted-foreground">Custo Total</dt>
-                  <dd className="font-mono font-medium">{formatBRL(custo)}</dd>
+                  <dt className="text-[11px] font-semibold uppercase tracking-wider text-foreground/60">Custo Total</dt>
+                  <dd className="font-mono font-semibold tabular-nums">{formatBRL(custo)}</dd>
                 </div>
               </dl>
 

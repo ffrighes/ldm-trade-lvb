@@ -68,9 +68,9 @@ export function KpiCards({ kpis, isLoading }: Props) {
               <CardContent className="p-4">
                 <div className="flex items-start justify-between">
                   <div className="min-w-0">
-                    <div className="text-xs text-muted-foreground uppercase tracking-wide truncate">{label}</div>
+                    <div className="text-xs font-semibold text-foreground/70 uppercase tracking-wider truncate">{label}</div>
                     <div className="text-2xl font-bold mt-1 tabular-nums">{value}</div>
-                    {hint && <div className="text-xs text-muted-foreground mt-1 truncate">{hint}</div>}
+                    {hint && <div className="text-xs text-muted-foreground/90 mt-1 truncate">{hint}</div>}
                   </div>
                   <Icon className={`h-5 w-5 shrink-0 ${accent}`} aria-hidden />
                 </div>
