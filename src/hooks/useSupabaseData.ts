@@ -316,6 +316,7 @@ type ItemInput = {
   material_id?: string | null;
   descricao: string;
   bitola: string;
+  erp?: string;
   notas?: string;
   quantidade: number;
   unidade: string;
@@ -345,6 +346,7 @@ export function useAddSolicitacao() {
         material_id?: string | null;
         descricao: string;
         bitola: string;
+        erp?: string;
         notas?: string;
         quantidade: number;
         unidade: string;
@@ -387,6 +389,7 @@ export function useUpdateSolicitacao() {
         material_id?: string | null;
         descricao: string;
         bitola: string;
+        erp?: string;
         notas?: string;
         quantidade: number;
         unidade: string;
@@ -440,6 +443,7 @@ export function useAddInventarioAjuste() {
       custo_unitario: number;
       custo_total: number;
       material_id?: string | null;
+      erp?: string;
     }) => {
       const { error } = await supabase.from('inventario').insert({
         ...ajuste,

@@ -108,14 +108,13 @@ export default function SolicitacaoFormPage() {
       setDesenho(existing.desenho || null);
       setItens(
         (existing.solicitacao_itens || []).map((i: any) => {
-          const mat = materials.find(m => m.id === i.material_id);
           const isSpecial = !i.material_id;
           return {
             key: i.id,
             material_id: i.material_id,
             descricao: i.descricao,
             bitola: i.bitola,
-            erp_item: mat?.erp || '',
+            erp_item: i.erp || '',
             notas: i.notas || '',
             quantidade: i.quantidade,
             unidade: i.unidade,
@@ -492,11 +491,12 @@ export default function SolicitacaoFormPage() {
         infoY += 5;
       });
 
-      // Build rows with costs from materials DB (or stored custo_unitario for special items)
+      // Use the snapshot custo_unitario stored on the item — items are
+      // immutable after insertion and must not reflect later changes to the
+      // master materials table.
       let totalGeral = 0;
       const tableData = itens.map((item, i) => {
-        const mat = item.material_id ? materials.find(m => m.id === item.material_id) : null;
-        const custoUnit = mat ? (mat.custo ?? 0) : (item.custo_unitario ?? 0);
+        const custoUnit = item.custo_unitario ?? 0;
         const custoTotal = item.quantidade * custoUnit;
         totalGeral += custoTotal;
         return [
@@ -626,7 +626,7 @@ export default function SolicitacaoFormPage() {
       notas,
       status,
       desenho,
-      itens: itens.map(({ key, erp_item, isSpecial, ...rest }) => rest),
+      itens: itens.map(({ key, erp_item, isSpecial, ...rest }) => ({ ...rest, erp: erp_item || '' })),
     };
 
     try {

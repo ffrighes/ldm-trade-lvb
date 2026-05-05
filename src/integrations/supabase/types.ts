@@ -21,6 +21,7 @@ export type Database = {
           custo_total: number
           custo_unitario: number
           descricao: string
+          erp: string
           id: string
           material_id: string | null
           projeto_id: string
@@ -34,6 +35,7 @@ export type Database = {
           custo_total?: number
           custo_unitario?: number
           descricao: string
+          erp?: string
           id?: string
           material_id?: string | null
           projeto_id: string
@@ -47,6 +49,7 @@ export type Database = {
           custo_total?: number
           custo_unitario?: number
           descricao?: string
+          erp?: string
           id?: string
           material_id?: string | null
           projeto_id?: string
@@ -291,6 +294,7 @@ export type Database = {
           custo_total: number
           custo_unitario: number
           descricao: string
+          erp: string
           id: string
           material_id: string | null
           notas: string
@@ -303,6 +307,7 @@ export type Database = {
           custo_total?: number
           custo_unitario?: number
           descricao: string
+          erp?: string
           id?: string
           material_id?: string | null
           notas?: string
@@ -315,6 +320,7 @@ export type Database = {
           custo_total?: number
           custo_unitario?: number
           descricao?: string
+          erp?: string
           id?: string
           material_id?: string | null
           notas?: string
