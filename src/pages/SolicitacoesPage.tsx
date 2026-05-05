@@ -56,6 +56,8 @@ export default function SolicitacoesPage() {
   const [searchInput, setSearchInput] = useState(state.search);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isExporting, setIsExporting] = useState(false);
+  const [viewSolicitacaoId, setViewSolicitacaoId] = useState<string | null>(null);
+  const openDetails = (id: string) => setViewSolicitacaoId(id);
 
   useEffect(() => {
     if (searchInput === state.search) return;
