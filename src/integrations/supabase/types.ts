@@ -84,6 +84,7 @@ export type Database = {
       materials: {
         Row: {
           bitola: string
+          categoria: string | null
           created_at: string
           custo: number
           descricao: string
@@ -95,6 +96,7 @@ export type Database = {
         }
         Insert: {
           bitola: string
+          categoria?: string | null
           created_at?: string
           custo?: number
           descricao: string
@@ -106,6 +108,7 @@ export type Database = {
         }
         Update: {
           bitola?: string
+          categoria?: string | null
           created_at?: string
           custo?: number
           descricao?: string

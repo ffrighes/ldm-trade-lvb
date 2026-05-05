@@ -29,6 +29,7 @@ import { DrawingsManager } from '@/components/solicitacoes/DrawingsManager';
 import { useAuth } from '@/hooks/useAuth';
 import { useSolicitacaoRealtime } from '@/hooks/useSolicitacaoRealtime';
 import { useSolicitacaoComments } from '@/hooks/useSolicitacaoActivity';
+import { CATEGORIAS_MATERIAL, SEM_CATEGORIA_LABEL } from '@/lib/categorias';
 
 interface FormItem {
   key: string;
@@ -130,6 +131,36 @@ export default function SolicitacaoFormPage() {
   }, [existing, loaded]);
 
   const descriptions = useMemo(() => [...new Set(materials.map(m => m.descricao))].sort(), [materials]);
+
+  const categoriaByDescricao = useMemo(() => {
+    const map = new Map<string, string | null>();
+    materials.forEach(m => {
+      if (!map.has(m.descricao)) map.set(m.descricao, (m as any).categoria ?? null);
+    });
+    return map;
+  }, [materials]);
+
+  const getItemCategoria = (item: FormItem): string => {
+    const cat = categoriaByDescricao.get(item.descricao);
+    return cat || SEM_CATEGORIA_LABEL;
+  };
+
+  const itensPorCategoria = useMemo(() => {
+    const groups = new Map<string, { item: FormItem; idx: number }[]>();
+    itens.forEach((item, idx) => {
+      const cat = getItemCategoria(item);
+      const list = groups.get(cat) || [];
+      list.push({ item, idx });
+      groups.set(cat, list);
+    });
+    const ordered: [string, { item: FormItem; idx: number }[]][] = [];
+    for (const c of CATEGORIAS_MATERIAL) {
+      if (groups.has(c)) ordered.push([c, groups.get(c)!]);
+    }
+    if (groups.has(SEM_CATEGORIA_LABEL)) ordered.push([SEM_CATEGORIA_LABEL, groups.get(SEM_CATEGORIA_LABEL)!]);
+    return ordered;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itens, categoriaByDescricao]);
 
   const parseBitolaValue = (b: string): number => {
     const trimmed = b.trim();
@@ -781,9 +812,25 @@ export default function SolicitacaoFormPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        {itensPorCategoria.length === 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Itens da Solicitação</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">Nenhum item adicionado.</p>
+            </CardContent>
+          </Card>
+        )}
+        {itensPorCategoria.map(([categoria, entries]) => (
+        <Card key={categoria}>
           <CardHeader>
-            <CardTitle>Itens da Solicitação</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <span>{categoria}</span>
+              <span className="text-xs font-normal text-muted-foreground">
+                ({entries.length} {entries.length === 1 ? 'item' : 'itens'})
+              </span>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
@@ -802,7 +849,7 @@ export default function SolicitacaoFormPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {itens.map((item, idx) => {
+                  {entries.map(({ item, idx }) => {
                     const isEditing = editingKeys.has(item.key);
                     const itemDisabled = isReadOnly || !isEditing;
                     const colCount = isReadOnly ? 8 : 9;
@@ -1032,18 +1079,19 @@ export default function SolicitacaoFormPage() {
                 </tbody>
               </table>
             </div>
-            {!isReadOnly && (
-              <div className="flex gap-2 mt-4 pt-4 border-t">
-                <Button variant="outline" size="sm" onClick={addItem}>
-                  <Plus className="h-4 w-4 mr-1" />Adicionar Item
-                </Button>
-                <Button variant="outline" size="sm" onClick={addSpecialItem}>
-                  <Star className="h-4 w-4 mr-1" />Item Especial
-                </Button>
-              </div>
-            )}
           </CardContent>
         </Card>
+        ))}
+        {!isReadOnly && (
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={addItem}>
+              <Plus className="h-4 w-4 mr-1" />Adicionar Item
+            </Button>
+            <Button variant="outline" size="sm" onClick={addSpecialItem}>
+              <Star className="h-4 w-4 mr-1" />Item Especial
+            </Button>
+          </div>
+        )}
 
         {existing?.id && (
           <Card>

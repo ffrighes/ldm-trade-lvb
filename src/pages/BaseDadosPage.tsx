@@ -26,6 +26,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from "sonner";
 import { formatBRL, parseBRL } from "@/lib/formatCurrency";
+import { CATEGORIAS_MATERIAL, SEM_CATEGORIA_LABEL } from "@/lib/categorias";
+import { Badge } from "@/components/ui/badge";
 import * as XLSX from "xlsx";
 
 export default function BaseDadosPage() {
@@ -39,7 +41,10 @@ export default function BaseDadosPage() {
   const [descFilter, setDescFilter] = useState("all");
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ descricao: "", bitola: "", unidade: "m", erp: "", custo: "", notas: "" });
+  const [form, setForm] = useState({ descricao: "", bitola: "", unidade: "m", erp: "", custo: "", notas: "", categoria: "" });
+  const [categoriaFilter, setCategoriaFilter] = useState("all");
+  const [newFamilyCategoria, setNewFamilyCategoria] = useState<string>("");
+  const [editingFamilyCategoria, setEditingFamilyCategoria] = useState<string>("");
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [importing, setImporting] = useState(false);
   const [clearBeforeImport, setClearBeforeImport] = useState(false);
@@ -110,6 +115,8 @@ export default function BaseDadosPage() {
         custo: "custo",
         Notas: "notas",
         notas: "notas",
+        Categoria: "categoria",
+        categoria: "categoria",
       };
 
       const materials = rows
@@ -121,6 +128,8 @@ export default function BaseDadosPage() {
           }
           if (!mapped.descricao || !mapped.bitola) return null;
           const unRaw = String(mapped.unidade || "un").trim();
+          const catRaw = String(mapped.categoria || "").trim();
+          const categoria = (CATEGORIAS_MATERIAL as readonly string[]).includes(catRaw) ? catRaw : null;
           return {
             descricao: String(mapped.descricao).trim(),
             bitola: String(mapped.bitola).trim(),
@@ -128,6 +137,7 @@ export default function BaseDadosPage() {
             erp: String(mapped.erp || "").trim(),
             custo: parseFloat(String(mapped.custo || "0").replace(",", ".")) || 0,
             notas: String(mapped.notas || "").trim(),
+            categoria,
           };
         })
         .filter(Boolean) as any[];
@@ -179,10 +189,27 @@ export default function BaseDadosPage() {
 
   const descriptions = useMemo(() => [...new Set(materials.map((m) => m.descricao))].sort(), [materials]);
 
+  const familyCategoria = useMemo(() => {
+    const map = new Map<string, string | null>();
+    materials.forEach((m) => {
+      const cat = (m as any).categoria ?? null;
+      if (!map.has(m.descricao)) map.set(m.descricao, cat);
+    });
+    return map;
+  }, [materials]);
+
   const filtered = useMemo(
     () =>
       materials.filter((m) => {
         if (descFilter !== "all" && m.descricao !== descFilter) return false;
+        if (categoriaFilter !== "all") {
+          const cat = (m as any).categoria ?? null;
+          if (categoriaFilter === "__none__") {
+            if (cat) return false;
+          } else if (cat !== categoriaFilter) {
+            return false;
+          }
+        }
         if (search) {
           const s = search.toLowerCase();
           return (
@@ -193,7 +220,7 @@ export default function BaseDadosPage() {
         }
         return true;
       }),
-    [materials, search, descFilter],
+    [materials, search, descFilter, categoriaFilter],
   );
 
   const grouped = useMemo(() => {
@@ -224,6 +251,7 @@ export default function BaseDadosPage() {
       toast.error("Preencha todos os campos obrigatórios");
       return;
     }
+    const categoria = form.categoria || familyCategoria.get(form.descricao) || null;
     try {
       if (editingId) {
         await updateMaterial.mutateAsync({
@@ -234,6 +262,7 @@ export default function BaseDadosPage() {
           erp: form.erp,
           custo,
           notas: form.notas,
+          categoria,
         });
         toast.success("Item atualizado");
       } else {
@@ -244,6 +273,7 @@ export default function BaseDadosPage() {
           erp: form.erp,
           custo,
           notas: form.notas,
+          categoria,
         });
         toast.success("Item adicionado");
       }
@@ -266,6 +296,7 @@ export default function BaseDadosPage() {
       erp: (m as any).erp || "",
       custo: m.custo.toString(),
       notas: (m as any).notas || "",
+      categoria: (m as any).categoria || "",
     });
     setOpen(true);
   };
@@ -273,48 +304,57 @@ export default function BaseDadosPage() {
   const openRenameFamily = (descricao: string) => {
     setRenamingFamily(descricao);
     setNewFamilyName(descricao);
+    setEditingFamilyCategoria(familyCategoria.get(descricao) || "");
     setRenameFamilyOpen(true);
   };
 
   const handleRenameFamily = async () => {
     const trimmed = newFamilyName.trim();
-    if (!trimmed || trimmed === renamingFamily) {
+    const currentCategoria = familyCategoria.get(renamingFamily) || "";
+    const newCategoria = editingFamilyCategoria || "";
+    const nameChanged = trimmed && trimmed !== renamingFamily;
+    const categoriaChanged = newCategoria !== currentCategoria;
+    if (!trimmed || (!nameChanged && !categoriaChanged)) {
       setRenameFamilyOpen(false);
       return;
     }
     setRenamingFamily_saving(true);
     try {
-      // 1. Atualizar a tabela materials
+      // 1. Atualizar a tabela materials (nome e/ou categoria)
+      const updatePayload: Record<string, unknown> = {};
+      if (nameChanged) updatePayload.descricao = trimmed;
+      if (categoriaChanged) updatePayload.categoria = newCategoria || null;
       const { error } = await supabase
         .from("materials")
-        .update({ descricao: trimmed })
+        .update(updatePayload as any)
         .eq("descricao", renamingFamily);
       if (error) throw error;
 
-      // 2. Buscar solicitações ativas (não Finalizada nem Cancelada)
-      const { data: activeSols, error: solError } = await supabase
-        .from("solicitacoes")
-        .select("id")
-        .not("status", "in", '("Finalizada","Cancelada")');
-      if (solError) throw solError;
+      // 2. Buscar solicitações ativas (não Finalizada nem Cancelada) e propagar nome
+      if (nameChanged) {
+        const { data: activeSols, error: solError } = await supabase
+          .from("solicitacoes")
+          .select("id")
+          .not("status", "in", '("Finalizada","Cancelada")');
+        if (solError) throw solError;
 
-      // 3. Atualizar descrição nos itens das solicitações ativas
-      if (activeSols && activeSols.length > 0) {
-        const activeIds = activeSols.map((s) => s.id);
-        const { error: itensError } = await supabase
-          .from("solicitacao_itens")
-          .update({ descricao: trimmed })
-          .eq("descricao", renamingFamily)
-          .in("solicitacao_id", activeIds);
-        if (itensError) throw itensError;
+        if (activeSols && activeSols.length > 0) {
+          const activeIds = activeSols.map((s) => s.id);
+          const { error: itensError } = await supabase
+            .from("solicitacao_itens")
+            .update({ descricao: trimmed })
+            .eq("descricao", renamingFamily)
+            .in("solicitacao_id", activeIds);
+          if (itensError) throw itensError;
+        }
       }
 
       queryClient.invalidateQueries({ queryKey: ["materials"] });
       queryClient.invalidateQueries({ queryKey: ["solicitacoes"] });
-      toast.success("Família renomeada com sucesso");
+      toast.success("Família atualizada com sucesso");
       setRenameFamilyOpen(false);
     } catch (err: any) {
-      toast.error("Erro ao renomear família: " + (err.message || "erro desconhecido"));
+      toast.error("Erro ao atualizar família: " + (err.message || "erro desconhecido"));
     } finally {
       setRenamingFamily_saving(false);
     }
@@ -352,9 +392,18 @@ export default function BaseDadosPage() {
     }
   };
 
-  const openNew = (familiaDescricao?: string) => {
+  const openNew = (familiaDescricao?: string, categoria?: string) => {
     setEditingId(null);
-    setForm({ descricao: familiaDescricao ?? "", bitola: "", unidade: "m", erp: "", custo: "", notas: "" });
+    const inheritedCategoria = familiaDescricao ? familyCategoria.get(familiaDescricao) || "" : "";
+    setForm({
+      descricao: familiaDescricao ?? "",
+      bitola: "",
+      unidade: "m",
+      erp: "",
+      custo: "",
+      notas: "",
+      categoria: categoria ?? inheritedCategoria,
+    });
     setOpen(true);
   };
 
@@ -363,7 +412,9 @@ export default function BaseDadosPage() {
     if (!name) return;
     setNewFamilyDialogOpen(false);
     setNewFamilyInput("");
-    openNew(name);
+    const cat = newFamilyCategoria;
+    setNewFamilyCategoria("");
+    openNew(name, cat);
   };
 
   return (
@@ -377,6 +428,7 @@ export default function BaseDadosPage() {
             onClick={() => {
               const exportData = materials.map((m) => ({
                 "Descrição (Família)": m.descricao,
+                Categoria: (m as any).categoria || "",
                 Ø: m.bitola,
                 "Un.": m.unidade,
                 ERP: m.erp,
@@ -409,7 +461,7 @@ export default function BaseDadosPage() {
                 <Upload className="h-4 w-4 mr-2" />
                 {importing ? "Importando..." : "Importar XLSX"}
               </Button>
-              <Button onClick={() => { setNewFamilyInput(""); setNewFamilyDialogOpen(true); }}>
+              <Button onClick={() => { setNewFamilyInput(""); setNewFamilyCategoria(""); setNewFamilyDialogOpen(true); }}>
                 <Plus className="h-4 w-4 mr-2" />
                 Nova Família
               </Button>
@@ -423,16 +475,32 @@ export default function BaseDadosPage() {
           <DialogHeader>
             <DialogTitle>Nova Família</DialogTitle>
           </DialogHeader>
-          <div className="py-4">
-            <Label>Nome da família *</Label>
-            <Input
-              className="mt-2"
-              value={newFamilyInput}
-              onChange={(e) => setNewFamilyInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleConfirmNewFamily()}
-              placeholder="Ex: Tubo Sem Costura ASTM A106 Gr B"
-              autoFocus
-            />
+          <div className="space-y-3 py-4">
+            <div>
+              <Label>Nome da família *</Label>
+              <Input
+                className="mt-2"
+                value={newFamilyInput}
+                onChange={(e) => setNewFamilyInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleConfirmNewFamily()}
+                placeholder="Ex: Tubo Sem Costura ASTM A106 Gr B"
+                autoFocus
+              />
+            </div>
+            <div>
+              <Label>Categoria</Label>
+              <Select value={newFamilyCategoria || "__none__"} onValueChange={(v) => setNewFamilyCategoria(v === "__none__" ? "" : v)}>
+                <SelectTrigger className="mt-2">
+                  <SelectValue placeholder="Selecione a categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">{SEM_CATEGORIA_LABEL}</SelectItem>
+                  {CATEGORIAS_MATERIAL.map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <DialogClose asChild>
@@ -448,7 +516,7 @@ export default function BaseDadosPage() {
       <Dialog open={renameFamilyOpen} onOpenChange={setRenameFamilyOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Renomear Família</DialogTitle>
+            <DialogTitle>Editar Família</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-4">
             <div>
@@ -464,13 +532,27 @@ export default function BaseDadosPage() {
                 autoFocus
               />
             </div>
+            <div>
+              <Label>Categoria</Label>
+              <Select value={editingFamilyCategoria || "__none__"} onValueChange={(v) => setEditingFamilyCategoria(v === "__none__" ? "" : v)}>
+                <SelectTrigger className="mt-2">
+                  <SelectValue placeholder="Selecione a categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">{SEM_CATEGORIA_LABEL}</SelectItem>
+                  {CATEGORIAS_MATERIAL.map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline">Cancelar</Button>
             </DialogClose>
             <Button onClick={handleRenameFamily} disabled={renamingFamily_saving || !newFamilyName.trim()}>
-              {renamingFamily_saving ? "Salvando..." : "Renomear"}
+              {renamingFamily_saving ? "Salvando..." : "Salvar"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -544,6 +626,20 @@ export default function BaseDadosPage() {
               </div>
             </div>
             <div>
+              <Label>Categoria</Label>
+              <Select value={form.categoria || "__none__"} onValueChange={(v) => setForm((f) => ({ ...f, categoria: v === "__none__" ? "" : v }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">{SEM_CATEGORIA_LABEL}</SelectItem>
+                  {CATEGORIAS_MATERIAL.map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label>Notas</Label>
               <Textarea
                 value={form.notas}
@@ -576,6 +672,18 @@ export default function BaseDadosPage() {
                 className="pl-9"
               />
             </div>
+            <Select value={categoriaFilter} onValueChange={setCategoriaFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Filtrar categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as categorias</SelectItem>
+                {CATEGORIAS_MATERIAL.map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+                <SelectItem value="__none__">{SEM_CATEGORIA_LABEL}</SelectItem>
+              </SelectContent>
+            </Select>
             <Select value={descFilter} onValueChange={setDescFilter}>
               <SelectTrigger className="w-56">
                 <SelectValue placeholder="Filtrar família" />
@@ -618,6 +726,15 @@ export default function BaseDadosPage() {
                         <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                       )}
                       <span className="font-medium text-sm flex-1">{descricao}</span>
+                      {familyCategoria.get(descricao) ? (
+                        <Badge variant="secondary" className="text-xs">
+                          {familyCategoria.get(descricao)}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-xs text-muted-foreground">
+                          {SEM_CATEGORIA_LABEL}
+                        </Badge>
+                      )}
                       <span className="text-xs text-muted-foreground bg-background px-2 py-0.5 rounded-full">
                         {items.length} Ø
                       </span>
