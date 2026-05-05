@@ -32,6 +32,7 @@ import { KpiCards } from '@/components/solicitacoes/KpiCards';
 import { SavedViewsMenu } from '@/components/solicitacoes/SavedViewsMenu';
 import { BulkActionsBar } from '@/components/solicitacoes/BulkActionsBar';
 import { SolicitacoesMobileCards } from '@/components/solicitacoes/SolicitacoesMobileCards';
+import { SolicitacaoDetailsDialog } from '@/components/solicitacoes/SolicitacaoDetailsDialog';
 import { exportSolicitacoesToXlsx } from '@/lib/exportSolicitacoes';
 
 type SolicitacaoStatus = 'Aberta' | 'Aprovada' | 'Finalizada' | 'Material Comprado' | 'Material enviado para Obra' | 'Cancelada';
@@ -55,6 +56,8 @@ export default function SolicitacoesPage() {
   const [searchInput, setSearchInput] = useState(state.search);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isExporting, setIsExporting] = useState(false);
+  const [viewSolicitacaoId, setViewSolicitacaoId] = useState<string | null>(null);
+  const openDetails = (id: string) => setViewSolicitacaoId(id);
 
   useEffect(() => {
     if (searchInput === state.search) return;
@@ -364,6 +367,7 @@ export default function SolicitacoesPage() {
               calcCustoAtualizado={calcCustoAtualizado}
               onRefreshCosts={(id, itens) => handleAtualizarCustos(undefined, id, itens ?? [])}
               onDelete={(id, numero) => { deleteSolicitacao.mutate(id); toast.success(`Solicitação ${numero} excluída`); }}
+              onView={openDetails}
               refreshingCosts={updateItemCosts.isPending}
             />
           ) : (
@@ -406,7 +410,7 @@ export default function SolicitacoesPage() {
                       <TableRow
                         key={s.id}
                         className={`cursor-pointer hover:bg-muted/50 ${checked ? 'bg-muted/30' : ''}`}
-                        onClick={() => navigate(`/solicitacoes/${s.id}`)}
+                        onClick={() => openDetails(s.id)}
                       >
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <Checkbox
@@ -425,7 +429,7 @@ export default function SolicitacoesPage() {
                         <TableCell className="text-right font-mono">{formatBRL(custoAtualizado)}</TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" aria-label="Ver solicitação" onClick={(e) => { e.stopPropagation(); navigate(`/solicitacoes/${s.id}`); }}><Eye className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" aria-label="Ver solicitação" onClick={(e) => { e.stopPropagation(); openDetails(s.id); }}><Eye className="h-4 w-4" /></Button>
                             {s.desenho && (
                               <a href={s.desenho} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} title="Ver desenho">
                                 <Button variant="ghost" size="icon" asChild aria-label="Ver desenho">
@@ -482,6 +486,12 @@ export default function SolicitacoesPage() {
           />
         </CardContent>
       </Card>
+
+      <SolicitacaoDetailsDialog
+        solicitacaoId={viewSolicitacaoId}
+        open={!!viewSolicitacaoId}
+        onOpenChange={(open) => { if (!open) setViewSolicitacaoId(null); }}
+      />
     </div>
   );
 }

@@ -1,4 +1,3 @@
-import { useNavigate } from 'react-router-dom';
 import { Eye, FileText, Loader2, RefreshCw, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -50,6 +49,7 @@ interface Props {
   calcCustoAtualizado: (itens: Row['solicitacao_itens']) => number;
   onRefreshCosts: (id: string, itens: Row['solicitacao_itens']) => void;
   onDelete: (id: string, numero: string) => void;
+  onView: (id: string) => void;
   refreshingCosts: boolean;
 }
 
@@ -62,9 +62,9 @@ export function SolicitacoesMobileCards({
   calcCustoAtualizado,
   onRefreshCosts,
   onDelete,
+  onView,
   refreshingCosts,
 }: Props) {
-  const navigate = useNavigate();
   const { canDeleteSolicitacao } = usePermissions();
 
   if (isLoading) {
@@ -98,7 +98,7 @@ export function SolicitacoesMobileCards({
                 <button
                   type="button"
                   className="flex-1 text-left min-w-0"
-                  onClick={() => navigate(`/solicitacoes/${s.id}`)}
+                  onClick={() => onView(s.id)}
                 >
                   <div className="flex items-center gap-2">
                     <span className="font-mono font-medium">{s.numero}</span>
@@ -132,7 +132,7 @@ export function SolicitacoesMobileCards({
               </dl>
 
               <div className="flex gap-1 pt-1 border-t">
-                <Button variant="ghost" size="sm" onClick={() => navigate(`/solicitacoes/${s.id}`)} aria-label="Abrir solicitação">
+                <Button variant="ghost" size="sm" onClick={() => onView(s.id)} aria-label="Abrir solicitação">
                   <Eye className="h-4 w-4 mr-1" />Abrir
                 </Button>
                 {s.desenho && (
