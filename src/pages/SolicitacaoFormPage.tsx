@@ -362,7 +362,11 @@ export default function SolicitacaoFormPage() {
       doc.setTextColor(136, 136, 136);
       doc.text(`Gerado em ${dataGeracao}`, 14, doc.internal.pageSize.getHeight() - 8);
 
-      doc.save(`solicitacao-${existing.numero}.pdf`);
+      const blobUrl = doc.output('bloburl');
+      const previewWindow = window.open(blobUrl, '_blank');
+      if (!previewWindow) {
+        toast.error('Não foi possível abrir a visualização do PDF. Verifique o bloqueador de pop-ups.');
+      }
       setExportingPdf(false);
     } catch (err) {
       console.error(err);
@@ -547,7 +551,11 @@ export default function SolicitacaoFormPage() {
       doc.setTextColor(136, 136, 136);
       doc.text(`Gerado em ${dataGeracao}`, 14, doc.internal.pageSize.getHeight() - 8);
 
-      doc.save(`relatorio-custos-${existing.numero}.pdf`);
+      const blobUrl = doc.output('bloburl');
+      const previewWindow = window.open(blobUrl, '_blank');
+      if (!previewWindow) {
+        toast.error('Não foi possível abrir a visualização do PDF. Verifique o bloqueador de pop-ups.');
+      }
       setExportingCostPdf(false);
     } catch (err) {
       console.error(err);
