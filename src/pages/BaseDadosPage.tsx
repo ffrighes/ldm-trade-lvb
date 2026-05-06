@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { Fragment, useState, useMemo, useRef } from "react";
 import { useMaterials, useAddMaterial, useUpdateMaterial, useDeleteMaterial } from "@/hooks/useSupabaseData";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -261,6 +261,22 @@ export default function BaseDadosPage() {
     });
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }, [filtered]);
+
+  const groupedByCategoria = useMemo(() => {
+    const map = new Map<string, Array<[string, typeof materials]>>();
+    grouped.forEach(([descricao, items]) => {
+      const cat = familyCategoria.get(descricao) || null;
+      const key = cat ?? "__none__";
+      const list = map.get(key) || [];
+      list.push([descricao, items]);
+      map.set(key, list);
+    });
+    return [...map.entries()].sort(([a], [b]) => {
+      if (a === "__none__") return 1;
+      if (b === "__none__") return -1;
+      return a.localeCompare(b);
+    });
+  }, [grouped, familyCategoria]);
 
   const toggleGroup = (desc: string) => {
     setExpandedGroups((prev) => {
@@ -966,7 +982,7 @@ export default function BaseDadosPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Card>
+      <Card className="mb-4">
         <CardHeader>
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
@@ -1023,160 +1039,208 @@ export default function BaseDadosPage() {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-2">
-          {grouped.length === 0 ? (
-            <div className="text-center text-muted-foreground py-8">Nenhum item encontrado</div>
-          ) : (
-            grouped.map(([descricao, items]) => {
-              const isExpanded = expandedGroups.has(descricao);
-              return (
-                <div key={descricao} className="border rounded-lg overflow-hidden">
-                  <div className="flex items-center bg-muted/50 hover:bg-muted transition-colors">
-                    {canModifyBaseDados && (
-                      <div className="pl-4 pr-1 flex items-center" onClick={(e) => e.stopPropagation()}>
-                        <Checkbox
-                          checked={selectedFamilies.has(descricao)}
-                          onCheckedChange={() => toggleFamilySelection(descricao)}
-                          aria-label={`Selecionar família ${descricao}`}
-                        />
-                      </div>
-                    )}
-                    <button
-                      onClick={() => toggleGroup(descricao)}
-                      className="flex-1 flex items-center gap-3 px-4 py-3 text-left"
+      </Card>
+
+      {grouped.length === 0 ? (
+        <Card>
+          <CardContent className="py-8">
+            <div className="text-center text-muted-foreground">Nenhum item encontrado</div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {groupedByCategoria.map(([categoriaKey, families]) => {
+            const categoriaLabel = categoriaKey === "__none__" ? SEM_CATEGORIA_LABEL : categoriaKey;
+            const totalBitolas = families.reduce((sum, [, items]) => sum + items.length, 0);
+            return (
+              <Card key={categoriaKey}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-3">
+                    <Badge
+                      variant={categoriaKey === "__none__" ? "outline" : "secondary"}
+                      className="text-sm"
                     >
-                      {isExpanded ? (
-                        <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                      )}
-                      <span className="font-medium text-sm flex-1">{descricao}</span>
-                      {familyCategoria.get(descricao) ? (
-                        <Badge variant="secondary" className="text-xs">
-                          {familyCategoria.get(descricao)}
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-xs text-muted-foreground">
-                          {SEM_CATEGORIA_LABEL}
-                        </Badge>
-                      )}
-                      <span className="text-xs text-muted-foreground bg-background px-2 py-0.5 rounded-full">
-                        {items.length} Ø
-                      </span>
-                    </button>
-                    {canModifyBaseDados && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2 text-muted-foreground hover:text-foreground"
-                          onClick={(e) => { e.stopPropagation(); openRenameFamily(descricao); }}
-                          title="Renomear família"
-                        >
-                          <FolderPen className="h-4 w-4 mr-1" />
-                          <span className="text-xs">Renomear</span>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2 text-muted-foreground hover:text-foreground"
-                          onClick={(e) => { e.stopPropagation(); openNew(descricao); }}
-                          title="Adicionar bitola a esta família"
-                        >
-                          <PlusCircle className="h-4 w-4 mr-1" />
-                          <span className="text-xs">Bitola</span>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="mr-2 h-7 px-2 text-destructive hover:text-destructive"
-                          onClick={(e) => { e.stopPropagation(); setDeleteFamilyTarget(descricao); }}
-                          title="Excluir família"
-                        >
-                          <Trash2 className="h-4 w-4 mr-1" />
-                          <span className="text-xs">Excluir</span>
-                        </Button>
-                      </>
-                    )}
+                      {categoriaLabel}
+                    </Badge>
+                    <span className="text-sm text-muted-foreground">
+                      {families.length} {families.length === 1 ? "família" : "famílias"} · {totalBitolas} {totalBitolas === 1 ? "bitola" : "bitolas"}
+                    </span>
                   </div>
-                  {isExpanded && (
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Ø</TableHead>
-                            <TableHead>Un.</TableHead>
-                            <TableHead className="min-w-[160px]">ERP</TableHead>
-                            <TableHead className="text-right">Custo</TableHead>
-                            <TableHead>Notas</TableHead>
-                            {canModifyBaseDados && <TableHead className="w-24">Ações</TableHead>}
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {items.map((m) => (
-                            <TableRow key={m.id}>
-                              <TableCell className="font-mono">{m.bitola}</TableCell>
-                              <TableCell>{m.unidade}</TableCell>
-                              <TableCell className="font-mono">{(m as any).erp || "-"}</TableCell>
-                              <TableCell className="text-right font-mono">
-                                {m.custo > 0 ? formatBRL(m.custo) : "-"}
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        {canModifyBaseDados && <TableHead className="w-8"></TableHead>}
+                        <TableHead className="w-8"></TableHead>
+                        <TableHead>Família</TableHead>
+                        <TableHead>Bitolas</TableHead>
+                        <TableHead className="w-20 text-center">Qtd.</TableHead>
+                        {canModifyBaseDados && <TableHead className="w-[260px] text-right">Ações</TableHead>}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {families.map(([descricao, items]) => {
+                        const isExpanded = expandedGroups.has(descricao);
+                        const bitolasCompactadas = items.map((m) => m.bitola).join(", ");
+                        const colSpan = 4 + (canModifyBaseDados ? 2 : 0);
+                        return (
+                          <Fragment key={descricao}>
+                            <TableRow className="hover:bg-muted/40">
+                              {canModifyBaseDados && (
+                                <TableCell onClick={(e) => e.stopPropagation()}>
+                                  <Checkbox
+                                    checked={selectedFamilies.has(descricao)}
+                                    onCheckedChange={() => toggleFamilySelection(descricao)}
+                                    aria-label={`Selecionar família ${descricao}`}
+                                  />
+                                </TableCell>
+                              )}
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={() => toggleGroup(descricao)}
+                                  aria-label={isExpanded ? "Recolher" : "Expandir"}
+                                >
+                                  {isExpanded ? (
+                                    <ChevronDown className="h-4 w-4" />
+                                  ) : (
+                                    <ChevronRight className="h-4 w-4" />
+                                  )}
+                                </Button>
                               </TableCell>
-                              <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
-                                {(m as any).notas || "-"}
+                              <TableCell className="font-medium">{descricao}</TableCell>
+                              <TableCell className="font-mono text-xs text-muted-foreground">
+                                {bitolasCompactadas}
+                              </TableCell>
+                              <TableCell className="text-center text-xs text-muted-foreground">
+                                {items.length} Ø
                               </TableCell>
                               {canModifyBaseDados && (
-                                <TableCell>
-                                  <div className="flex gap-1">
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(m)}>
-                                      <Pencil className="h-3.5 w-3.5" />
+                                <TableCell className="text-right">
+                                  <div className="flex justify-end gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 px-2 text-muted-foreground hover:text-foreground"
+                                      onClick={(e) => { e.stopPropagation(); openRenameFamily(descricao); }}
+                                      title="Renomear família"
+                                    >
+                                      <FolderPen className="h-3.5 w-3.5 mr-1" />
+                                      <span className="text-xs">Renomear</span>
                                     </Button>
-                                    <AlertDialog>
-                                      <AlertDialogTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-7 w-7 text-destructive hover:text-destructive"
-                                        >
-                                          <Trash2 className="h-3.5 w-3.5" />
-                                        </Button>
-                                      </AlertDialogTrigger>
-                                      <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                          <AlertDialogTitle>Excluir item?</AlertDialogTitle>
-                                          <AlertDialogDescription>
-                                            Esta ação não pode ser desfeita. O item{" "}
-                                            <strong>
-                                              {m.descricao} {m.bitola}
-                                            </strong>{" "}
-                                            será removido permanentemente.
-                                          </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                          <AlertDialogAction
-                                            onClick={() => deleteMaterial.mutate(m.id)}
-                                            className="bg-destructive hover:bg-destructive/90"
-                                          >
-                                            Excluir
-                                          </AlertDialogAction>
-                                        </AlertDialogFooter>
-                                      </AlertDialogContent>
-                                    </AlertDialog>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 px-2 text-muted-foreground hover:text-foreground"
+                                      onClick={(e) => { e.stopPropagation(); openNew(descricao); }}
+                                      title="Adicionar bitola a esta família"
+                                    >
+                                      <PlusCircle className="h-3.5 w-3.5 mr-1" />
+                                      <span className="text-xs">Bitola</span>
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 px-2 text-destructive hover:text-destructive"
+                                      onClick={(e) => { e.stopPropagation(); setDeleteFamilyTarget(descricao); }}
+                                      title="Excluir família"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
                                   </div>
                                 </TableCell>
                               )}
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
-                </div>
-              );
-            })
-          )}
-        </CardContent>
-      </Card>
+                            {isExpanded && (
+                              <TableRow className="bg-muted/20 hover:bg-muted/20">
+                                <TableCell colSpan={colSpan} className="p-0">
+                                  <div className="overflow-x-auto px-4 py-2">
+                                    <Table>
+                                      <TableHeader>
+                                        <TableRow>
+                                          <TableHead>Ø</TableHead>
+                                          <TableHead>Un.</TableHead>
+                                          <TableHead className="min-w-[160px]">ERP</TableHead>
+                                          <TableHead className="text-right">Custo</TableHead>
+                                          <TableHead>Notas</TableHead>
+                                          {canModifyBaseDados && <TableHead className="w-24">Ações</TableHead>}
+                                        </TableRow>
+                                      </TableHeader>
+                                      <TableBody>
+                                        {items.map((m) => (
+                                          <TableRow key={m.id}>
+                                            <TableCell className="font-mono">{m.bitola}</TableCell>
+                                            <TableCell>{m.unidade}</TableCell>
+                                            <TableCell className="font-mono">{(m as any).erp || "-"}</TableCell>
+                                            <TableCell className="text-right font-mono">
+                                              {m.custo > 0 ? formatBRL(m.custo) : "-"}
+                                            </TableCell>
+                                            <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
+                                              {(m as any).notas || "-"}
+                                            </TableCell>
+                                            {canModifyBaseDados && (
+                                              <TableCell>
+                                                <div className="flex gap-1">
+                                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(m)}>
+                                                    <Pencil className="h-3.5 w-3.5" />
+                                                  </Button>
+                                                  <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                      <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-7 w-7 text-destructive hover:text-destructive"
+                                                      >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                      </Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                      <AlertDialogHeader>
+                                                        <AlertDialogTitle>Excluir item?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                          Esta ação não pode ser desfeita. O item{" "}
+                                                          <strong>
+                                                            {m.descricao} {m.bitola}
+                                                          </strong>{" "}
+                                                          será removido permanentemente.
+                                                        </AlertDialogDescription>
+                                                      </AlertDialogHeader>
+                                                      <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                        <AlertDialogAction
+                                                          onClick={() => deleteMaterial.mutate(m.id)}
+                                                          className="bg-destructive hover:bg-destructive/90"
+                                                        >
+                                                          Excluir
+                                                        </AlertDialogAction>
+                                                      </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                  </AlertDialog>
+                                                </div>
+                                              </TableCell>
+                                            )}
+                                          </TableRow>
+                                        ))}
+                                      </TableBody>
+                                    </Table>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </Fragment>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
