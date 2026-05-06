@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, Search, ChevronDown, ChevronRight, Upload, Download, PlusCircle, FolderPen } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, ChevronDown, ChevronRight, Upload, Download, PlusCircle, FolderPen, Tags } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
@@ -26,7 +26,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from "sonner";
 import { formatBRL, parseBRL } from "@/lib/formatCurrency";
-import { CATEGORIAS_MATERIAL, SEM_CATEGORIA_LABEL } from "@/lib/categorias";
+import { SEM_CATEGORIA_LABEL } from "@/lib/categorias";
+import { useCategorias, useAddCategoria, useDeleteCategoria, useRenameCategoria } from "@/hooks/useCategorias";
 import { Badge } from "@/components/ui/badge";
 import * as XLSX from "xlsx";
 
@@ -36,6 +37,10 @@ export default function BaseDadosPage() {
   const updateMaterial = useUpdateMaterial();
   const deleteMaterial = useDeleteMaterial();
   const { canModifyBaseDados } = usePermissions();
+  const { data: categorias = [] } = useCategorias();
+  const addCategoria = useAddCategoria();
+  const renameCategoria = useRenameCategoria();
+  const deleteCategoria = useDeleteCategoria();
 
   const [search, setSearch] = useState("");
   const [descFilter, setDescFilter] = useState("all");
@@ -55,6 +60,11 @@ export default function BaseDadosPage() {
   const [newFamilyDialogOpen, setNewFamilyDialogOpen] = useState(false);
   const [newFamilyInput, setNewFamilyInput] = useState("");
   const [deleteFamilyTarget, setDeleteFamilyTarget] = useState<string | null>(null);
+  const [manageCategoriasOpen, setManageCategoriasOpen] = useState(false);
+  const [newCategoriaInput, setNewCategoriaInput] = useState("");
+  const [editingCategoria, setEditingCategoria] = useState<string | null>(null);
+  const [editingCategoriaName, setEditingCategoriaName] = useState("");
+  const [deleteCategoriaTarget, setDeleteCategoriaTarget] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
@@ -129,7 +139,7 @@ export default function BaseDadosPage() {
           if (!mapped.descricao || !mapped.bitola) return null;
           const unRaw = String(mapped.unidade || "un").trim();
           const catRaw = String(mapped.categoria || "").trim();
-          const categoria = (CATEGORIAS_MATERIAL as readonly string[]).includes(catRaw) ? catRaw : null;
+          const categoria = catRaw || null;
           return {
             descricao: String(mapped.descricao).trim(),
             bitola: String(mapped.bitola).trim(),
@@ -152,6 +162,21 @@ export default function BaseDadosPage() {
       if (uniqueMaterials.length === 0) {
         toast.error("Nenhum item válido encontrado na planilha");
         return;
+      }
+
+      const newCategorias = [
+        ...new Set(
+          uniqueMaterials
+            .map((m) => m.categoria)
+            .filter((c): c is string => !!c && !categorias.includes(c)),
+        ),
+      ];
+      if (newCategorias.length > 0) {
+        const { error: catError } = await supabase
+          .from("material_categorias" as never)
+          .upsert(newCategorias.map((nome) => ({ nome })) as never, { onConflict: "nome" });
+        if (catError) throw catError;
+        queryClient.invalidateQueries({ queryKey: ["material_categorias"] });
       }
 
       if (clearBeforeImport) {
@@ -407,6 +432,49 @@ export default function BaseDadosPage() {
     setOpen(true);
   };
 
+  const handleAddCategoria = async () => {
+    const name = newCategoriaInput.trim();
+    if (!name) return;
+    if (categorias.includes(name)) {
+      toast.error("Esta categoria já existe");
+      return;
+    }
+    try {
+      await addCategoria.mutateAsync(name);
+      setNewCategoriaInput("");
+      toast.success("Categoria adicionada");
+    } catch (err: any) {
+      toast.error("Erro ao adicionar categoria: " + (err.message || "erro desconhecido"));
+    }
+  };
+
+  const handleSaveCategoriaRename = async () => {
+    if (!editingCategoria) return;
+    const newName = editingCategoriaName.trim();
+    if (!newName || newName === editingCategoria) {
+      setEditingCategoria(null);
+      return;
+    }
+    try {
+      await renameCategoria.mutateAsync({ from: editingCategoria, to: newName });
+      setEditingCategoria(null);
+      toast.success("Categoria renomeada");
+    } catch (err: any) {
+      toast.error("Erro ao renomear categoria: " + (err.message || "erro desconhecido"));
+    }
+  };
+
+  const handleDeleteCategoria = async (nome: string) => {
+    try {
+      await deleteCategoria.mutateAsync(nome);
+      toast.success(`Categoria "${nome}" removida`);
+    } catch (err: any) {
+      toast.error("Erro ao excluir categoria: " + (err.message || "erro desconhecido"));
+    } finally {
+      setDeleteCategoriaTarget(null);
+    }
+  };
+
   const handleConfirmNewFamily = () => {
     const name = newFamilyInput.trim();
     if (!name) return;
@@ -461,6 +529,10 @@ export default function BaseDadosPage() {
                 <Upload className="h-4 w-4 mr-2" />
                 {importing ? "Importando..." : "Importar XLSX"}
               </Button>
+              <Button variant="outline" onClick={() => setManageCategoriasOpen(true)}>
+                <Tags className="h-4 w-4 mr-2" />
+                Categorias
+              </Button>
               <Button onClick={() => { setNewFamilyInput(""); setNewFamilyCategoria(""); setNewFamilyDialogOpen(true); }}>
                 <Plus className="h-4 w-4 mr-2" />
                 Nova Família
@@ -469,6 +541,129 @@ export default function BaseDadosPage() {
           )}
         </div>
       </div>
+
+      <Dialog open={manageCategoriasOpen} onOpenChange={setManageCategoriasOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Gerenciar Categorias</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="flex gap-2">
+              <Input
+                value={newCategoriaInput}
+                onChange={(e) => setNewCategoriaInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleAddCategoria()}
+                placeholder="Nova categoria"
+                autoFocus
+              />
+              <Button onClick={handleAddCategoria} disabled={addCategoria.isPending || !newCategoriaInput.trim()}>
+                <Plus className="h-4 w-4 mr-1" />
+                Adicionar
+              </Button>
+            </div>
+            <div className="border rounded-lg divide-y max-h-80 overflow-y-auto">
+              {categorias.length === 0 ? (
+                <div className="text-center text-sm text-muted-foreground py-6">Nenhuma categoria cadastrada</div>
+              ) : (
+                categorias.map((c) => {
+                  const isEditing = editingCategoria === c;
+                  const inUse = materials.some((m) => (m as any).categoria === c);
+                  return (
+                    <div key={c} className="flex items-center gap-2 px-3 py-2">
+                      {isEditing ? (
+                        <Input
+                          className="h-8"
+                          value={editingCategoriaName}
+                          onChange={(e) => setEditingCategoriaName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleSaveCategoriaRename();
+                            if (e.key === "Escape") setEditingCategoria(null);
+                          }}
+                          autoFocus
+                        />
+                      ) : (
+                        <span className="flex-1 text-sm">{c}</span>
+                      )}
+                      {!isEditing && (
+                        <Badge variant="outline" className="text-xs">
+                          {materials.filter((m) => (m as any).categoria === c).length} itens
+                        </Badge>
+                      )}
+                      {isEditing ? (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7"
+                            onClick={handleSaveCategoriaRename}
+                            disabled={renameCategoria.isPending}
+                          >
+                            Salvar
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-7" onClick={() => setEditingCategoria(null)}>
+                            Cancelar
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7"
+                            onClick={() => {
+                              setEditingCategoria(c);
+                              setEditingCategoriaName(c);
+                            }}
+                            title="Renomear"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-destructive hover:text-destructive"
+                            onClick={() => setDeleteCategoriaTarget(c)}
+                            title={inUse ? "Excluir (itens passarão a ficar sem categoria)" : "Excluir"}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Fechar</Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteCategoriaTarget} onOpenChange={(v) => { if (!v) setDeleteCategoriaTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir categoria?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A categoria <strong>{deleteCategoriaTarget}</strong> será removida. Os{" "}
+              <strong>{materials.filter((m) => (m as any).categoria === deleteCategoriaTarget).length}</strong>{" "}
+              item(ns) atualmente associados ficarão sem categoria.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteCategoriaTarget && handleDeleteCategoria(deleteCategoriaTarget)}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={newFamilyDialogOpen} onOpenChange={setNewFamilyDialogOpen}>
         <DialogContent className="max-w-md">
@@ -495,7 +690,7 @@ export default function BaseDadosPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">{SEM_CATEGORIA_LABEL}</SelectItem>
-                  {CATEGORIAS_MATERIAL.map((c) => (
+                  {categorias.map((c) => (
                     <SelectItem key={c} value={c}>{c}</SelectItem>
                   ))}
                 </SelectContent>
@@ -540,7 +735,7 @@ export default function BaseDadosPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">{SEM_CATEGORIA_LABEL}</SelectItem>
-                  {CATEGORIAS_MATERIAL.map((c) => (
+                  {categorias.map((c) => (
                     <SelectItem key={c} value={c}>{c}</SelectItem>
                   ))}
                 </SelectContent>
@@ -633,7 +828,7 @@ export default function BaseDadosPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">{SEM_CATEGORIA_LABEL}</SelectItem>
-                  {CATEGORIAS_MATERIAL.map((c) => (
+                  {categorias.map((c) => (
                     <SelectItem key={c} value={c}>{c}</SelectItem>
                   ))}
                 </SelectContent>
@@ -678,7 +873,7 @@ export default function BaseDadosPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas as categorias</SelectItem>
-                {CATEGORIAS_MATERIAL.map((c) => (
+                {categorias.map((c) => (
                   <SelectItem key={c} value={c}>{c}</SelectItem>
                 ))}
                 <SelectItem value="__none__">{SEM_CATEGORIA_LABEL}</SelectItem>

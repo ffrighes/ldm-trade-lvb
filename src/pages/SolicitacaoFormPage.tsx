@@ -29,7 +29,8 @@ import { DrawingsManager } from '@/components/solicitacoes/DrawingsManager';
 import { useAuth } from '@/hooks/useAuth';
 import { useSolicitacaoRealtime } from '@/hooks/useSolicitacaoRealtime';
 import { useSolicitacaoComments } from '@/hooks/useSolicitacaoActivity';
-import { CATEGORIAS_MATERIAL, SEM_CATEGORIA_LABEL } from '@/lib/categorias';
+import { SEM_CATEGORIA_LABEL } from '@/lib/categorias';
+import { useCategorias } from '@/hooks/useCategorias';
 
 interface FormItem {
   key: string;
@@ -63,6 +64,7 @@ export default function SolicitacaoFormPage() {
   const navigate = useNavigate();
   const { data: projects = [] } = useProjects();
   const { data: materials = [] } = useMaterials();
+  const { data: categorias = [] } = useCategorias();
   const { data: existing } = useSolicitacao(id);
   const addSolicitacao = useAddSolicitacao();
   const updateSolicitacao = useUpdateSolicitacao();
@@ -154,13 +156,20 @@ export default function SolicitacaoFormPage() {
       groups.set(cat, list);
     });
     const ordered: [string, { item: FormItem; idx: number }[]][] = [];
-    for (const c of CATEGORIAS_MATERIAL) {
-      if (groups.has(c)) ordered.push([c, groups.get(c)!]);
+    const seen = new Set<string>();
+    for (const c of categorias) {
+      if (groups.has(c)) {
+        ordered.push([c, groups.get(c)!]);
+        seen.add(c);
+      }
+    }
+    for (const [c, list] of groups) {
+      if (c !== SEM_CATEGORIA_LABEL && !seen.has(c)) ordered.push([c, list]);
     }
     if (groups.has(SEM_CATEGORIA_LABEL)) ordered.push([SEM_CATEGORIA_LABEL, groups.get(SEM_CATEGORIA_LABEL)!]);
     return ordered;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itens, categoriaByDescricao]);
+  }, [itens, categoriaByDescricao, categorias]);
 
   const parseBitolaValue = (b: string): number => {
     const trimmed = b.trim();
