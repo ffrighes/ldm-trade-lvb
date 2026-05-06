@@ -31,6 +31,17 @@ import { useCategorias, useAddCategoria, useDeleteCategoria, useRenameCategoria 
 import { Badge } from "@/components/ui/badge";
 import * as XLSX from "xlsx";
 
+function parseBitolaValue(bitola: string): number {
+  const s = bitola.trim().replace(/"/g, "").replace(/^DN\s*/i, "");
+  // "1 1/2" → 1.5, "3/4" → 0.75
+  const mixed = s.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+  if (mixed) return parseInt(mixed[1]) + parseInt(mixed[2]) / parseInt(mixed[3]);
+  const fraction = s.match(/^(\d+)\/(\d+)$/);
+  if (fraction) return parseInt(fraction[1]) / parseInt(fraction[2]);
+  const num = parseFloat(s.replace(",", "."));
+  return isNaN(num) ? Infinity : num;
+}
+
 export default function BaseDadosPage() {
   const { data: materials = [] } = useMaterials();
   const addMaterial = useAddMaterial();
@@ -259,7 +270,12 @@ export default function BaseDadosPage() {
       list.push(m);
       map.set(m.descricao, list);
     });
-    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+    return [...map.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([desc, items]) => [
+        desc,
+        [...items].sort((a, b) => parseBitolaValue(a.bitola) - parseBitolaValue(b.bitola)),
+      ] as [string, typeof materials]);
   }, [filtered]);
 
   const groupedByCategoria = useMemo(() => {
