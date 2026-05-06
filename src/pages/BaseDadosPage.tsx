@@ -1069,14 +1069,6 @@ export default function BaseDadosPage() {
                 </CardHeader>
                 <CardContent className="pt-0">
                   <Table>
-                    <TableHeader>
-                      <TableRow>
-                        {canModifyBaseDados && <TableHead className="w-8"></TableHead>}
-                        <TableHead className="w-8"></TableHead>
-                        <TableHead>Família</TableHead>
-                        {canModifyBaseDados && <TableHead className="w-[260px] text-right">Ações</TableHead>}
-                      </TableRow>
-                    </TableHeader>
                     <TableBody>
                       {families.map(([descricao, items]) => {
                         const isExpanded = expandedGroups.has(descricao);
