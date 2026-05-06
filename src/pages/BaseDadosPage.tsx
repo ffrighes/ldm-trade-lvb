@@ -1074,16 +1074,13 @@ export default function BaseDadosPage() {
                         {canModifyBaseDados && <TableHead className="w-8"></TableHead>}
                         <TableHead className="w-8"></TableHead>
                         <TableHead>Família</TableHead>
-                        <TableHead>Bitolas</TableHead>
-                        <TableHead className="w-20 text-center">Qtd.</TableHead>
                         {canModifyBaseDados && <TableHead className="w-[260px] text-right">Ações</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {families.map(([descricao, items]) => {
                         const isExpanded = expandedGroups.has(descricao);
-                        const bitolasCompactadas = items.map((m) => m.bitola).join(", ");
-                        const colSpan = 4 + (canModifyBaseDados ? 2 : 0);
+                        const colSpan = 2 + (canModifyBaseDados ? 2 : 0);
                         return (
                           <Fragment key={descricao}>
                             <TableRow className="hover:bg-muted/40">
@@ -1112,12 +1109,6 @@ export default function BaseDadosPage() {
                                 </Button>
                               </TableCell>
                               <TableCell className="font-medium">{descricao}</TableCell>
-                              <TableCell className="font-mono text-xs text-muted-foreground">
-                                {bitolasCompactadas}
-                              </TableCell>
-                              <TableCell className="text-center text-xs text-muted-foreground">
-                                {items.length} Ø
-                              </TableCell>
                               {canModifyBaseDados && (
                                 <TableCell className="text-right">
                                   <div className="flex justify-end gap-1">
