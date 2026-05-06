@@ -81,6 +81,21 @@ export type Database = {
           },
         ]
       }
+      material_categorias: {
+        Row: {
+          created_at: string
+          nome: string
+        }
+        Insert: {
+          created_at?: string
+          nome: string
+        }
+        Update: {
+          created_at?: string
+          nome?: string
+        }
+        Relationships: []
+      }
       materials: {
         Row: {
           bitola: string
