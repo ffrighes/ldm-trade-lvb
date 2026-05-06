@@ -65,6 +65,10 @@ export default function BaseDadosPage() {
   const [editingCategoria, setEditingCategoria] = useState<string | null>(null);
   const [editingCategoriaName, setEditingCategoriaName] = useState("");
   const [deleteCategoriaTarget, setDeleteCategoriaTarget] = useState<string | null>(null);
+  const [selectedFamilies, setSelectedFamilies] = useState<Set<string>>(new Set());
+  const [batchCategoria, setBatchCategoria] = useState<string>("");
+  const [batchSaving, setBatchSaving] = useState(false);
+  const [batchConfirmOpen, setBatchConfirmOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
@@ -475,6 +479,62 @@ export default function BaseDadosPage() {
     }
   };
 
+  const toggleFamilySelection = (descricao: string) => {
+    setSelectedFamilies((prev) => {
+      const next = new Set(prev);
+      if (next.has(descricao)) next.delete(descricao);
+      else next.add(descricao);
+      return next;
+    });
+  };
+
+  const visibleFamilyNames = useMemo(() => grouped.map(([d]) => d), [grouped]);
+
+  const allVisibleSelected =
+    visibleFamilyNames.length > 0 && visibleFamilyNames.every((d) => selectedFamilies.has(d));
+  const someVisibleSelected =
+    visibleFamilyNames.some((d) => selectedFamilies.has(d)) && !allVisibleSelected;
+
+  const toggleSelectAllVisible = () => {
+    setSelectedFamilies((prev) => {
+      if (allVisibleSelected) {
+        const next = new Set(prev);
+        visibleFamilyNames.forEach((d) => next.delete(d));
+        return next;
+      }
+      const next = new Set(prev);
+      visibleFamilyNames.forEach((d) => next.add(d));
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedFamilies(new Set());
+
+  const handleBatchUpdateCategoria = async () => {
+    if (selectedFamilies.size === 0) return;
+    const newCategoria = batchCategoria || null;
+    setBatchSaving(true);
+    try {
+      const families = [...selectedFamilies];
+      const { error } = await supabase
+        .from("materials")
+        .update({ categoria: newCategoria } as any)
+        .in("descricao", families);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["materials"] });
+      toast.success(
+        `Categoria atualizada em ${families.length} ${families.length === 1 ? "família" : "famílias"}`,
+      );
+      setSelectedFamilies(new Set());
+      setBatchCategoria("");
+      setBatchConfirmOpen(false);
+    } catch (err: any) {
+      toast.error("Erro ao atualizar categorias: " + (err.message || "erro desconhecido"));
+    } finally {
+      setBatchSaving(false);
+    }
+  };
+
   const handleConfirmNewFamily = () => {
     const name = newFamilyInput.trim();
     if (!name) return;
@@ -855,6 +915,57 @@ export default function BaseDadosPage() {
         </DialogContent>
       </Dialog>
 
+      {canModifyBaseDados && selectedFamilies.size > 0 && (
+        <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-3 rounded-lg border bg-accent/40 px-4 py-3">
+          <div className="text-sm font-medium">
+            {selectedFamilies.size} {selectedFamilies.size === 1 ? "família selecionada" : "famílias selecionadas"}
+          </div>
+          <div className="flex flex-1 flex-col sm:flex-row gap-2 sm:items-center">
+            <Label className="text-sm text-muted-foreground sm:ml-2">Alterar categoria para:</Label>
+            <Select
+              value={batchCategoria || "__none__"}
+              onValueChange={(v) => setBatchCategoria(v === "__none__" ? "" : v)}
+            >
+              <SelectTrigger className="w-56">
+                <SelectValue placeholder="Selecione a categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">{SEM_CATEGORIA_LABEL}</SelectItem>
+                {categorias.map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button onClick={() => setBatchConfirmOpen(true)} disabled={batchSaving}>
+              Aplicar
+            </Button>
+            <Button variant="ghost" onClick={clearSelection} disabled={batchSaving}>
+              Limpar seleção
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <AlertDialog open={batchConfirmOpen} onOpenChange={setBatchConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Atualizar categoria em lote?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A categoria de <strong>{selectedFamilies.size}</strong>{" "}
+              {selectedFamilies.size === 1 ? "família" : "famílias"} será alterada para{" "}
+              <strong>{batchCategoria || SEM_CATEGORIA_LABEL}</strong>. Todos os itens (bitolas) dessas famílias
+              serão atualizados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={batchSaving}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBatchUpdateCategoria} disabled={batchSaving}>
+              {batchSaving ? "Aplicando..." : "Confirmar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row gap-3">
@@ -892,7 +1003,17 @@ export default function BaseDadosPage() {
                 ))}
               </SelectContent>
             </Select>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
+              {canModifyBaseDados && grouped.length > 0 && (
+                <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer pl-1 pr-2">
+                  <Checkbox
+                    checked={allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false}
+                    onCheckedChange={toggleSelectAllVisible}
+                    aria-label="Selecionar todas as famílias visíveis"
+                  />
+                  Selecionar todas
+                </label>
+              )}
               <Button variant="outline" size="sm" onClick={expandAll}>
                 Expandir tudo
               </Button>
@@ -911,6 +1032,15 @@ export default function BaseDadosPage() {
               return (
                 <div key={descricao} className="border rounded-lg overflow-hidden">
                   <div className="flex items-center bg-muted/50 hover:bg-muted transition-colors">
+                    {canModifyBaseDados && (
+                      <div className="pl-4 pr-1 flex items-center" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedFamilies.has(descricao)}
+                          onCheckedChange={() => toggleFamilySelection(descricao)}
+                          aria-label={`Selecionar família ${descricao}`}
+                        />
+                      </div>
+                    )}
                     <button
                       onClick={() => toggleGroup(descricao)}
                       className="flex-1 flex items-center gap-3 px-4 py-3 text-left"
