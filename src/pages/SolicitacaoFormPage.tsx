@@ -96,6 +96,8 @@ export default function SolicitacaoFormPage() {
   const [initialItem] = useState<FormItem>(() => emptyItem());
   const [itens, setItens] = useState<FormItem[]>([initialItem]);
   const [editingKeys, setEditingKeys] = useState<Set<string>>(() => new Set([initialItem.key]));
+  const [newlyAddedKeys, setNewlyAddedKeys] = useState<Set<string>>(new Set());
+  const [autoSaving, setAutoSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [showDuplicateAlert, setShowDuplicateAlert] = useState(false);
   const [duplicateMessage, setDuplicateMessage] = useState('');
@@ -237,15 +239,20 @@ export default function SolicitacaoFormPage() {
     }));
   };
 
+  const markNewlyAdded = (key: string) => {
+    if (existing) setNewlyAddedKeys(prev => new Set(prev).add(key));
+  };
   const addItem = () => {
     const item = emptyItem();
     setItens(prev => [...prev, item]);
     setEditingKeys(prev => new Set(prev).add(item.key));
+    markNewlyAdded(item.key);
   };
   const addSpecialItem = () => {
     const item = { ...emptyItem(), isSpecial: true };
     setItens(prev => [...prev, item]);
     setEditingKeys(prev => new Set(prev).add(item.key));
+    markNewlyAdded(item.key);
   };
   const copyItem = (index: number) => {
     const source = itens[index];
@@ -260,6 +267,7 @@ export default function SolicitacaoFormPage() {
       return next;
     });
     setEditingKeys(prev => new Set(prev).add(copy.key));
+    markNewlyAdded(copy.key);
   };
   const removeItem = (index: number) => {
     const removed = itens[index];
@@ -270,15 +278,64 @@ export default function SolicitacaoFormPage() {
         next.delete(removed.key);
         return next;
       });
+      setNewlyAddedKeys(prev => {
+        if (!prev.has(removed.key)) return prev;
+        const next = new Set(prev);
+        next.delete(removed.key);
+        return next;
+      });
+    }
+  };
+  const autoSaveNewItem = async (key: string) => {
+    if (!existing || isReadOnly) return;
+    if (!projetoId || !motivo.trim()) return;
+    if (motivo === 'Material Faltante' && !notas.trim()) return;
+    const invalid = itens.some(i => !i.descricao || (!i.isSpecial && !i.bitola));
+    if (invalid) return;
+
+    const payload = {
+      projeto_id: projetoId,
+      motivo,
+      data_solicitacao: dataSolicitacao,
+      revisao,
+      erp,
+      notas,
+      status,
+      desenho,
+      itens: itens.map(({ key: _k, erp_item, isSpecial, tag, ...rest }) => ({
+        ...rest,
+        erp: erp_item || '',
+        tag: tag?.trim() ? tag : '-',
+      })),
+    };
+
+    setAutoSaving(true);
+    try {
+      await updateSolicitacao.mutateAsync({ id: existing.id, ...payload });
+      setNewlyAddedKeys(prev => {
+        if (!prev.has(key)) return prev;
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+      toast.success('Item salvo automaticamente');
+    } catch {
+      toast.error('Erro ao salvar item automaticamente');
+    } finally {
+      setAutoSaving(false);
     }
   };
   const toggleEditItem = (key: string) => {
+    const wasEditing = editingKeys.has(key);
     setEditingKeys(prev => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
       return next;
     });
+    if (wasEditing && newlyAddedKeys.has(key)) {
+      void autoSaveNewItem(key);
+    }
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
