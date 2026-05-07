@@ -286,7 +286,7 @@ export default function SolicitacaoFormPage() {
       });
     }
   };
-  const autoSaveNewItem = async (key: string) => {
+  const autoSaveItem = async (key: string) => {
     if (!existing || isReadOnly) return;
     if (!projetoId || !motivo.trim()) return;
     if (motivo === 'Material Faltante' && !notas.trim()) return;
@@ -333,8 +333,8 @@ export default function SolicitacaoFormPage() {
       else next.add(key);
       return next;
     });
-    if (wasEditing && newlyAddedKeys.has(key)) {
-      void autoSaveNewItem(key);
+    if (wasEditing) {
+      void autoSaveItem(key);
     }
   };
 
