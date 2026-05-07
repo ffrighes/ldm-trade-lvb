@@ -318,6 +318,7 @@ export type Database = {
           notas: string
           quantidade: number
           solicitacao_id: string
+          tag: string
           unidade: string
         }
         Insert: {
@@ -331,6 +332,7 @@ export type Database = {
           notas?: string
           quantidade?: number
           solicitacao_id: string
+          tag?: string
           unidade?: string
         }
         Update: {
@@ -344,6 +346,7 @@ export type Database = {
           notas?: string
           quantidade?: number
           solicitacao_id?: string
+          tag?: string
           unidade?: string
         }
         Relationships: [

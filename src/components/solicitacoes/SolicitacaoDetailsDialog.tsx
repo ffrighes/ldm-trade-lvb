@@ -134,6 +134,7 @@ export function SolicitacaoDetailsDialog({ solicitacaoId, open, onOpenChange }: 
                         <TableHeader>
                           <TableRow>
                             <TableHead className="w-10">#</TableHead>
+                            <TableHead>TAG</TableHead>
                             <TableHead>Descrição</TableHead>
                             <TableHead>Bitola</TableHead>
                             <TableHead className="text-center">Qtd</TableHead>
@@ -146,6 +147,7 @@ export function SolicitacaoDetailsDialog({ solicitacaoId, open, onOpenChange }: 
                           {itens.map((item: any, idx: number) => (
                             <TableRow key={item.id}>
                               <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
+                              <TableCell>{item.tag || '-'}</TableCell>
                               <TableCell>
                                 <div>{item.descricao}</div>
                                 {item.notas && (
