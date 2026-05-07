@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Download, RefreshCw, Trash2, X, ChevronDown, Loader2 } from 'lucide-react';
+import { Download, FileDown, RefreshCw, Trash2, X, ChevronDown, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -30,22 +30,26 @@ interface SelectedRow {
 interface Props {
   selected: SelectedRow[];
   isExporting: boolean;
+  isExportingPdf: boolean;
   isMutating: boolean;
   onClear: () => void;
   onChangeStatus: (status: string) => void;
   onDelete: () => void;
   onExport: () => void;
+  onExportPdf: () => void;
   onRefreshCosts: () => void;
 }
 
 export function BulkActionsBar({
   selected,
   isExporting,
+  isExportingPdf,
   isMutating,
   onClear,
   onChangeStatus,
   onDelete,
   onExport,
+  onExportPdf,
   onRefreshCosts,
 }: Props) {
   const { canChangeStatus, getAllowedStatuses, canDeleteSolicitacao } = usePermissions();
@@ -104,6 +108,11 @@ export function BulkActionsBar({
         <Button variant="outline" size="sm" onClick={onExport} disabled={isExporting} aria-label="Exportar selecionadas em XLSX">
           {isExporting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Download className="h-4 w-4 mr-1" />}
           Exportar XLSX
+        </Button>
+
+        <Button variant="outline" size="sm" onClick={onExportPdf} disabled={isExportingPdf} aria-label="Exportar selecionadas em PDF consolidado">
+          {isExportingPdf ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <FileDown className="h-4 w-4 mr-1" />}
+          Exportar PDF
         </Button>
 
         {allDeletable && (

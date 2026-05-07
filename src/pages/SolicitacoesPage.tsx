@@ -36,6 +36,7 @@ import { BulkActionsBar } from '@/components/solicitacoes/BulkActionsBar';
 import { SolicitacoesMobileCards } from '@/components/solicitacoes/SolicitacoesMobileCards';
 import { SolicitacaoDetailsDialog } from '@/components/solicitacoes/SolicitacaoDetailsDialog';
 import { exportSolicitacoesToXlsx } from '@/lib/exportSolicitacoes';
+import { exportSolicitacoesToPdf } from '@/lib/exportSolicitacoesPdf';
 
 type SolicitacaoStatus = 'Aberta' | 'Aprovada' | 'Finalizada' | 'Material Comprado' | 'Material enviado para Obra' | 'Cancelada';
 
@@ -66,6 +67,7 @@ export default function SolicitacoesPage() {
   });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [viewSolicitacaoId, setViewSolicitacaoId] = useState<string | null>(null);
   const openDetails = (id: string) => setViewSolicitacaoId(id);
 
@@ -269,6 +271,25 @@ export default function SolicitacoesPage() {
     }
   };
 
+  const handleBulkExportPdf = async () => {
+    if (selectedIds.size === 0) return;
+    setIsExportingPdf(true);
+    try {
+      const ids = [...selectedIds];
+      const { data: full, error } = await supabase
+        .from('solicitacoes')
+        .select('*, solicitacao_itens(*)')
+        .in('id', ids);
+      if (error) throw error;
+      exportSolicitacoesToPdf(full ?? [], projects, materials);
+      toast.success(`PDF gerado para ${ids.length} solicitação(ões)`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao exportar PDF');
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
   // Saved views -----------------------------------------------------
 
   const savableFilters: Partial<SolicitacoesFiltersState> = useMemo(() => ({
@@ -391,11 +412,13 @@ export default function SolicitacoesPage() {
           <BulkActionsBar
             selected={selectedRows}
             isExporting={isExporting}
+            isExportingPdf={isExportingPdf}
             isMutating={isMutating}
             onClear={clearSelection}
             onChangeStatus={handleBulkChangeStatus}
             onDelete={handleBulkDelete}
             onExport={handleBulkExport}
+            onExportPdf={handleBulkExportPdf}
             onRefreshCosts={handleBulkRefreshCosts}
           />
 
