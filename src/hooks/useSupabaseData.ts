@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 
 // ============= MATERIALS =============
 
@@ -182,7 +181,6 @@ export function useSolicitacoesPaginated(params: SolicitacoesQueryParams) {
       if (cleanSearch) {
         const orParts = [
           `numero.ilike.%${cleanSearch}%`,
-          `motivo.ilike.%${cleanSearch}%`,
           `erp.ilike.%${cleanSearch}%`,
         ];
         if (projectIdsForSearch && projectIdsForSearch.length > 0) {
@@ -347,7 +345,6 @@ export function useAddSolicitacao() {
   return useMutation({
     mutationFn: async (input: {
       projeto_id: string;
-      motivo: string;
       data_solicitacao: string;
       revisao: string;
       erp: string;
@@ -391,7 +388,6 @@ export function useUpdateSolicitacao() {
     mutationFn: async (input: {
       id: string;
       projeto_id: string;
-      motivo: string;
       data_solicitacao: string;
       revisao: string;
       erp: string;
@@ -440,52 +436,6 @@ export function useUpdateSolicitacaoItemCosts() {
       }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['solicitacoes'] }),
-  });
-}
-
-// ============= INVENTARIO =============
-
-export function useAddInventarioAjuste() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (ajuste: {
-      projeto_id: string;
-      descricao: string;
-      bitola: string;
-      unidade: string;
-      quantidade: number;
-      custo_unitario: number;
-      custo_total: number;
-      material_id?: string | null;
-      erp?: string;
-    }) => {
-      const { error } = await supabase.from('inventario').insert({
-        ...ajuste,
-        solicitacao_id: null,
-        tipo: 'ajuste',
-      });
-      if (error) throw error;
-    },
-    onSuccess: (_, variables) => {
-      qc.invalidateQueries({ queryKey: ['inventario', variables.projeto_id] });
-      toast.success('Ajuste de estoque registrado.');
-    },
-    onError: () => toast.error('Erro ao registrar ajuste de estoque.'),
-  });
-}
-
-export function useDeleteInventarioItem() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ ids, projeto_id }: { ids: string[]; projeto_id: string }) => {
-      const { error } = await supabase.from('inventario').delete().in('id', ids);
-      if (error) throw error;
-    },
-    onSuccess: (_, variables) => {
-      qc.invalidateQueries({ queryKey: ['inventario', variables.projeto_id] });
-      toast.success('Item removido do inventário.');
-    },
-    onError: () => toast.error('Erro ao remover item do inventário.'),
   });
 }
 

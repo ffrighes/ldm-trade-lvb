@@ -12,7 +12,6 @@ import SolicitacoesPage from "@/pages/SolicitacoesPage";
 import SolicitacaoFormPage from "@/pages/SolicitacaoFormPage";
 import LegacySolicitacaoRedirect from "@/pages/LegacySolicitacaoRedirect";
 import BaseDadosPage from "@/pages/BaseDadosPage";
-import InventarioPage from "@/pages/InventarioPage";
 import AdminUsersPage from "@/pages/AdminUsersPage";
 import LoginPage from "@/pages/LoginPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
@@ -50,7 +49,6 @@ const App = () => (
                       {/* Legacy redirects */}
                       <Route path="/solicitacoes" element={<Navigate to="/projetos" replace />} />
                       <Route path="/solicitacoes/:id" element={<LegacySolicitacaoRedirect />} />
-                      <Route path="/inventario" element={<InventarioPage />} />
                       <Route path="/base-dados" element={<BaseDadosPage />} />
                       <Route path="/admin/usuarios" element={<AdminUsersPage />} />
                       <Route path="*" element={<NotFound />} />

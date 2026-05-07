@@ -125,9 +125,9 @@ export function BulkActionsBar({
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Excluir {count} {count === 1 ? 'solicitação' : 'solicitações'}?</AlertDialogTitle>
+                <AlertDialogTitle>Excluir {count} BOM{count === 1 ? '' : 's'}?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Esta ação remove as solicitações selecionadas e todos os seus itens. Não pode ser desfeita.
+                  Esta ação remove as BOMs selecionadas e todos os seus itens. Não pode ser desfeita.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>

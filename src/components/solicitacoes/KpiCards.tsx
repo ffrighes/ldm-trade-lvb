@@ -21,7 +21,7 @@ export function KpiCards({ kpis, isLoading }: Props) {
   const cards: CardSpec[] = kpis
     ? [
         {
-          label: 'Solicitações abertas',
+          label: 'BOMs abertas',
           value: kpis.total_abertas.toLocaleString('pt-BR'),
           hint: `${kpis.total_solicitacoes.toLocaleString('pt-BR')} no total`,
           Icon: FolderOpen,
@@ -37,14 +37,14 @@ export function KpiCards({ kpis, isLoading }: Props) {
         {
           label: 'Itens pendentes',
           value: kpis.itens_pendentes.toLocaleString('pt-BR'),
-          hint: 'Em solicitações não finalizadas',
+          hint: 'Em BOMs não finalizadas',
           Icon: Layers,
           accent: 'text-primary',
         },
         {
           label: 'Ticket médio',
           value: formatBRL(kpis.ticket_medio),
-          hint: 'Valor médio por solicitação',
+          hint: 'Valor médio por BOM',
           Icon: FileText,
           accent: 'text-success',
         },

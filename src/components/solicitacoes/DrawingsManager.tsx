@@ -166,7 +166,7 @@ export function DrawingsManager({ solicitacaoId, legacyDesenho, isReadOnly }: Pr
               <FileText className="h-5 w-5 text-primary shrink-0" />
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium">Desenho atual (legado)</div>
-                <div className="text-xs text-muted-foreground">No campo "desenho" da solicitação</div>
+                <div className="text-xs text-muted-foreground">No campo "desenho" da BOM</div>
               </div>
               <a href={legacyDesenho} target="_blank" rel="noopener noreferrer">
                 <Button variant="ghost" size="sm" asChild aria-label="Abrir desenho legado">

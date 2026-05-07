@@ -17,10 +17,6 @@ import { Plus, Trash2, ArrowLeft, Save, Upload, FileText, X, Download, Star, Pen
 import { toast } from 'sonner';
 import { formatBRL } from '@/lib/formatCurrency';
 import { usePermissions } from '@/hooks/usePermissions';
-import {
-  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel,
-} from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { History, MessageSquare, FileText as FileTextIcon } from 'lucide-react';
 import { AuditTimeline } from '@/components/solicitacoes/AuditTimeline';
@@ -83,7 +79,6 @@ export default function SolicitacaoFormPage() {
     : !canEditSolicitacao(existing?.status || 'Aberta');
 
   const [projetoId, setProjetoId] = useState(routeProjetoId ?? '');
-  const [motivo, setMotivo] = useState('');
   const [dataSolicitacao, setDataSolicitacao] = useState(new Date().toISOString().split('T')[0]);
   const [revisao, setRevisao] = useState('');
   const [erp, setErp] = useState('');
@@ -100,14 +95,11 @@ export default function SolicitacaoFormPage() {
   const [newlyAddedKeys, setNewlyAddedKeys] = useState<Set<string>>(new Set());
   const [autoSaving, setAutoSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const [showDuplicateAlert, setShowDuplicateAlert] = useState(false);
-  const [duplicateMessage, setDuplicateMessage] = useState('');
   const statusChanged = existing && status !== existing.status;
 
   useEffect(() => {
     if (existing && !loaded) {
       setProjetoId(existing.projeto_id);
-      setMotivo(existing.motivo);
       setDataSolicitacao(existing.data_solicitacao);
       setRevisao(existing.revisao);
       setErp(existing.erp);
@@ -289,14 +281,12 @@ export default function SolicitacaoFormPage() {
   };
   const autoSaveItem = async (key: string) => {
     if (!existing || isReadOnly) return;
-    if (!projetoId || !motivo.trim()) return;
-    if (motivo === 'Material Faltante' && !notas.trim()) return;
+    if (!projetoId) return;
     const invalid = itens.some(i => !i.descricao || (!i.isSpecial && !i.bitola));
     if (invalid) return;
 
     const payload = {
       projeto_id: projetoId,
-      motivo,
       data_solicitacao: dataSolicitacao,
       revisao,
       erp,
@@ -389,7 +379,7 @@ export default function SolicitacaoFormPage() {
       doc.text('LDM TRADE', 14, 16);
       doc.setFontSize(11);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Solicitação ${existing.numero}`, pageWidth - 14, 16, { align: 'right' });
+      doc.text(`BOM ${existing.numero}`, pageWidth - 14, 16, { align: 'right' });
       doc.setDrawColor(34, 34, 34);
       doc.setLineWidth(0.5);
       doc.line(14, 19, pageWidth - 14, 19);
@@ -405,8 +395,7 @@ export default function SolicitacaoFormPage() {
       doc.setFontSize(8.5);
       const infoLines: [string, string][] = [
         ['Projeto:', projeto ? `${projeto.numero} - ${projeto.descricao}` : '—'],
-        ['Motivo:', motivo || '—'],
-        ['Data da Solicitação:', dataSolicitacao || '—'],
+        ['Data da BOM:', dataSolicitacao || '—'],
         ['Status:', status || '—'],
       ];
       if (revisao) infoLines.push(['Revisão:', revisao]);
@@ -425,7 +414,7 @@ export default function SolicitacaoFormPage() {
       // Items table
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
-      doc.text('Itens da Solicitação', 14, infoY + 4);
+      doc.text('Itens da BOM', 14, infoY + 4);
       doc.setLineWidth(0.2);
       doc.line(14, infoY + 5.5, pageWidth - 14, infoY + 5.5);
 
@@ -488,14 +477,13 @@ export default function SolicitacaoFormPage() {
     const data: (string | number)[][] = [];
 
     // Header
-    data.push(['LDM TRADE', '', '', '', '', '', `Solicitação ${existing.numero}`]);
+    data.push(['LDM TRADE', '', '', '', '', '', `BOM ${existing.numero}`]);
     data.push([]);
 
     // Info section
     data.push(['Informações Gerais']);
     data.push(['Projeto:', projeto ? `${projeto.numero} - ${projeto.descricao}` : '—']);
-    data.push(['Motivo:', motivo || '—']);
-    data.push(['Data da Solicitação:', dataSolicitacao || '—']);
+    data.push(['Data da BOM:', dataSolicitacao || '—']);
     data.push(['Status:', status || '—']);
     if (revisao) data.push(['Revisão:', revisao]);
     if (erp) data.push(['ERP:', erp]);
@@ -503,7 +491,7 @@ export default function SolicitacaoFormPage() {
     data.push([]);
 
     // Items table header
-    data.push(['Itens da Solicitação']);
+    data.push(['Itens da BOM']);
     data.push(['#', 'TAG', 'Descrição', 'Bitola', 'ERP', 'Qtd', 'Un.', 'Notas']);
 
     // Items rows
@@ -538,8 +526,8 @@ export default function SolicitacaoFormPage() {
     ];
 
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Solicitação');
-    XLSX.writeFile(wb, `solicitacao-${existing.numero}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, 'BOM');
+    XLSX.writeFile(wb, `bom-${existing.numero}.xlsx`);
   };
   // ──────────────────────────────────────────────────────────────────────────
 
@@ -564,7 +552,7 @@ export default function SolicitacaoFormPage() {
       doc.text('LDM TRADE', 14, 16);
       doc.setFontSize(11);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Relatório de Custos — Solicitação ${existing.numero}`, pageWidth - 14, 16, { align: 'right' });
+      doc.text(`Relatório de Custos — BOM ${existing.numero}`, pageWidth - 14, 16, { align: 'right' });
       doc.setDrawColor(34, 34, 34);
       doc.setLineWidth(0.5);
       doc.line(14, 19, pageWidth - 14, 19);
@@ -580,8 +568,7 @@ export default function SolicitacaoFormPage() {
       doc.setFontSize(8.5);
       const infoLines: [string, string][] = [
         ['Projeto:', projeto ? `${projeto.numero} - ${projeto.descricao}` : '—'],
-        ['Motivo:', motivo || '—'],
-        ['Data da Solicitação:', dataSolicitacao || '—'],
+        ['Data da BOM:', dataSolicitacao || '—'],
         ['Status:', status || '—'],
       ];
       if (revisao) infoLines.push(['Revisão:', revisao]);
@@ -620,7 +607,7 @@ export default function SolicitacaoFormPage() {
       // Items table
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
-      doc.text('Itens da Solicitação', 14, infoY + 4);
+      doc.text('Itens da BOM', 14, infoY + 4);
       doc.setLineWidth(0.2);
       doc.line(14, infoY + 5.5, pageWidth - 14, infoY + 5.5);
 
@@ -674,59 +661,13 @@ export default function SolicitacaoFormPage() {
 
   const handleSave = async () => {
     if (!projetoId) { toast.error('Selecione um projeto'); return; }
-    if (!motivo.trim()) { toast.error('Informe o motivo'); return; }
-    if (motivo === 'Material Faltante' && !notas.trim()) {
-      toast.error('Descreva o motivo do material faltante no campo Notas');
-      return;
-    }
     if (itens.length === 0 || itens.some(i => !i.descricao || (!i.isSpecial && !i.bitola))) {
       toast.error('Preencha todos os itens corretamente');
       return;
     }
 
-    if (isNew && motivo === 'Material Faltante') {
-      const { data: existingSols } = await supabase
-        .from('solicitacoes')
-        .select('numero, solicitacao_itens(descricao, bitola)')
-        .eq('projeto_id', projetoId)
-        .neq('status', 'Cancelada');
-
-      if (existingSols && existingSols.length > 0) {
-        const duplicates: { item: string; listas: string[] }[] = [];
-
-        for (const item of itens) {
-          const itemKey = `${item.descricao}||${item.bitola}`;
-          const listasComItem: string[] = [];
-
-          for (const sol of existingSols) {
-            const solItens = (sol as any).solicitacao_itens || [];
-            const found = solItens.some((si: any) => `${si.descricao}||${si.bitola}` === itemKey);
-            if (found) listasComItem.push(sol.numero);
-          }
-
-          if (listasComItem.length > 0) {
-            duplicates.push({ item: `${item.descricao} ${item.bitola}`, listas: listasComItem });
-          }
-        }
-
-        if (duplicates.length > 0) {
-          const msg = duplicates
-            .map(d => `${d.item} já solicitado em:\n${d.listas.join('\n')}`)
-            .join('\n\n');
-          setDuplicateMessage(msg);
-          setShowDuplicateAlert(true);
-          return;
-        }
-      }
-    }
-
-    await doSave();
-  };
-
-  const doSave = async () => {
     const payload = {
       projeto_id: projetoId,
-      motivo,
       data_solicitacao: dataSolicitacao,
       revisao,
       erp,
@@ -739,25 +680,25 @@ export default function SolicitacaoFormPage() {
     try {
       if (existing) {
         await updateSolicitacao.mutateAsync({ id: existing.id, ...payload });
-        toast.success('Solicitação atualizada');
+        toast.success('BOM atualizada');
       } else {
         await addSolicitacao.mutateAsync(payload);
-        toast.success('Solicitação criada');
+        toast.success('BOM criada');
       }
       navigate(`/projetos/${projetoId}/solicitacoes`, { replace: true });
     } catch {
-      toast.error('Erro ao salvar solicitação');
+      toast.error('Erro ao salvar BOM');
     }
   };
 
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
-        <Button variant="ghost" size="icon" aria-label="Voltar para Solicitações" onClick={() => navigate(listPath)}>
+        <Button variant="ghost" size="icon" aria-label="Voltar para BOMs" onClick={() => navigate(listPath)}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <h1 className="text-2xl font-bold">
-          {existing ? `Solicitação ${existing.numero}` : 'Nova Solicitação'}
+          {existing ? `BOM ${existing.numero}` : 'Nova BOM'}
         </h1>
         {existing && (
           <div className="ml-auto flex gap-2">
@@ -794,18 +735,7 @@ export default function SolicitacaoFormPage() {
                 </Select>
               </div>
               <div>
-                <Label>Motivo *</Label>
-                <Select value={motivo} onValueChange={setMotivo} disabled={isReadOnly}>
-                  <SelectTrigger><SelectValue placeholder="Selecione o motivo" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Material de Lista">Material de Lista</SelectItem>
-                    <SelectItem value="Material Faltante">Material Faltante</SelectItem>
-                    <SelectItem value="Alteração de Projeto">Alteração de Projeto</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Data da Solicitação *</Label>
+                <Label>Data da BOM *</Label>
                 <Input
                   type="date"
                   value={dataSolicitacao}
@@ -838,13 +768,12 @@ export default function SolicitacaoFormPage() {
                 </div>
               )}
               <div className="md:col-span-2 lg:col-span-3">
-                <Label>Notas{motivo === 'Material Faltante' ? ' *' : ''}</Label>
+                <Label>Notas</Label>
                 <Textarea
                   value={notas}
                   onChange={e => setNotas(e.target.value)}
                   rows={3}
                   disabled={isReadOnly}
-                  placeholder={motivo === 'Material Faltante' ? 'Descreva o Motivo' : ''}
                 />
               </div>
               <div className="md:col-span-2 lg:col-span-3">
@@ -891,7 +820,7 @@ export default function SolicitacaoFormPage() {
         {itensPorCategoria.length === 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>Itens da Solicitação</CardTitle>
+              <CardTitle>Itens da BOM</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">Nenhum item adicionado.</p>
@@ -1243,27 +1172,10 @@ export default function SolicitacaoFormPage() {
               updateSolicitacao.isPending
             }
           >
-            <Save className="h-4 w-4 mr-2" />Salvar Solicitação
+            <Save className="h-4 w-4 mr-2" />Salvar BOM
           </Button>
         </div>
       </div>
-
-      <AlertDialog open={showDuplicateAlert} onOpenChange={setShowDuplicateAlert}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Material já solicitado</AlertDialogTitle>
-            <AlertDialogDescription className="whitespace-pre-line">
-              {duplicateMessage}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Não</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setShowDuplicateAlert(false); doSave(); }}>
-              Sim
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

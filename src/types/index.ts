@@ -31,7 +31,6 @@ export interface Solicitacao {
   numero: string;
   projetoId: string;
   status: SolicitacaoStatus;
-  motivo: string;
   dataSolicitacao: string;
   desenho?: string;
   revisao: string;

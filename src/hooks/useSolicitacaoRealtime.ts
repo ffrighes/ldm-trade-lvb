@@ -35,7 +35,7 @@ export function useSolicitacaoRealtime(solicitacaoId: string | undefined, opts: 
           const newRow = payload.new as { status?: string; numero?: string } | null;
           if (oldRow?.status && newRow?.status && oldRow.status !== newRow.status) {
             toast.info(`Status alterado: ${oldRow.status} → ${newRow.status}`, {
-              description: newRow.numero ? `Solicitação ${newRow.numero}` : undefined,
+              description: newRow.numero ? `BOM ${newRow.numero}` : undefined,
             });
           }
           qc.invalidateQueries({ queryKey: ['solicitacoes', solicitacaoId] });

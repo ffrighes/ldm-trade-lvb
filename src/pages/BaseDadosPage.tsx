@@ -111,7 +111,7 @@ export default function BaseDadosPage() {
 
     if (clearBeforeImport) {
       const confirmed = window.confirm(
-        "ATENÇÃO: Esta ação removerá PERMANENTEMENTE todos os materiais e itens de solicitação existentes antes da importação. Deseja continuar?"
+        "ATENÇÃO: Esta ação removerá PERMANENTEMENTE todos os materiais e itens de BOM existentes antes da importação. Deseja continuar?"
       );
       if (!confirmed) {
         if (fileInputRef.current) fileInputRef.current.value = "";

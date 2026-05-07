@@ -6,7 +6,7 @@ type AppRole = Database['public']['Enums']['app_role'];
 type SolicitacaoStatus = 'Aberta' | 'Aprovada' | 'Material Comprado' | 'Material enviado para Obra' | 'Finalizada' | 'Cancelada';
 
 export interface Permissions {
-  // Solicitações
+  // BOMs
   canCreateSolicitacao: boolean;
   canEditSolicitacao: (status: string) => boolean;
   canDeleteSolicitacao: (status: string) => boolean;
@@ -20,9 +20,6 @@ export interface Permissions {
 
   // Base de Dados
   canModifyBaseDados: boolean;
-
-  // Inventário
-  canModifyInventario: boolean;
 
   // Admin
   canAccessAdmin: boolean;
@@ -105,9 +102,6 @@ export function usePermissions(): Permissions {
   // Base de Dados: admin, gerente, projetista can modify
   const canModifyBaseDados = isAdmin || isGerente || isProjetista;
 
-  // Inventário: admin, gerente can modify
-  const canModifyInventario = isAdmin || isGerente;
-
   // Admin page
   const canAccessAdmin = isAdmin;
 
@@ -121,7 +115,6 @@ export function usePermissions(): Permissions {
     canEditProject,
     canDeleteProject,
     canModifyBaseDados,
-    canModifyInventario,
     canAccessAdmin,
     isLoading,
     role,
