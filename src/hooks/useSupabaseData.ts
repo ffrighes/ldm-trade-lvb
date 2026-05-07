@@ -318,6 +318,7 @@ type ItemInput = {
   bitola: string;
   erp?: string;
   notas?: string;
+  tag?: string;
   quantidade: number;
   unidade: string;
   custo_unitario: number;
@@ -348,6 +349,7 @@ export function useAddSolicitacao() {
         bitola: string;
         erp?: string;
         notas?: string;
+        tag?: string;
         quantidade: number;
         unidade: string;
         custo_unitario: number;
@@ -391,6 +393,7 @@ export function useUpdateSolicitacao() {
         bitola: string;
         erp?: string;
         notas?: string;
+        tag?: string;
         quantidade: number;
         unidade: string;
         custo_unitario: number;

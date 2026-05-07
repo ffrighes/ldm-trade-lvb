@@ -39,6 +39,7 @@ interface FormItem {
   bitola: string;
   erp_item: string;
   notas: string;
+  tag: string;
   quantidade: number;
   unidade: string;
   custo_unitario: number;
@@ -53,6 +54,7 @@ const emptyItem = (): FormItem => ({
   bitola: '',
   erp_item: '',
   notas: '',
+  tag: '-',
   quantidade: 1,
   unidade: 'un',
   custo_unitario: 0,
@@ -119,6 +121,7 @@ export default function SolicitacaoFormPage() {
             bitola: i.bitola,
             erp_item: i.erp || '',
             notas: i.notas || '',
+            tag: i.tag || '-',
             quantidade: i.quantidade,
             unidade: i.unidade,
             custo_unitario: i.custo_unitario,
@@ -370,6 +373,7 @@ export default function SolicitacaoFormPage() {
 
       const tableData = itens.map((item, i) => [
         String(i + 1),
+        item.tag || '-',
         item.descricao,
         item.bitola,
         item.erp_item || '',
@@ -380,17 +384,18 @@ export default function SolicitacaoFormPage() {
 
       autoTable(doc, {
         startY: infoY + 8,
-        head: [['#', 'Descrição', 'Bitola', 'ERP', 'Qtd', 'Un.', 'Notas']],
+        head: [['#', 'TAG', 'Descrição', 'Bitola', 'ERP', 'Qtd', 'Un.', 'Notas']],
         body: tableData,
         styles: { fontSize: 8, cellPadding: 1.5 },
         headStyles: { fillColor: [34, 34, 34], textColor: 255, fontStyle: 'bold' },
         alternateRowStyles: { fillColor: [245, 245, 245] },
         columnStyles: {
           0: { halign: 'center', cellWidth: 8 },
-          2: { cellWidth: 22, overflow: 'hidden' },
-          3: { cellWidth: 28, overflow: 'hidden' },
-          4: { halign: 'center', cellWidth: 14, overflow: 'hidden' },
-          5: { halign: 'center', cellWidth: 12, overflow: 'hidden' },
+          1: { cellWidth: 20, overflow: 'hidden' },
+          3: { cellWidth: 22, overflow: 'hidden' },
+          4: { cellWidth: 28, overflow: 'hidden' },
+          5: { halign: 'center', cellWidth: 14, overflow: 'hidden' },
+          6: { halign: 'center', cellWidth: 12, overflow: 'hidden' },
         },
         margin: { left: 14, right: 14 },
       });
@@ -441,12 +446,13 @@ export default function SolicitacaoFormPage() {
 
     // Items table header
     data.push(['Itens da Solicitação']);
-    data.push(['#', 'Descrição', 'Bitola', 'ERP', 'Qtd', 'Un.', 'Notas']);
+    data.push(['#', 'TAG', 'Descrição', 'Bitola', 'ERP', 'Qtd', 'Un.', 'Notas']);
 
     // Items rows
     itens.forEach((item, i) => {
       data.push([
         i + 1,
+        item.tag || '-',
         item.descricao,
         item.bitola,
         item.erp_item || '',
@@ -464,6 +470,7 @@ export default function SolicitacaoFormPage() {
     // Column widths matching PDF proportions
     ws['!cols'] = [
       { wch: 6 },   // #
+      { wch: 14 },  // TAG
       { wch: 40 },  // Descrição
       { wch: 14 },  // Bitola
       { wch: 18 },  // ERP
@@ -541,6 +548,7 @@ export default function SolicitacaoFormPage() {
         totalGeral += custoTotal;
         return [
           String(i + 1),
+          item.tag || '-',
           item.descricao,
           item.bitola,
           item.erp_item || '',
@@ -560,19 +568,20 @@ export default function SolicitacaoFormPage() {
 
       autoTable(doc, {
         startY: infoY + 8,
-        head: [['#', 'Descrição', 'Bitola', 'ERP', 'Qtd', 'Un.', 'Custo Unit.', 'Custo Total']],
+        head: [['#', 'TAG', 'Descrição', 'Bitola', 'ERP', 'Qtd', 'Un.', 'Custo Unit.', 'Custo Total']],
         body: tableData,
         styles: { fontSize: 8, cellPadding: 1.5 },
         headStyles: { fillColor: [34, 34, 34], textColor: 255, fontStyle: 'bold' },
         alternateRowStyles: { fillColor: [245, 245, 245] },
         columnStyles: {
           0: { halign: 'center', cellWidth: 8 },
-          2: { cellWidth: 22 },
-          3: { cellWidth: 28 },
-          4: { halign: 'center', cellWidth: 14 },
-          5: { halign: 'center', cellWidth: 12 },
-          6: { halign: 'right', cellWidth: 32 },
+          1: { cellWidth: 20 },
+          3: { cellWidth: 22 },
+          4: { cellWidth: 28 },
+          5: { halign: 'center', cellWidth: 14 },
+          6: { halign: 'center', cellWidth: 12 },
           7: { halign: 'right', cellWidth: 32 },
+          8: { halign: 'right', cellWidth: 32 },
         },
         margin: { left: 14, right: 14 },
       });
@@ -666,7 +675,7 @@ export default function SolicitacaoFormPage() {
       notas,
       status,
       desenho,
-      itens: itens.map(({ key, erp_item, isSpecial, ...rest }) => ({ ...rest, erp: erp_item || '' })),
+      itens: itens.map(({ key, erp_item, isSpecial, tag, ...rest }) => ({ ...rest, erp: erp_item || '', tag: tag?.trim() ? tag : '-' })),
     };
 
     try {
@@ -847,6 +856,7 @@ export default function SolicitacaoFormPage() {
                 <thead>
                   <tr className="border-b text-left text-xs font-normal text-muted-foreground">
                     <th className="py-2 px-2 font-normal w-10">#</th>
+                    <th className="py-2 px-2 font-normal">TAG</th>
                     <th className="py-2 px-2 font-normal">Descrição</th>
                     <th className="py-2 px-2 font-normal">Bitola</th>
                     <th className="py-2 px-2 font-normal">ERP</th>
@@ -861,7 +871,7 @@ export default function SolicitacaoFormPage() {
                   {entries.map(({ item, idx }) => {
                     const isEditing = editingKeys.has(item.key);
                     const itemDisabled = isReadOnly || !isEditing;
-                    const colCount = isReadOnly ? 8 : 9;
+                    const colCount = isReadOnly ? 9 : 10;
 
                     const actionButtons = !isReadOnly && (
                       <div className="flex items-center gap-1 shrink-0">
@@ -908,6 +918,9 @@ export default function SolicitacaoFormPage() {
                                 <Star className="h-3 w-3 text-muted-foreground" aria-label="Item especial" />
                               )}
                             </div>
+                          </td>
+                          <td className="py-2 px-2 align-middle font-normal text-foreground">
+                            {item.tag || '-'}
                           </td>
                           <td className="py-2 px-2 align-middle font-normal text-foreground max-w-[20rem]">
                             <span className="block truncate" title={item.descricao || '—'}>
@@ -963,6 +976,18 @@ export default function SolicitacaoFormPage() {
                             </div>
 
                             <div className="grid grid-cols-2 sm:grid-cols-6 lg:grid-cols-12 gap-3">
+                      <div className="col-span-1 sm:col-span-2 lg:col-span-2">
+                        <Label className="text-xs font-medium text-foreground/80">
+                          TAG
+                        </Label>
+                        <Input
+                          value={item.tag}
+                          onChange={e => setItens(prev => prev.map((it, i) => i === idx ? { ...it, tag: e.target.value } : it))}
+                          disabled={itemDisabled}
+                          placeholder="-"
+                        />
+                      </div>
+
                       <div className="col-span-2 sm:col-span-6 lg:col-span-5">
                         <Label className="text-xs font-medium text-foreground/80">
                           Descrição *

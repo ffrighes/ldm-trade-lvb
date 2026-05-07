@@ -15,6 +15,7 @@ interface SolicitacaoItemLite {
   custo_unitario: number;
   custo_total: number;
   notas?: string | null;
+  tag?: string | null;
 }
 
 interface SolicitacaoLite {
@@ -70,6 +71,7 @@ export function exportSolicitacoesToXlsx(
         'Solicitação': s.numero,
         Projeto: projeto,
         Status: s.status,
+        TAG: i.tag ?? '-',
         Descrição: i.descricao,
         Bitola: i.bitola,
         Unidade: i.unidade,
