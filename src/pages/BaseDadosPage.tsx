@@ -8,7 +8,11 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, Search, ChevronDown, ChevronRight, Upload, Download, PlusCircle, FolderPen, Tags } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, Upload, Download, PlusCircle, FolderPen, Tags } from "lucide-react";
+import { SearchInput } from "@/components/SearchInput";
+import { useSearch } from "@/hooks/useSearch";
+import { highlightMatch } from "@/lib/highlight";
+import { SEARCH_MIN_LENGTH } from "@/lib/sanitizeSearch";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
@@ -53,7 +57,10 @@ export default function BaseDadosPage() {
   const renameCategoria = useRenameCategoria();
   const deleteCategoria = useDeleteCategoria();
 
-  const [search, setSearch] = useState("");
+  const search = useSearch({
+    debounceMs: 300,
+    storageKey: "materiais:recent-searches",
+  });
   const [descFilter, setDescFilter] = useState("all");
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -250,8 +257,8 @@ export default function BaseDadosPage() {
             return false;
           }
         }
-        if (search) {
-          const s = search.toLowerCase();
+        if (search.debounced) {
+          const s = search.debounced.toLowerCase();
           return (
             m.descricao.toLowerCase().includes(s) ||
             m.bitola.toLowerCase().includes(s) ||
@@ -260,7 +267,7 @@ export default function BaseDadosPage() {
         }
         return true;
       }),
-    [materials, search, descFilter, categoriaFilter],
+    [materials, search.debounced, descFilter, categoriaFilter],
   );
 
   const grouped = useMemo(() => {
@@ -1001,15 +1008,28 @@ export default function BaseDadosPage() {
       <Card className="mb-4">
         <CardHeader>
           <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por descrição, bitola ou ERP..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9"
-              />
-            </div>
+            <SearchInput
+              className="flex-1"
+              value={search.input}
+              onChange={search.setInput}
+              placeholder="Buscar por descrição, bitola ou ERP..."
+              ariaLabel="Buscar materiais"
+              ariaControls="materiais-results-status"
+              isLoading={search.isDebouncing}
+              showBelowMinHint={search.isBelowMin}
+              belowMinHint={`Digite ao menos ${SEARCH_MIN_LENGTH} caracteres para buscar.`}
+            />
+            <span
+              id="materiais-results-status"
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+              className="sr-only"
+            >
+              {search.debounced
+                ? `${filtered.length} resultado(s) para "${search.debounced}"`
+                : `${filtered.length} material(is)`}
+            </span>
             <Select value={categoriaFilter} onValueChange={setCategoriaFilter}>
               <SelectTrigger className="w-48">
                 <SelectValue placeholder="Filtrar categoria" />
@@ -1060,7 +1080,11 @@ export default function BaseDadosPage() {
       {grouped.length === 0 ? (
         <Card>
           <CardContent className="py-8">
-            <div className="text-center text-muted-foreground">Nenhum item encontrado</div>
+            <div className="text-center text-muted-foreground">
+              {search.debounced
+                ? <>Nenhum material encontrado para <strong>"{search.debounced}"</strong>. Tente outro termo.</>
+                : 'Nenhum item encontrado'}
+            </div>
           </CardContent>
         </Card>
       ) : (
@@ -1116,7 +1140,7 @@ export default function BaseDadosPage() {
                                   )}
                                 </Button>
                               </TableCell>
-                              <TableCell className="font-medium">{descricao}</TableCell>
+                              <TableCell className="font-medium">{highlightMatch(descricao, search.debounced)}</TableCell>
                               {canModifyBaseDados && (
                                 <TableCell className="text-right">
                                   <div className="flex justify-end gap-1">
@@ -1171,9 +1195,9 @@ export default function BaseDadosPage() {
                                       <TableBody>
                                         {items.map((m) => (
                                           <TableRow key={m.id}>
-                                            <TableCell className="font-mono">{m.bitola}</TableCell>
+                                            <TableCell className="font-mono">{highlightMatch(m.bitola, search.debounced)}</TableCell>
                                             <TableCell>{m.unidade}</TableCell>
-                                            <TableCell className="font-mono">{(m as any).erp || "-"}</TableCell>
+                                            <TableCell className="font-mono">{(() => { const e = (m as any).erp; return e ? highlightMatch(e, search.debounced) : "-"; })()}</TableCell>
                                             <TableCell className="text-right font-mono">
                                               {m.custo > 0 ? formatBRL(m.custo) : "-"}
                                             </TableCell>

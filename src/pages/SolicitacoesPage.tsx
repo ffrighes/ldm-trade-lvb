@@ -1,4 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
+import { SearchInput } from '@/components/SearchInput';
+import { useSearch } from '@/hooks/useSearch';
+import { highlightMatch } from '@/lib/highlight';
+import { SEARCH_MIN_LENGTH } from '@/lib/sanitizeSearch';
 import {
   useSolicitacoesPaginated,
   useSolicitacoesKpis,
@@ -11,13 +15,12 @@ import {
 } from '@/hooks/useSupabaseData';
 import { useSolicitacoesFilters, ALL_STATUSES, type StatusValue, type SolicitacoesFiltersState } from '@/hooks/useSolicitacoesFilters';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Search, Eye, Trash2, FileText, RefreshCw, Loader2 } from 'lucide-react';
+import { Plus, Eye, Trash2, FileText, RefreshCw, Loader2 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useNavigate } from 'react-router-dom';
 import { formatBRL } from '@/lib/formatCurrency';
@@ -53,21 +56,24 @@ const PRESET_STATUSES = {
 
 export default function SolicitacoesPage() {
   const { state, update, pageSizes } = useSolicitacoesFilters();
-  const [searchInput, setSearchInput] = useState(state.search);
+  const search = useSearch({
+    initialValue: state.search,
+    debounceMs: 300,
+    storageKey: 'solicitacoes:recent-searches',
+    onDebouncedChange: (next) => {
+      if (next !== state.search) update({ search: next });
+    },
+  });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isExporting, setIsExporting] = useState(false);
   const [viewSolicitacaoId, setViewSolicitacaoId] = useState<string | null>(null);
   const openDetails = (id: string) => setViewSolicitacaoId(id);
 
+  // Keep input in sync if URL changes externally (saved view applied, back button).
   useEffect(() => {
-    if (searchInput === state.search) return;
-    const t = setTimeout(() => update({ search: searchInput }), 300);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchInput]);
-
-  useEffect(() => {
-    if (state.search !== searchInput) setSearchInput(state.search);
+    if (state.search !== search.debounced) {
+      search.setInput(state.search);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.search]);
 
@@ -112,6 +118,12 @@ export default function SolicitacoesPage() {
 
   const rows = useMemo(() => data?.rows ?? [], [data]);
   const total = data?.total ?? 0;
+
+  // Persist successful searches into the recent list (max 5).
+  useEffect(() => {
+    if (state.search && !isLoading) search.pushRecent(state.search);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.search, isLoading]);
 
   // Drop selections that no longer match the current page (page change, filter change, etc).
   useEffect(() => {
@@ -301,16 +313,31 @@ export default function SolicitacoesPage() {
         <CardHeader>
           <div className="flex flex-col gap-3">
             <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  className="pl-10"
-                  placeholder="Buscar por número, motivo, ERP ou projeto..."
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  aria-label="Buscar solicitações"
-                />
-              </div>
+              <SearchInput
+                className="flex-1"
+                value={search.input}
+                onChange={search.setInput}
+                onClear={() => update({ search: '' })}
+                placeholder="Buscar por número, motivo, ERP ou projeto..."
+                ariaLabel="Buscar solicitações"
+                ariaControls="solicitacoes-results-status"
+                isLoading={search.isDebouncing || (isFetching && !isLoading)}
+                showBelowMinHint={search.isBelowMin}
+                belowMinHint={`Digite ao menos ${SEARCH_MIN_LENGTH} caracteres para buscar.`}
+              />
+              <span
+                id="solicitacoes-results-status"
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+                className="sr-only"
+              >
+                {isLoading
+                  ? 'Carregando resultados…'
+                  : state.search
+                    ? `${total} resultado(s) para "${state.search}"`
+                    : `${total} solicitação(ões)`}
+              </span>
               <Select value={statusFilterValue} onValueChange={onStatusFilterChange}>
                 <SelectTrigger className="w-full sm:w-44" aria-label="Filtrar por status"><SelectValue placeholder="Status" /></SelectTrigger>
                 <SelectContent>
@@ -401,7 +428,13 @@ export default function SolicitacoesPage() {
                       </TableCell>
                     </TableRow>
                   ) : rows.length === 0 ? (
-                    <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Nenhuma solicitação encontrada</TableCell></TableRow>
+                    <TableRow>
+                      <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
+                        {state.search
+                          ? <>Nenhum resultado para <strong>"{state.search}"</strong>. Tente outro termo ou limpe os filtros.</>
+                          : 'Nenhuma solicitação encontrada'}
+                      </TableCell>
+                    </TableRow>
                   ) : rows.map((s) => {
                     const itens = s.solicitacao_itens || [];
                     const custoAtualizado = calcCustoAtualizado(itens);
@@ -419,13 +452,13 @@ export default function SolicitacoesPage() {
                             aria-label={`Selecionar solicitação ${s.numero}`}
                           />
                         </TableCell>
-                        <TableCell className="font-mono font-medium">{s.numero}</TableCell>
-                        <TableCell className="max-w-xs truncate">{getProjetoNome(s.projeto_id)}</TableCell>
+                        <TableCell className="font-mono font-medium">{highlightMatch(s.numero, state.search)}</TableCell>
+                        <TableCell className="max-w-xs truncate">{highlightMatch(getProjetoNome(s.projeto_id), state.search)}</TableCell>
                         <TableCell><Badge className={statusColors[s.status as SolicitacaoStatus] || ''}>{s.status}</Badge></TableCell>
-                        <TableCell className="max-w-xs truncate">{s.motivo}</TableCell>
+                        <TableCell className="max-w-xs truncate">{highlightMatch(s.motivo ?? '', state.search)}</TableCell>
                         <TableCell className="text-muted-foreground">{s.data_solicitacao}</TableCell>
                         <TableCell className="text-center">{itens.length}</TableCell>
-                        <TableCell className="font-mono">{s.erp || '-'}</TableCell>
+                        <TableCell className="font-mono">{s.erp ? highlightMatch(s.erp, state.search) : '-'}</TableCell>
                         <TableCell className="text-right font-mono">{formatBRL(custoAtualizado)}</TableCell>
                         <TableCell>
                           <div className="flex gap-1">

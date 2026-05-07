@@ -7,7 +7,11 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Pencil, Trash2, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { SearchInput } from '@/components/SearchInput';
+import { useSearch } from '@/hooks/useSearch';
+import { highlightMatch } from '@/lib/highlight';
+import { SEARCH_MIN_LENGTH } from '@/lib/sanitizeSearch';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
@@ -31,15 +35,23 @@ export default function ProjectsPage() {
   const updateProject = useUpdateProject();
   const deleteProject = useDeleteProject();
 
-  const [search, setSearch] = useState('');
+  const search = useSearch({
+    debounceMs: 300,
+    storageKey: 'projects:recent-searches',
+  });
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ numero: '', descricao: '' });
 
-  const filtered = projects.filter(p =>
-    p.numero.toLowerCase().includes(search.toLowerCase()) ||
-    p.descricao.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = useMemo(() => {
+    const term = search.debounced.toLowerCase();
+    if (!term) return projects;
+    return projects.filter(
+      (p) =>
+        p.numero.toLowerCase().includes(term) ||
+        p.descricao.toLowerCase().includes(term),
+    );
+  }, [projects, search.debounced]);
 
   const handleSave = async () => {
     if (!form.numero.trim() || !form.descricao.trim()) {
@@ -109,10 +121,27 @@ export default function ProjectsPage() {
 
       <Card>
         <CardHeader>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input className="pl-10" placeholder="Buscar projetos..." value={search} onChange={e => setSearch(e.target.value)} />
-          </div>
+          <SearchInput
+            value={search.input}
+            onChange={search.setInput}
+            placeholder="Buscar projetos..."
+            ariaLabel="Buscar projetos"
+            ariaControls="projects-results-status"
+            isLoading={search.isDebouncing}
+            showBelowMinHint={search.isBelowMin}
+            belowMinHint={`Digite ao menos ${SEARCH_MIN_LENGTH} caracteres para buscar.`}
+          />
+          <span
+            id="projects-results-status"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            className="sr-only"
+          >
+            {search.debounced
+              ? `${filtered.length} resultado(s) para "${search.debounced}"`
+              : `${filtered.length} projeto(s)`}
+          </span>
         </CardHeader>
         <CardContent>
           <Table>
@@ -127,11 +156,17 @@ export default function ProjectsPage() {
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhum projeto encontrado</TableCell></TableRow>
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                    {search.debounced
+                      ? <>Nenhum projeto encontrado para <strong>"{search.debounced}"</strong>. Tente outro termo.</>
+                      : 'Nenhum projeto encontrado'}
+                  </TableCell>
+                </TableRow>
               ) : filtered.map(p => (
                 <TableRow key={p.id}>
-                  <TableCell className="font-mono font-medium">{p.numero}</TableCell>
-                  <TableCell>{p.descricao}</TableCell>
+                  <TableCell className="font-mono font-medium">{highlightMatch(p.numero, search.debounced)}</TableCell>
+                  <TableCell>{highlightMatch(p.descricao, search.debounced)}</TableCell>
                   <TableCell className="text-muted-foreground">{p.data_criacao}</TableCell>
                   <TableCell className="text-right font-mono font-medium">{formatBRL(projectCosts[p.id] || 0)}</TableCell>
                   {(canEditProject || canDeleteProject) && (
