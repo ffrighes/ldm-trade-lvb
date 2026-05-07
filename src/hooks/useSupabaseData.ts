@@ -139,16 +139,21 @@ export interface SolicitacoesQueryParams {
 
 // PostgREST .or() uses `,` and `()` as separators. Strip them from the user
 // input rather than trying to escape, since they have no business in a search
-// query and would otherwise corrupt the filter expression.
+// query and would otherwise corrupt the filter expression. We also strip the
+// SQL `LIKE` wildcards (`%` `_`) and `\` so users can't widen the scan.
 function sanitizeForOrFilter(s: string): string {
-  return s.replace(/[,()*]/g, ' ').trim();
+  return s.replace(/[%_,()*\\]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 export function useSolicitacoesPaginated(params: SolicitacoesQueryParams) {
   return useQuery({
     queryKey: ['solicitacoes', 'list', params],
     placeholderData: (prev) => prev,
-    queryFn: async () => {
+    // Search results are stable enough that re-focusing or fast filter toggles
+    // shouldn't trigger a network round-trip. Realtime + mutation invalidations
+    // still refresh the cache when something actually changes.
+    staleTime: 30_000,
+    queryFn: async ({ signal }) => {
       const { page, pageSize, sortBy, sortDir, search, status, projetoId, dateFrom, dateTo } = params;
       const from = page * pageSize;
       const to = from + pageSize - 1;
@@ -159,7 +164,8 @@ export function useSolicitacoesPaginated(params: SolicitacoesQueryParams) {
         const { data: matched, error: pErr } = await supabase
           .from('projects')
           .select('id')
-          .or(`numero.ilike.%${cleanSearch}%,descricao.ilike.%${cleanSearch}%`);
+          .or(`numero.ilike.%${cleanSearch}%,descricao.ilike.%${cleanSearch}%`)
+          .abortSignal(signal);
         if (pErr) throw pErr;
         projectIdsForSearch = (matched ?? []).map((p) => p.id);
       }
@@ -185,7 +191,10 @@ export function useSolicitacoesPaginated(params: SolicitacoesQueryParams) {
         query = query.or(orParts.join(','));
       }
 
-      query = query.order(sortBy, { ascending: sortDir === 'asc' }).range(from, to);
+      query = query
+        .order(sortBy, { ascending: sortDir === 'asc' })
+        .range(from, to)
+        .abortSignal(signal);
 
       const { data, error, count } = await query;
       if (error) throw error;
@@ -207,16 +216,18 @@ export function useSolicitacoesKpis(params: Omit<SolicitacoesQueryParams, 'page'
   return useQuery({
     queryKey: ['solicitacoes', 'kpis', params],
     placeholderData: (prev) => prev,
-    queryFn: async () => {
+    staleTime: 30_000,
+    queryFn: async ({ signal }) => {
       const { search, status, projetoId, dateFrom, dateTo } = params;
-      const cleanSearch = search ? search.replace(/[,()*]/g, ' ').trim() : '';
+      const cleanSearch = search ? sanitizeForOrFilter(search) : '';
 
       let projectIdsForSearch: string[] | null = null;
       if (cleanSearch) {
         const { data: matched, error: pErr } = await supabase
           .from('projects')
           .select('id')
-          .or(`numero.ilike.%${cleanSearch}%,descricao.ilike.%${cleanSearch}%`);
+          .or(`numero.ilike.%${cleanSearch}%,descricao.ilike.%${cleanSearch}%`)
+          .abortSignal(signal);
         if (pErr) throw pErr;
         projectIdsForSearch = (matched ?? []).map((p) => p.id);
       }
