@@ -23,7 +23,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Eye, Trash2, FileText, RefreshCw, Loader2, ArrowLeft } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
-import { formatBRL } from '@/lib/formatCurrency';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from 'sonner';
@@ -427,26 +426,24 @@ export default function SolicitacoesPage() {
                       />
                     </TableHead>
                     <SortableHeader field="numero" activeField={state.sortBy} direction={state.sortDir} onSort={handleSort}>Nº</SortableHeader>
-                    <TableHead>Projeto</TableHead>
                     <SortableHeader field="status" activeField={state.sortBy} direction={state.sortDir} onSort={handleSort}>Status</SortableHeader>
                     <TableHead>Motivo</TableHead>
-                    <SortableHeader field="data_solicitacao" activeField={state.sortBy} direction={state.sortDir} onSort={handleSort}>Data</SortableHeader>
                     <TableHead className="text-center">Itens</TableHead>
-                    <SortableHeader field="erp" activeField={state.sortBy} direction={state.sortDir} onSort={handleSort}>ERP</SortableHeader>
-                    <TableHead className="text-right">Custo Total</TableHead>
+                    <TableHead>Notas</TableHead>
+                    <SortableHeader field="data_solicitacao" activeField={state.sortBy} direction={state.sortDir} onSort={handleSort}>Data</SortableHeader>
                     <TableHead className="w-24">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                         <Loader2 className="h-5 w-5 animate-spin inline-block mr-2" />Carregando…
                       </TableCell>
                     </TableRow>
                   ) : rows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                         {state.search
                           ? <>Nenhum resultado para <strong>"{state.search}"</strong>. Tente outro termo ou limpe os filtros.</>
                           : 'Nenhuma solicitação encontrada'}
@@ -454,7 +451,6 @@ export default function SolicitacoesPage() {
                     </TableRow>
                   ) : rows.map((s) => {
                     const itens = s.solicitacao_itens || [];
-                    const custoAtualizado = calcCustoAtualizado(itens);
                     const checked = selectedIds.has(s.id);
                     return (
                       <TableRow
@@ -470,13 +466,11 @@ export default function SolicitacoesPage() {
                           />
                         </TableCell>
                         <TableCell className="font-mono font-medium">{highlightMatch(s.numero, state.search)}</TableCell>
-                        <TableCell className="max-w-xs truncate">{highlightMatch(getProjetoNome(s.projeto_id), state.search)}</TableCell>
                         <TableCell><Badge className={statusColors[s.status as SolicitacaoStatus] || ''}>{s.status}</Badge></TableCell>
                         <TableCell className="max-w-xs truncate">{highlightMatch(s.motivo ?? '', state.search)}</TableCell>
-                        <TableCell className="text-muted-foreground">{s.data_solicitacao}</TableCell>
                         <TableCell className="text-center">{itens.length}</TableCell>
-                        <TableCell className="font-mono">{s.erp ? highlightMatch(s.erp, state.search) : '-'}</TableCell>
-                        <TableCell className="text-right font-mono">{formatBRL(custoAtualizado)}</TableCell>
+                        <TableCell className="max-w-xs truncate">{highlightMatch(s.notas ?? '', state.search)}</TableCell>
+                        <TableCell className="text-muted-foreground">{s.data_solicitacao}</TableCell>
                         <TableCell>
                           <div className="flex gap-1">
                             <Button variant="ghost" size="icon" aria-label="Ver solicitação" onClick={(e) => { e.stopPropagation(); openDetails(s.id); }}><Eye className="h-4 w-4" /></Button>
