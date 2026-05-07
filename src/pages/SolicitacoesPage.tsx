@@ -410,6 +410,7 @@ export default function SolicitacoesPage() {
               calcCustoAtualizado={calcCustoAtualizado}
               onRefreshCosts={(id, itens) => handleAtualizarCustos(undefined, id, itens ?? [])}
               onDelete={(id, numero) => { deleteSolicitacao.mutate(id); toast.success(`Solicitação ${numero} excluída`); }}
+              onOpen={(id, projetoId) => navigate(`/projetos/${projetoId}/solicitacoes/${id}`)}
               onView={openDetails}
               refreshingCosts={updateItemCosts.isPending}
             />
@@ -459,7 +460,7 @@ export default function SolicitacoesPage() {
                       <TableRow
                         key={s.id}
                         className={`cursor-pointer hover:bg-muted/50 ${checked ? 'bg-muted/30' : ''}`}
-                        onClick={() => openDetails(s.id)}
+                        onClick={() => navigate(`/projetos/${s.projeto_id}/solicitacoes/${s.id}`)}
                       >
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <Checkbox

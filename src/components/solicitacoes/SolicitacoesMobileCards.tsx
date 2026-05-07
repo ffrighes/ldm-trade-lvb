@@ -49,6 +49,7 @@ interface Props {
   calcCustoAtualizado: (itens: Row['solicitacao_itens']) => number;
   onRefreshCosts: (id: string, itens: Row['solicitacao_itens']) => void;
   onDelete: (id: string, numero: string) => void;
+  onOpen: (id: string, projetoId: string) => void;
   onView: (id: string) => void;
   refreshingCosts: boolean;
 }
@@ -62,6 +63,7 @@ export function SolicitacoesMobileCards({
   calcCustoAtualizado,
   onRefreshCosts,
   onDelete,
+  onOpen,
   onView,
   refreshingCosts,
 }: Props) {
@@ -98,7 +100,7 @@ export function SolicitacoesMobileCards({
                 <button
                   type="button"
                   className="flex-1 text-left min-w-0"
-                  onClick={() => onView(s.id)}
+                  onClick={() => onOpen(s.id, s.projeto_id)}
                 >
                   <div className="flex items-center gap-2">
                     <span className="font-mono font-semibold text-foreground">{s.numero}</span>
