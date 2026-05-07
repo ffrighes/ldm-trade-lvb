@@ -1016,7 +1016,17 @@ export default function SolicitacaoFormPage() {
                     return (
                       <tr key={item.key} className="border-b">
                         <td colSpan={colCount} className="p-0">
-                          <div className="bg-card/40 p-3 sm:p-4">
+                          <div
+                            className="bg-card/40 p-3 sm:p-4"
+                            onKeyDown={e => {
+                              if (e.key !== 'Enter' || e.defaultPrevented) return;
+                              const target = e.target as HTMLElement;
+                              if (target.tagName === 'TEXTAREA') return;
+                              e.preventDefault();
+                              (target as HTMLElement).blur?.();
+                              toggleEditItem(item.key);
+                            }}
+                          >
                             <div className="flex items-center justify-between mb-3">
                               <div className="flex items-center gap-2">
                                 <span className="text-sm font-semibold text-foreground">
