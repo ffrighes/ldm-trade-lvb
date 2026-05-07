@@ -275,5 +275,17 @@ export function exportSolicitacoesToPdf(
     (doc as unknown as { putTotalPages: (s: string) => void }).putTotalPages(TOTAL_PAGES_PLACEHOLDER);
   }
 
-  doc.save(filename);
+  const blob = doc.output('blob');
+  const url = URL.createObjectURL(blob);
+  // Use an anchor with target="_blank" so the browser opens a new tab
+  // rather than a popup window (which window.open can trigger).
+  const a = document.createElement('a');
+  a.href = url;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // Revoke the object URL after the new tab has had time to load it.
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
