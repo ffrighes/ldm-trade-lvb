@@ -18,9 +18,9 @@ export default function DashboardPage() {
 
   const stats = [
     { label: 'Projetos', value: projects.length, icon: FolderKanban, to: '/projetos', color: 'text-primary' },
-    { label: 'Solicitações', value: solicitacoes.length, icon: FileText, to: '/solicitacoes', color: 'text-info' },
+    { label: 'Solicitações', value: solicitacoes.length, icon: FileText, to: '/projetos', color: 'text-info' },
     { label: 'Materiais', value: materials.length, icon: Database, to: '/base-dados', color: 'text-accent' },
-    { label: 'Total Custos', value: formatBRL(totalCusto), icon: TrendingUp, to: '/solicitacoes', color: 'text-success' },
+    { label: 'Total Custos', value: formatBRL(totalCusto), icon: TrendingUp, to: '/projetos', color: 'text-success' },
   ];
 
   return (

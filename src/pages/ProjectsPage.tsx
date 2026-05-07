@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { SearchInput } from '@/components/SearchInput';
 import { useSearch } from '@/hooks/useSearch';
 import { highlightMatch } from '@/lib/highlight';
@@ -17,6 +18,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
 
 export default function ProjectsPage() {
+  const navigate = useNavigate();
   const { data: projects = [] } = useProjects();
   const { data: solicitacoes = [] } = useSolicitacoes();
   const { canCreateProject, canEditProject, canDeleteProject } = usePermissions();
@@ -163,31 +165,41 @@ export default function ProjectsPage() {
                       : 'Nenhum projeto encontrado'}
                   </TableCell>
                 </TableRow>
-              ) : filtered.map(p => (
-                <TableRow key={p.id}>
+              ) : filtered.map(p => {
+                const openProject = () => navigate(`/projetos/${p.id}/solicitacoes`);
+                return (
+                <TableRow
+                  key={p.id}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={openProject}
+                  onKeyDown={(e) => { if (e.key === 'Enter') openProject(); }}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`Abrir solicitações do projeto ${p.numero}`}
+                >
                   <TableCell className="font-mono font-medium">{highlightMatch(p.numero, search.debounced)}</TableCell>
                   <TableCell>{highlightMatch(p.descricao, search.debounced)}</TableCell>
                   <TableCell className="text-muted-foreground">{p.data_criacao}</TableCell>
                   <TableCell className="text-right font-mono font-medium">{formatBRL(projectCosts[p.id] || 0)}</TableCell>
                   {(canEditProject || canDeleteProject) && (
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="flex gap-1">
                         {canEditProject && (
-                          <Button variant="ghost" size="icon" onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" aria-label="Editar projeto" onClick={(e) => { e.stopPropagation(); openEdit(p); }}><Pencil className="h-4 w-4" /></Button>
                         )}
                         {canDeleteProject && (
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                              <Button variant="ghost" size="icon" aria-label="Excluir projeto" onClick={(e) => e.stopPropagation()}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                             </AlertDialogTrigger>
-                            <AlertDialogContent>
+                            <AlertDialogContent onClick={(e) => e.stopPropagation()}>
                               <AlertDialogHeader>
                                 <AlertDialogTitle>Excluir projeto?</AlertDialogTitle>
                                 <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => { deleteProject.mutate(p.id); toast.success('Projeto excluído'); }}>Excluir</AlertDialogAction>
+                                <AlertDialogAction onClick={(e) => { e.stopPropagation(); deleteProject.mutate(p.id); toast.success('Projeto excluído'); }}>Excluir</AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
                           </AlertDialog>
@@ -196,7 +208,8 @@ export default function ProjectsPage() {
                     </TableCell>
                   )}
                 </TableRow>
-              ))}
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>

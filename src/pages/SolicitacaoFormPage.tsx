@@ -62,8 +62,9 @@ const emptyItem = (): FormItem => ({
 });
 
 export default function SolicitacaoFormPage() {
-  const { id } = useParams();
+  const { id, projetoId: routeProjetoId } = useParams<{ id?: string; projetoId?: string }>();
   const navigate = useNavigate();
+  const listPath = routeProjetoId ? `/projetos/${routeProjetoId}/solicitacoes` : '/projetos';
   const { data: projects = [] } = useProjects();
   const { data: materials = [] } = useMaterials();
   const { data: categorias = [] } = useCategorias();
@@ -81,7 +82,7 @@ export default function SolicitacaoFormPage() {
     ? !canCreateSolicitacao
     : !canEditSolicitacao(existing?.status || 'Aberta');
 
-  const [projetoId, setProjetoId] = useState('');
+  const [projetoId, setProjetoId] = useState(routeProjetoId ?? '');
   const [motivo, setMotivo] = useState('');
   const [dataSolicitacao, setDataSolicitacao] = useState(new Date().toISOString().split('T')[0]);
   const [revisao, setRevisao] = useState('');
@@ -743,7 +744,7 @@ export default function SolicitacaoFormPage() {
         await addSolicitacao.mutateAsync(payload);
         toast.success('Solicitação criada');
       }
-      navigate('/solicitacoes');
+      navigate(`/projetos/${projetoId}/solicitacoes`, { replace: true });
     } catch {
       toast.error('Erro ao salvar solicitação');
     }
@@ -752,7 +753,7 @@ export default function SolicitacaoFormPage() {
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
-        <Button variant="ghost" size="icon" aria-label="Voltar para Solicitações" onClick={() => navigate('/solicitacoes')}>
+        <Button variant="ghost" size="icon" aria-label="Voltar para Solicitações" onClick={() => navigate(listPath)}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <h1 className="text-2xl font-bold">
@@ -783,7 +784,7 @@ export default function SolicitacaoFormPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <Label>Projeto *</Label>
-                <Select value={projetoId} onValueChange={setProjetoId} disabled={isReadOnly}>
+                <Select value={projetoId} onValueChange={setProjetoId} disabled={isReadOnly || !!routeProjetoId}>
                   <SelectTrigger><SelectValue placeholder="Selecione o projeto" /></SelectTrigger>
                   <SelectContent>
                     {projects.map(p => (
@@ -1231,7 +1232,7 @@ export default function SolicitacaoFormPage() {
         )}
 
         <div className="flex justify-end gap-3">
-          <Button variant="outline" onClick={() => navigate('/solicitacoes')}>Voltar</Button>
+          <Button variant="outline" onClick={() => navigate(listPath)}>Voltar</Button>
           <Button
             onClick={handleSave}
             disabled={

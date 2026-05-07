@@ -20,9 +20,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Eye, Trash2, FileText, RefreshCw, Loader2 } from 'lucide-react';
+import { Plus, Eye, Trash2, FileText, RefreshCw, Loader2, ArrowLeft } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { formatBRL } from '@/lib/formatCurrency';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -55,7 +55,8 @@ const PRESET_STATUSES = {
 };
 
 export default function SolicitacoesPage() {
-  const { state, update, pageSizes } = useSolicitacoesFilters();
+  const { projetoId: routeProjetoId } = useParams<{ projetoId: string }>();
+  const { state, update, pageSizes } = useSolicitacoesFilters({ projetoId: routeProjetoId });
   const search = useSearch({
     initialValue: state.search,
     debounceMs: 300,
@@ -106,7 +107,11 @@ export default function SolicitacoesPage() {
     dateFrom: queryParams.dateFrom,
     dateTo: queryParams.dateTo,
   });
-  const { data: projects = [] } = useProjects();
+  const { data: projects = [], isLoading: projectsLoading } = useProjects();
+  const projetoAtual = useMemo(
+    () => projects.find((p) => p.id === routeProjetoId) ?? null,
+    [projects, routeProjetoId],
+  );
   const { data: materials = [] } = useMaterials();
   const deleteSolicitacao = useDeleteSolicitacao();
   const updateItemCosts = useUpdateSolicitacaoItemCosts();
@@ -295,14 +300,32 @@ export default function SolicitacoesPage() {
 
   const isMutating = bulkUpdateStatus.isPending || bulkDelete.isPending || updateItemCosts.isPending;
 
+  const projetoNotFound = !projectsLoading && !!routeProjetoId && !projetoAtual;
+  useEffect(() => {
+    if (projetoNotFound) toast.error('Projeto não encontrado');
+  }, [projetoNotFound]);
+
+  if (!routeProjetoId) {
+    return <Navigate to="/projetos" replace />;
+  }
+  if (projetoNotFound) {
+    return <Navigate to="/projetos" replace />;
+  }
+
   return (
     <div>
+      <div className="flex items-center gap-3 mb-2">
+        <Button variant="ghost" size="icon" aria-label="Voltar para Projetos" onClick={() => navigate('/projetos')}>
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <div className="text-sm text-muted-foreground">Projetos / {projetoAtual ? `${projetoAtual.numero} - ${projetoAtual.descricao}` : '…'}</div>
+      </div>
       <div className="flex items-center justify-between mb-6 gap-2 flex-wrap">
         <h1 className="text-2xl font-bold">Solicitações</h1>
         <div className="flex items-center gap-2">
           <SavedViewsMenu currentFilters={savableFilters as Record<string, unknown>} onApply={applySavedView} />
           {canCreateSolicitacao && (
-            <Button onClick={() => navigate('/solicitacoes/nova')}><Plus className="h-4 w-4 mr-2" />Criar Nova Solicitação</Button>
+            <Button onClick={() => navigate(`/projetos/${routeProjetoId}/solicitacoes/nova`)}><Plus className="h-4 w-4 mr-2" />Criar Nova Solicitação</Button>
           )}
         </div>
       </div>
@@ -345,13 +368,6 @@ export default function SolicitacoesPage() {
                   {ALL_STATUSES.map((s) => (
                     <SelectItem key={s} value={s}>{s}</SelectItem>
                   ))}
-                </SelectContent>
-              </Select>
-              <Select value={state.projetoId || 'all'} onValueChange={(v) => update({ projetoId: v === 'all' ? '' : v })}>
-                <SelectTrigger className="w-full sm:w-56" aria-label="Filtrar por projeto"><SelectValue placeholder="Projeto" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os Projetos</SelectItem>
-                  {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.numero} - {p.descricao}</SelectItem>)}
                 </SelectContent>
               </Select>
               <DateRangeFilter

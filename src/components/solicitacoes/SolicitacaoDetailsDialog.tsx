@@ -181,7 +181,7 @@ export function SolicitacaoDetailsDialog({ solicitacaoId, open, onOpenChange }: 
               variant="outline"
               onClick={() => {
                 onOpenChange(false);
-                navigate(`/solicitacoes/${data.id}`);
+                navigate(`/projetos/${data.projeto_id}/solicitacoes/${data.id}`);
               }}
             >
               <ExternalLink className="h-4 w-4 mr-2" />
