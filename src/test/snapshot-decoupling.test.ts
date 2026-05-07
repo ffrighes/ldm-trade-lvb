@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 
 /**
  * These tests verify the snapshot/decoupling contract between
- * `solicitacao_itens` / `inventario` and the master `materials` table.
+ * `solicitacao_itens` and the master `materials` table.
  *
  * The contract:
  *   - At insertion, the item must capture every relevant attribute
@@ -33,8 +33,8 @@ type Item = {
 };
 
 /**
- * Mirror of the snapshot insertion contract used by SolicitacaoFormPage
- * and InventarioPage: copy every relevant attribute from the master row.
+ * Mirror of the snapshot insertion contract used by SolicitacaoFormPage:
+ * copy every relevant attribute from the master row.
  */
 function buildSnapshotFromMaterial(mat: Material, quantidade: number): Item {
   return {
@@ -78,7 +78,7 @@ function buildCostReportRow(item: Item) {
   };
 }
 
-describe("Solicitação / Inventário snapshot decoupling", () => {
+describe("BOM snapshot decoupling", () => {
   const initialMaterial: Material = {
     id: "mat-1",
     descricao: "Tubo de aço",
@@ -146,19 +146,4 @@ describe("Solicitação / Inventário snapshot decoupling", () => {
     expect(view.erp).toBe("ERP-001");
   });
 
-  it("the same contract holds for inventário rows (identical schema)", () => {
-    const inventarioRow = buildSnapshotFromMaterial(initialMaterial, 2);
-
-    const editedMaterial: Material = {
-      ...initialMaterial,
-      descricao: "ALTERED",
-      custo: 0,
-      erp: "GONE",
-    };
-
-    const view = readItemForDisplay(inventarioRow, [editedMaterial]);
-    expect(view.descricao).toBe("Tubo de aço");
-    expect(view.custo_unitario).toBe(10);
-    expect(view.erp).toBe("ERP-001");
-  });
 });

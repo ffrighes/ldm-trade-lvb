@@ -23,7 +23,6 @@ interface SolicitacaoLite {
   numero: string;
   projeto_id: string;
   status: string;
-  motivo: string;
   data_solicitacao: string;
   revisao: string;
   erp: string;
@@ -44,7 +43,7 @@ function timestampSuffix(): string {
 export function exportSolicitacoesToXlsx(
   solicitacoes: SolicitacaoLite[],
   projects: ProjectLite[],
-  filename = `solicitacoes_${timestampSuffix()}.xlsx`,
+  filename = `boms_${timestampSuffix()}.xlsx`,
 ) {
   const summaryRows = solicitacoes.map((s) => {
     const itens = s.solicitacao_itens ?? [];
@@ -53,7 +52,6 @@ export function exportSolicitacoesToXlsx(
       'Nº': s.numero,
       Projeto: projectLabel(projects, s.projeto_id),
       Status: s.status,
-      Motivo: s.motivo,
       Data: s.data_solicitacao,
       Revisão: s.revisao,
       ERP: s.erp,
@@ -68,7 +66,7 @@ export function exportSolicitacoesToXlsx(
     const projeto = projectLabel(projects, s.projeto_id);
     for (const i of s.solicitacao_itens ?? []) {
       itemRows.push({
-        'Solicitação': s.numero,
+        'BOM': s.numero,
         Projeto: projeto,
         Status: s.status,
         TAG: i.tag ?? '-',
@@ -85,7 +83,7 @@ export function exportSolicitacoesToXlsx(
 
   const wb = XLSX.utils.book_new();
   const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
-  XLSX.utils.book_append_sheet(wb, wsSummary, 'Solicitações');
+  XLSX.utils.book_append_sheet(wb, wsSummary, 'BOMs');
 
   if (itemRows.length > 0) {
     const wsItens = XLSX.utils.json_to_sheet(itemRows);

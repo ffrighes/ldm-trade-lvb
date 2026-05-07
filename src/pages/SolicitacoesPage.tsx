@@ -218,7 +218,7 @@ export default function SolicitacoesPage() {
     const ids = [...selectedIds];
     try {
       await bulkUpdateStatus.mutateAsync({ ids, status });
-      toast.success(`${ids.length} solicitação(ões) atualizadas para "${status}"`);
+      toast.success(`${ids.length} BOM(s) atualizada(s) para "${status}"`);
       clearSelection();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Erro ao atualizar status');
@@ -229,7 +229,7 @@ export default function SolicitacoesPage() {
     const ids = [...selectedIds];
     try {
       await bulkDelete.mutateAsync(ids);
-      toast.success(`${ids.length} solicitação(ões) excluída(s)`);
+      toast.success(`${ids.length} BOM(s) excluída(s)`);
       clearSelection();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Erro ao excluir');
@@ -239,14 +239,14 @@ export default function SolicitacoesPage() {
   const handleBulkRefreshCosts = async () => {
     const idsToRefresh = rows.filter((r) => selectedIds.has(r.id) && r.status === 'Aberta');
     if (idsToRefresh.length === 0) {
-      toast.info('Nenhuma solicitação em "Aberta" para atualizar.');
+      toast.info('Nenhuma BOM em "Aberta" para atualizar.');
       return;
     }
     try {
       for (const r of idsToRefresh) {
         await refreshCostsFor(r.solicitacao_itens ?? []);
       }
-      toast.success(`Custos atualizados em ${idsToRefresh.length} solicitação(ões)`);
+      toast.success(`Custos atualizados em ${idsToRefresh.length} BOM(s)`);
     } catch {
       toast.error('Erro ao atualizar custos em lote');
     }
@@ -263,7 +263,7 @@ export default function SolicitacoesPage() {
         .in('id', ids);
       if (error) throw error;
       exportSolicitacoesToXlsx(full ?? [], projects);
-      toast.success(`Exportadas ${ids.length} solicitação(ões)`);
+      toast.success(`Exportadas ${ids.length} BOM(s)`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Erro ao exportar');
     } finally {
@@ -282,7 +282,7 @@ export default function SolicitacoesPage() {
         .in('id', ids);
       if (error) throw error;
       exportSolicitacoesToPdf(full ?? [], projects, materials);
-      toast.success(`PDF gerado para ${ids.length} solicitação(ões)`);
+      toast.success(`PDF gerado para ${ids.length} BOM(s)`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Erro ao exportar PDF');
     } finally {
@@ -341,11 +341,11 @@ export default function SolicitacoesPage() {
         <div className="text-sm text-muted-foreground">Projetos / {projetoAtual ? `${projetoAtual.numero} - ${projetoAtual.descricao}` : '…'}</div>
       </div>
       <div className="flex items-center justify-between mb-6 gap-2 flex-wrap">
-        <h1 className="text-2xl font-bold">Solicitações</h1>
+        <h1 className="text-2xl font-bold">BOMs</h1>
         <div className="flex items-center gap-2">
           <SavedViewsMenu currentFilters={savableFilters as Record<string, unknown>} onApply={applySavedView} />
           {canCreateSolicitacao && (
-            <Button onClick={() => navigate(`/projetos/${routeProjetoId}/solicitacoes/nova`)}><Plus className="h-4 w-4 mr-2" />Criar Nova Solicitação</Button>
+            <Button onClick={() => navigate(`/projetos/${routeProjetoId}/solicitacoes/nova`)}><Plus className="h-4 w-4 mr-2" />Criar Nova BOM</Button>
           )}
         </div>
       </div>
@@ -361,8 +361,8 @@ export default function SolicitacoesPage() {
                 value={search.input}
                 onChange={search.setInput}
                 onClear={() => update({ search: '' })}
-                placeholder="Buscar por número, motivo, ERP ou projeto..."
-                ariaLabel="Buscar solicitações"
+                placeholder="Buscar por número, ERP ou projeto..."
+                ariaLabel="Buscar BOMs"
                 ariaControls="solicitacoes-results-status"
                 isLoading={search.isDebouncing || (isFetching && !isLoading)}
                 showBelowMinHint={search.isBelowMin}
@@ -379,7 +379,7 @@ export default function SolicitacoesPage() {
                   ? 'Carregando resultados…'
                   : state.search
                     ? `${total} resultado(s) para "${state.search}"`
-                    : `${total} solicitação(ões)`}
+                    : `${total} BOM(s)`}
               </span>
               <Select value={statusFilterValue} onValueChange={onStatusFilterChange}>
                 <SelectTrigger className="w-full sm:w-44" aria-label="Filtrar por status"><SelectValue placeholder="Status" /></SelectTrigger>
@@ -431,7 +431,7 @@ export default function SolicitacoesPage() {
               getProjetoNome={getProjetoNome}
               calcCustoAtualizado={calcCustoAtualizado}
               onRefreshCosts={(id, itens) => handleAtualizarCustos(undefined, id, itens ?? [])}
-              onDelete={(id, numero) => { deleteSolicitacao.mutate(id); toast.success(`Solicitação ${numero} excluída`); }}
+              onDelete={(id, numero) => { deleteSolicitacao.mutate(id); toast.success(`BOM ${numero} excluída`); }}
               onOpen={(id, projetoId) => navigate(`/projetos/${projetoId}/solicitacoes/${id}`)}
               onView={openDetails}
               refreshingCosts={updateItemCosts.isPending}
@@ -445,12 +445,11 @@ export default function SolicitacoesPage() {
                       <Checkbox
                         checked={allOnPageSelected ? true : someOnPageSelected ? 'indeterminate' : false}
                         onCheckedChange={toggleSelectAll}
-                        aria-label="Selecionar todas as solicitações da página"
+                        aria-label="Selecionar todas as BOMs da página"
                       />
                     </TableHead>
                     <SortableHeader field="numero" activeField={state.sortBy} direction={state.sortDir} onSort={handleSort}>Nº</SortableHeader>
                     <SortableHeader field="status" activeField={state.sortBy} direction={state.sortDir} onSort={handleSort}>Status</SortableHeader>
-                    <TableHead>Motivo</TableHead>
                     <TableHead className="text-center">Itens</TableHead>
                     <TableHead>Notas</TableHead>
                     <SortableHeader field="data_solicitacao" activeField={state.sortBy} direction={state.sortDir} onSort={handleSort}>Data</SortableHeader>
@@ -460,16 +459,16 @@ export default function SolicitacoesPage() {
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                         <Loader2 className="h-5 w-5 animate-spin inline-block mr-2" />Carregando…
                       </TableCell>
                     </TableRow>
                   ) : rows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                         {state.search
                           ? <>Nenhum resultado para <strong>"{state.search}"</strong>. Tente outro termo ou limpe os filtros.</>
-                          : 'Nenhuma solicitação encontrada'}
+                          : 'Nenhuma BOM encontrada'}
                       </TableCell>
                     </TableRow>
                   ) : rows.map((s) => {
@@ -485,18 +484,17 @@ export default function SolicitacoesPage() {
                           <Checkbox
                             checked={checked}
                             onCheckedChange={() => toggleSelect(s.id)}
-                            aria-label={`Selecionar solicitação ${s.numero}`}
+                            aria-label={`Selecionar BOM ${s.numero}`}
                           />
                         </TableCell>
                         <TableCell className="font-mono font-medium">{highlightMatch(s.numero, state.search)}</TableCell>
                         <TableCell><Badge className={statusColors[s.status as SolicitacaoStatus] || ''}>{s.status}</Badge></TableCell>
-                        <TableCell className="max-w-xs truncate">{highlightMatch(s.motivo ?? '', state.search)}</TableCell>
                         <TableCell className="text-center">{itens.length}</TableCell>
                         <TableCell className="max-w-xs truncate">{highlightMatch(s.notas ?? '', state.search)}</TableCell>
                         <TableCell className="text-muted-foreground">{s.data_solicitacao}</TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" aria-label="Ver solicitação" onClick={(e) => { e.stopPropagation(); openDetails(s.id); }}><Eye className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" aria-label="Ver BOM" onClick={(e) => { e.stopPropagation(); openDetails(s.id); }}><Eye className="h-4 w-4" /></Button>
                             {s.desenho && (
                               <a href={s.desenho} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} title="Ver desenho">
                                 <Button variant="ghost" size="icon" asChild aria-label="Ver desenho">
@@ -519,16 +517,16 @@ export default function SolicitacoesPage() {
                             {canDeleteSolicitacao(s.status) && (
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
-                                  <Button variant="ghost" size="icon" aria-label="Excluir solicitação" onClick={(e) => e.stopPropagation()}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                  <Button variant="ghost" size="icon" aria-label="Excluir BOM" onClick={(e) => e.stopPropagation()}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                   <AlertDialogHeader>
-                                    <AlertDialogTitle>Excluir solicitação {s.numero}?</AlertDialogTitle>
-                                    <AlertDialogDescription>Esta ação excluirá a solicitação e todos os seus itens. Não pode ser desfeita.</AlertDialogDescription>
+                                    <AlertDialogTitle>Excluir BOM {s.numero}?</AlertDialogTitle>
+                                    <AlertDialogDescription>Esta ação excluirá a BOM e todos os seus itens. Não pode ser desfeita.</AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
                                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={(e) => { e.stopPropagation(); deleteSolicitacao.mutate(s.id); toast.success('Solicitação excluída'); }}>Excluir</AlertDialogAction>
+                                    <AlertDialogAction onClick={(e) => { e.stopPropagation(); deleteSolicitacao.mutate(s.id); toast.success('BOM excluída'); }}>Excluir</AlertDialogAction>
                                   </AlertDialogFooter>
                                 </AlertDialogContent>
                               </AlertDialog>

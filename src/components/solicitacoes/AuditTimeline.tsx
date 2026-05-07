@@ -18,7 +18,6 @@ const HIDDEN_FIELDS = new Set(['created_at', 'id']);
 // Friendlier labels per column.
 const FIELD_LABELS: Record<string, string> = {
   status: 'Status',
-  motivo: 'Motivo',
   data_solicitacao: 'Data',
   revisao: 'Revisão',
   erp: 'ERP',

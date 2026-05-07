@@ -44,14 +44,14 @@ export function SolicitacaoDetailsDialog({ solicitacaoId, open, onOpenChange }: 
       >
         <DialogHeader className="p-6 pb-4 border-b">
           <DialogTitle id="solicitacao-details-title" className="flex items-center gap-3 flex-wrap">
-            <span className="font-mono">{data?.numero ?? 'Solicitação'}</span>
+            <span className="font-mono">{data?.numero ?? 'BOM'}</span>
             {data?.status && (
               <Badge className={statusColors[data.status as SolicitacaoStatus] || ''}>
                 {data.status}
               </Badge>
             )}
           </DialogTitle>
-          <DialogDescription>Detalhes da solicitação</DialogDescription>
+          <DialogDescription>Detalhes da BOM</DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="flex-1">
@@ -67,7 +67,7 @@ export function SolicitacaoDetailsDialog({ solicitacaoId, open, onOpenChange }: 
 
             {isError && !isLoading && (
               <div className="text-destructive text-sm">
-                Erro ao carregar solicitação: {error instanceof Error ? error.message : 'tente novamente.'}
+                Erro ao carregar BOM: {error instanceof Error ? error.message : 'tente novamente.'}
               </div>
             )}
 
@@ -83,12 +83,8 @@ export function SolicitacaoDetailsDialog({ solicitacaoId, open, onOpenChange }: 
                       <dd className="font-medium">{projetoLabel}</dd>
                     </div>
                     <div>
-                      <dt className="text-xs text-muted-foreground">Data da Solicitação</dt>
+                      <dt className="text-xs text-muted-foreground">Data da BOM</dt>
                       <dd className="font-medium">{data.data_solicitacao || '—'}</dd>
-                    </div>
-                    <div className="sm:col-span-2">
-                      <dt className="text-xs text-muted-foreground">Motivo</dt>
-                      <dd className="font-medium whitespace-pre-wrap">{data.motivo || '—'}</dd>
                     </div>
                     <div>
                       <dt className="text-xs text-muted-foreground">Revisão</dt>

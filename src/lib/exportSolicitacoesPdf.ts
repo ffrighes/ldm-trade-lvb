@@ -31,7 +31,6 @@ interface SolicitacaoLite {
   numero: string;
   projeto_id: string;
   status: string;
-  motivo?: string | null;
   data_solicitacao: string;
   revisao?: string | null;
   erp?: string | null;
@@ -82,7 +81,7 @@ export function exportSolicitacoesToPdf(
   solicitacoes: SolicitacaoLite[],
   projects: ProjectLite[],
   materials: MaterialLite[],
-  filename = `Solicitacoes_Consolidado_${timestampSuffix()}.pdf`,
+  filename = `BOMs_Consolidado_${timestampSuffix()}.pdf`,
 ) {
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const generatedAt = format(new Date(), 'dd/MM/yyyy HH:mm');
@@ -142,7 +141,7 @@ export function exportSolicitacoesToPdf(
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  const numerosLabel = `Solicitações: ${sorted.map((s) => s.numero).join(', ')}`;
+  const numerosLabel = `BOMs: ${sorted.map((s) => s.numero).join(', ')}`;
   const numerosLines = doc.splitTextToSize(numerosLabel, usableWidth);
   doc.text(numerosLines, MARGIN_LEFT, MARGIN_TOP + 18);
 
@@ -195,7 +194,7 @@ export function exportSolicitacoesToPdf(
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0);
-    doc.text(`Solicitação ${s.numero}`, MARGIN_LEFT, MARGIN_TOP);
+    doc.text(`BOM ${s.numero}`, MARGIN_LEFT, MARGIN_TOP);
 
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
@@ -206,7 +205,6 @@ export function exportSolicitacoesToPdf(
       `Data: ${s.data_solicitacao ?? ''}`,
       `Revisão: ${s.revisao ?? ''}`,
       `ERP: ${s.erp ?? ''}`,
-      `Motivo: ${s.motivo ?? ''}`,
     ];
     for (const line of metaLines) {
       const split = doc.splitTextToSize(line, usableWidth);
@@ -229,7 +227,7 @@ export function exportSolicitacoesToPdf(
 
     if (body.length === 0) {
       doc.setFontSize(10);
-      doc.text('Sem itens nesta solicitação.', MARGIN_LEFT, y + 8);
+      doc.text('Sem itens nesta BOM.', MARGIN_LEFT, y + 8);
       continue;
     }
 
@@ -256,7 +254,7 @@ export function exportSolicitacoesToPdf(
           doc.setFont('helvetica', 'italic');
           doc.setTextColor(80);
           doc.text(
-            `Solicitação ${s.numero} — continuação`,
+            `BOM ${s.numero} — continuação`,
             MARGIN_LEFT,
             MARGIN_TOP - 16,
           );

@@ -33,7 +33,6 @@ interface Row {
   numero: string;
   projeto_id: string;
   status: string;
-  motivo: string;
   data_solicitacao: string;
   erp: string;
   desenho?: string | null;
@@ -78,7 +77,7 @@ export function SolicitacoesMobileCards({
   }
 
   if (rows.length === 0) {
-    return <div className="py-8 text-center text-muted-foreground">Nenhuma solicitação encontrada</div>;
+    return <div className="py-8 text-center text-muted-foreground">Nenhuma BOM encontrada</div>;
   }
 
   return (
@@ -94,7 +93,7 @@ export function SolicitacoesMobileCards({
                 <Checkbox
                   checked={checked}
                   onCheckedChange={() => onToggleSelect(s.id)}
-                  aria-label={`Selecionar solicitação ${s.numero}`}
+                  aria-label={`Selecionar BOM ${s.numero}`}
                   className="mt-1"
                 />
                 <button
@@ -111,10 +110,6 @@ export function SolicitacoesMobileCards({
               </div>
 
               <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
-                <div>
-                  <dt className="text-[11px] font-semibold uppercase tracking-wider text-foreground/60">Motivo</dt>
-                  <dd className="truncate">{s.motivo}</dd>
-                </div>
                 <div>
                   <dt className="text-[11px] font-semibold uppercase tracking-wider text-foreground/60">Data</dt>
                   <dd>{s.data_solicitacao}</dd>
@@ -134,7 +129,7 @@ export function SolicitacoesMobileCards({
               </dl>
 
               <div className="flex gap-1 pt-1 border-t">
-                <Button variant="ghost" size="sm" onClick={() => onView(s.id)} aria-label="Abrir solicitação">
+                <Button variant="ghost" size="sm" onClick={() => onView(s.id)} aria-label="Abrir BOM">
                   <Eye className="h-4 w-4 mr-1" />Abrir
                 </Button>
                 {s.desenho && (
@@ -158,14 +153,14 @@ export function SolicitacoesMobileCards({
                 {canDeleteSolicitacao(s.status) && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="sm" className="text-destructive ml-auto" aria-label="Excluir solicitação">
+                      <Button variant="ghost" size="sm" className="text-destructive ml-auto" aria-label="Excluir BOM">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Excluir solicitação {s.numero}?</AlertDialogTitle>
-                        <AlertDialogDescription>Esta ação excluirá a solicitação e todos os seus itens. Não pode ser desfeita.</AlertDialogDescription>
+                        <AlertDialogTitle>Excluir BOM {s.numero}?</AlertDialogTitle>
+                        <AlertDialogDescription>Esta ação excluirá a BOM e todos os seus itens. Não pode ser desfeita.</AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>

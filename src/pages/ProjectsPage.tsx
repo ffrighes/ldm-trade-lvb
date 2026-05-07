@@ -175,7 +175,7 @@ export default function ProjectsPage() {
                   onKeyDown={(e) => { if (e.key === 'Enter') openProject(); }}
                   tabIndex={0}
                   role="button"
-                  aria-label={`Abrir solicitações do projeto ${p.numero}`}
+                  aria-label={`Abrir BOMs do projeto ${p.numero}`}
                 >
                   <TableCell className="font-mono font-medium">{highlightMatch(p.numero, search.debounced)}</TableCell>
                   <TableCell>{highlightMatch(p.descricao, search.debounced)}</TableCell>
