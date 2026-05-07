@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { FolderKanban, FileText, Database, LayoutDashboard, Package, Sun, Moon, Users, LogOut } from 'lucide-react';
+import { FolderKanban, Database, LayoutDashboard, Package, Sun, Moon, Users, LogOut } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -16,7 +16,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const NAV_ITEMS = [
     { to: '/', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/projetos', label: 'Projetos', icon: FolderKanban },
-    { to: '/solicitacoes', label: 'Solicitações', icon: FileText },
     { to: '/inventario', label: 'Inventário', icon: Package },
     { to: '/base-dados', label: 'Base de Dados', icon: Database },
     ...(canAccessAdmin ? [{ to: '/admin/usuarios', label: 'Usuários', icon: Users }] : []),

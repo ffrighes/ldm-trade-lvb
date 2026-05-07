@@ -60,8 +60,18 @@ function parseSortBy(raw: string | null): SolicitacoesSortField {
     : DEFAULTS.sortBy;
 }
 
-export function useSolicitacoesFilters() {
+export interface UseSolicitacoesFiltersOptions {
+  /**
+   * When provided, overrides any projeto filter from the URL and prevents
+   * `update({ projetoId })` from being persisted. Used when the projeto is
+   * implicit in the route (e.g. /projetos/:projetoId/solicitacoes).
+   */
+  projetoId?: string;
+}
+
+export function useSolicitacoesFilters(options: UseSolicitacoesFiltersOptions = {}) {
   const [params, setParams] = useSearchParams();
+  const lockedProjetoId = options.projetoId;
 
   const state: SolicitacoesFiltersState = useMemo(() => {
     const pageSizeRaw = Number(params.get('size') ?? DEFAULTS.pageSize);
@@ -75,12 +85,12 @@ export function useSolicitacoesFilters() {
       sortDir: params.get('sortDir') === 'asc' ? 'asc' : 'desc',
       search: params.get('q') ?? '',
       status: parseStatuses(params.get('status')),
-      projetoId: params.get('projeto') ?? '',
+      projetoId: lockedProjetoId ?? params.get('projeto') ?? '',
       dateFrom: params.get('from') ?? '',
       dateTo: params.get('to') ?? '',
       preset: parsePreset(params.get('preset')),
     };
-  }, [params]);
+  }, [params, lockedProjetoId]);
 
   const update = useCallback(
     (patch: Partial<SolicitacoesFiltersState>) => {
@@ -103,7 +113,11 @@ export function useSolicitacoesFilters() {
           writeOrDelete('sortDir', merged.sortDir !== DEFAULTS.sortDir ? merged.sortDir : '');
           writeOrDelete('q', merged.search);
           writeOrDelete('status', merged.status.join(','));
-          writeOrDelete('projeto', merged.projetoId);
+          if (lockedProjetoId) {
+            next.delete('projeto');
+          } else {
+            writeOrDelete('projeto', merged.projetoId);
+          }
           writeOrDelete('from', merged.dateFrom);
           writeOrDelete('to', merged.dateTo);
           writeOrDelete('preset', merged.preset !== 'all' ? merged.preset : '');
@@ -113,7 +127,7 @@ export function useSolicitacoesFilters() {
         { replace: true },
       );
     },
-    [setParams, state],
+    [setParams, state, lockedProjetoId],
   );
 
   const reset = useCallback(() => {
