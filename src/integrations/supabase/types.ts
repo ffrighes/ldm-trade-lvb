@@ -14,69 +14,307 @@ export type Database = {
   }
   public: {
     Tables: {
-      inventario: {
+      bom_audit: {
         Row: {
-          bitola: string
-          created_at: string
-          custo_total: number
-          custo_unitario: number
-          descricao: string
-          erp: string
-          id: string
-          material_id: string | null
-          projeto_id: string
-          quantidade: number
-          solicitacao_id: string
-          unidade: string
+          action: string
+          actor_email: string | null
+          actor_id: string | null
+          after: Json | null
+          at: string
+          before: Json | null
+          changed_fields: string[] | null
+          entity: string
+          id: number
+          node_id: string | null
+          root_id: string | null
+          version_id: string | null
         }
         Insert: {
-          bitola: string
-          created_at?: string
-          custo_total?: number
-          custo_unitario?: number
-          descricao: string
-          erp?: string
-          id?: string
-          material_id?: string | null
-          projeto_id: string
-          quantidade?: number
-          solicitacao_id: string
-          unidade?: string
+          action: string
+          actor_email?: string | null
+          actor_id?: string | null
+          after?: Json | null
+          at?: string
+          before?: Json | null
+          changed_fields?: string[] | null
+          entity: string
+          id?: number
+          node_id?: string | null
+          root_id?: string | null
+          version_id?: string | null
         }
         Update: {
-          bitola?: string
-          created_at?: string
-          custo_total?: number
-          custo_unitario?: number
-          descricao?: string
-          erp?: string
-          id?: string
-          material_id?: string | null
-          projeto_id?: string
-          quantidade?: number
-          solicitacao_id?: string
-          unidade?: string
+          action?: string
+          actor_email?: string | null
+          actor_id?: string | null
+          after?: Json | null
+          at?: string
+          before?: Json | null
+          changed_fields?: string[] | null
+          entity?: string
+          id?: number
+          node_id?: string | null
+          root_id?: string | null
+          version_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "inventario_material_id_fkey"
+            foreignKeyName: "bom_audit_root_id_fkey"
+            columns: ["root_id"]
+            isOneToOne: false
+            referencedRelation: "bom_root"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bom_audit_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "bom_version"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bom_comments: {
+        Row: {
+          author_email: string
+          author_id: string | null
+          body: string
+          created_at: string
+          id: string
+          version_id: string
+        }
+        Insert: {
+          author_email: string
+          author_id?: string | null
+          body: string
+          created_at?: string
+          id?: string
+          version_id: string
+        }
+        Update: {
+          author_email?: string
+          author_id?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bom_comments_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "bom_version"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bom_drawings: {
+        Row: {
+          id: string
+          notes: string | null
+          revision: string
+          uploaded_at: string
+          uploaded_by: string | null
+          url: string
+          version_id: string
+        }
+        Insert: {
+          id?: string
+          notes?: string | null
+          revision: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+          url: string
+          version_id: string
+        }
+        Update: {
+          id?: string
+          notes?: string | null
+          revision?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+          url?: string
+          version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bom_drawings_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "bom_version"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bom_node: {
+        Row: {
+          cloned_from_node_id: string | null
+          created_at: string
+          id: string
+          material_id: string | null
+          name: string | null
+          node_type: Database["public"]["Enums"]["bom_node_type"]
+          notes: string | null
+          parent_id: string | null
+          position: number
+          quantity: number | null
+          updated_at: string
+          version_id: string
+        }
+        Insert: {
+          cloned_from_node_id?: string | null
+          created_at?: string
+          id?: string
+          material_id?: string | null
+          name?: string | null
+          node_type: Database["public"]["Enums"]["bom_node_type"]
+          notes?: string | null
+          parent_id?: string | null
+          position?: number
+          quantity?: number | null
+          updated_at?: string
+          version_id: string
+        }
+        Update: {
+          cloned_from_node_id?: string | null
+          created_at?: string
+          id?: string
+          material_id?: string | null
+          name?: string | null
+          node_type?: Database["public"]["Enums"]["bom_node_type"]
+          notes?: string | null
+          parent_id?: string | null
+          position?: number
+          quantity?: number | null
+          updated_at?: string
+          version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bom_node_material_id_fkey"
             columns: ["material_id"]
             isOneToOne: false
             referencedRelation: "materials"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "inventario_projeto_id_fkey"
-            columns: ["projeto_id"]
+            foreignKeyName: "bom_node_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "bom_node"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bom_node_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "bom_version"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bom_root: {
+        Row: {
+          cloned_from_root_id: string | null
+          codigo: string
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          project_id: string
+          updated_at: string
+        }
+        Insert: {
+          cloned_from_root_id?: string | null
+          codigo: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          project_id: string
+          updated_at?: string
+        }
+        Update: {
+          cloned_from_root_id?: string | null
+          codigo?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          project_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bom_root_cloned_from_root_id_fkey"
+            columns: ["cloned_from_root_id"]
+            isOneToOne: false
+            referencedRelation: "bom_root"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bom_root_project_id_fkey"
+            columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      bom_version: {
+        Row: {
+          cloned_from_version_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          label: string | null
+          notes: string | null
+          obsoleted_at: string | null
+          released_at: string | null
+          root_id: string
+          status: Database["public"]["Enums"]["bom_version_status"]
+          version_number: number
+        }
+        Insert: {
+          cloned_from_version_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label?: string | null
+          notes?: string | null
+          obsoleted_at?: string | null
+          released_at?: string | null
+          root_id: string
+          status?: Database["public"]["Enums"]["bom_version_status"]
+          version_number: number
+        }
+        Update: {
+          cloned_from_version_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label?: string | null
+          notes?: string | null
+          obsoleted_at?: string | null
+          released_at?: string | null
+          root_id?: string
+          status?: Database["public"]["Enums"]["bom_version_status"]
+          version_number?: number
+        }
+        Relationships: [
           {
-            foreignKeyName: "inventario_solicitacao_id_fkey"
-            columns: ["solicitacao_id"]
+            foreignKeyName: "bom_version_cloned_from_version_id_fkey"
+            columns: ["cloned_from_version_id"]
             isOneToOne: false
-            referencedRelation: "solicitacoes"
+            referencedRelation: "bom_version"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bom_version_root_id_fkey"
+            columns: ["root_id"]
+            isOneToOne: false
+            referencedRelation: "bom_root"
             referencedColumns: ["id"]
           },
         ]
@@ -397,7 +635,6 @@ export type Database = {
           desenho: string | null
           erp: string
           id: string
-          motivo: string
           notas: string
           numero: string
           projeto_id: string
@@ -410,7 +647,6 @@ export type Database = {
           desenho?: string | null
           erp?: string
           id?: string
-          motivo: string
           notas?: string
           numero: string
           projeto_id: string
@@ -423,7 +659,6 @@ export type Database = {
           desenho?: string | null
           erp?: string
           id?: string
-          motivo?: string
           notas?: string
           numero?: string
           projeto_id?: string
@@ -463,6 +698,112 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      bom_add_node: {
+        Args: {
+          p_material_id?: string
+          p_name?: string
+          p_node_type: Database["public"]["Enums"]["bom_node_type"]
+          p_notes?: string
+          p_parent_id: string
+          p_position?: number
+          p_quantity?: number
+          p_version_id: string
+        }
+        Returns: string
+      }
+      bom_assert_draft: { Args: { p_version_id: string }; Returns: undefined }
+      bom_assert_editor: { Args: never; Returns: undefined }
+      bom_can_edit: { Args: never; Returns: boolean }
+      bom_clone_root: {
+        Args: {
+          p_codigo: string
+          p_label?: string
+          p_name: string
+          p_notes?: string
+          p_source_version_id: string
+          p_target_project_id: string
+        }
+        Returns: {
+          root_id: string
+          root_node_id: string
+          version_id: string
+        }[]
+      }
+      bom_copy_subtree: {
+        Args: {
+          p_position?: number
+          p_record_origin?: boolean
+          p_source_node: string
+          p_target_parent: string
+          p_target_version: string
+        }
+        Returns: string
+      }
+      bom_create_conjunto: {
+        Args: {
+          p_codigo: string
+          p_label?: string
+          p_name: string
+          p_notes?: string
+          p_project_id: string
+        }
+        Returns: {
+          root_id: string
+          root_node_id: string
+          version_id: string
+        }[]
+      }
+      bom_delete_root: { Args: { p_root_id: string }; Returns: undefined }
+      bom_diff_versions: {
+        Args: { p_version_a: string; p_version_b: string }
+        Returns: {
+          change: string
+          material_id: string
+          name_a: string
+          name_b: string
+          node_type: Database["public"]["Enums"]["bom_node_type"]
+          quantity_a: number
+          quantity_b: number
+        }[]
+      }
+      bom_duplicate_subtree: { Args: { p_node_id: string }; Returns: string }
+      bom_move_node: {
+        Args: {
+          p_new_parent: string
+          p_new_position: number
+          p_node_id: string
+        }
+        Returns: undefined
+      }
+      bom_new_version: {
+        Args: {
+          p_label?: string
+          p_notes?: string
+          p_root_id: string
+          p_source_version_id?: string
+        }
+        Returns: string
+      }
+      bom_obsolete_version: {
+        Args: { p_version_id: string }
+        Returns: undefined
+      }
+      bom_release_version: {
+        Args: { p_version_id: string }
+        Returns: undefined
+      }
+      bom_remove_subtree: { Args: { p_node_id: string }; Returns: undefined }
+      bom_update_node: {
+        Args: {
+          p_clear_notes?: boolean
+          p_name?: string
+          p_node_id: string
+          p_notes?: string
+          p_position?: number
+          p_quantity?: number
+        }
+        Returns: undefined
+      }
       get_solicitacoes_kpis: {
         Args: {
           p_from?: string
@@ -492,6 +833,8 @@ export type Database = {
         }
         Returns: boolean
       }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
     }
     Enums: {
       app_role:
@@ -500,6 +843,8 @@ export type Database = {
         | "projetista"
         | "comprador"
         | "coordenador_campo"
+      bom_node_type: "CONJUNTO" | "SUBCONJUNTO" | "ITEM"
+      bom_version_status: "DRAFT" | "RELEASED" | "OBSOLETE"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -634,6 +979,8 @@ export const Constants = {
         "comprador",
         "coordenador_campo",
       ],
+      bom_node_type: ["CONJUNTO", "SUBCONJUNTO", "ITEM"],
+      bom_version_status: ["DRAFT", "RELEASED", "OBSOLETE"],
     },
   },
 } as const
