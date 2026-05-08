@@ -166,7 +166,7 @@ export default function ProjectsPage() {
                   </TableCell>
                 </TableRow>
               ) : filtered.map(p => {
-                const openProject = () => navigate(`/projetos/${p.id}/solicitacoes`);
+                const openProject = () => navigate(`/projetos/${p.id}`);
                 return (
                 <TableRow
                   key={p.id}
@@ -175,7 +175,7 @@ export default function ProjectsPage() {
                   onKeyDown={(e) => { if (e.key === 'Enter') openProject(); }}
                   tabIndex={0}
                   role="button"
-                  aria-label={`Abrir BOMs do projeto ${p.numero}`}
+                  aria-label={`Abrir projeto ${p.numero}`}
                 >
                   <TableCell className="font-mono font-medium">{highlightMatch(p.numero, search.debounced)}</TableCell>
                   <TableCell>{highlightMatch(p.descricao, search.debounced)}</TableCell>
