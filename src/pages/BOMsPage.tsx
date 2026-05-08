@@ -19,7 +19,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Eye, Trash2, FileText, RefreshCw, Loader2, ArrowLeft } from 'lucide-react';
+import { Plus, Eye, Trash2, FileText, RefreshCw, Loader2, ArrowLeft, Boxes } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -334,6 +334,9 @@ export default function BOMsPage() {
       <div className="flex items-center justify-between mb-6 gap-2 flex-wrap">
         <h1 className="text-2xl font-bold">BOMs</h1>
         <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => navigate(`/projetos/${routeProjetoId}/boms`)}>
+            <Boxes className="h-4 w-4 mr-2" /> Estrutura de Produto
+          </Button>
           <SavedViewsMenu currentFilters={savableFilters as Record<string, unknown>} onApply={applySavedView} />
           {canCreateBOM && (
             <Button onClick={() => navigate(`/projetos/${routeProjetoId}/solicitacoes/nova`)}><Plus className="h-4 w-4 mr-2" />Criar Nova BOM</Button>
