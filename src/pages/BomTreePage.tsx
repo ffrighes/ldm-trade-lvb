@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Plus, Copy, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Copy, Trash2, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ import { useProjects } from '@/hooks/useSupabaseData';
 import { useBomRoots, useBomVersions, useDeleteBomRoot } from '@/hooks/useBomTree';
 import { usePermissions } from '@/hooks/usePermissions';
 import { CreateConjuntoDialog } from '@/components/bom/CreateConjuntoDialog';
+import { EditConjuntoDialog } from '@/components/bom/EditConjuntoDialog';
 import { CloneFromProjectDialog } from '@/components/bom/CloneFromProjectDialog';
 import { BomTreeView } from '@/components/bom/BomTreeView';
 import { VersionPanel } from '@/components/bom/VersionPanel';
@@ -33,6 +34,7 @@ export default function BomTreePage() {
   const [openCreate, setOpenCreate] = useState(false);
   const [openClone, setOpenClone] = useState(false);
   const [confirmDeleteRootId, setConfirmDeleteRootId] = useState<string | null>(null);
+  const [editRootId, setEditRootId] = useState<string | null>(null);
 
   const { data: versions = [] } = useBomVersions(selectedRootId);
 
@@ -110,6 +112,18 @@ export default function BomTreePage() {
                         {r.name}
                       </span>
                     </button>
+                    {canEditBomDraft && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                        aria-label={`Editar descrição do Conjunto ${r.codigo}`}
+                        title="Editar descrição"
+                        onClick={(e) => { e.stopPropagation(); setEditRootId(r.id); }}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                     {canDeleteBomRoot && (
                       <Button
                         variant="ghost"
@@ -174,6 +188,14 @@ export default function BomTreePage() {
         onOpenChange={setOpenCreate}
         projectId={projetoId}
         onCreated={(rootId, versionId) => { setSelectedRootId(rootId); setSelectedVersionId(versionId); }}
+      />
+      <EditConjuntoDialog
+        open={!!editRootId}
+        onOpenChange={(o) => { if (!o) setEditRootId(null); }}
+        projectId={projetoId}
+        rootId={editRootId}
+        codigo={roots.find((r) => r.id === editRootId)?.codigo ?? ''}
+        currentName={roots.find((r) => r.id === editRootId)?.name ?? ''}
       />
       <CloneFromProjectDialog
         open={openClone}

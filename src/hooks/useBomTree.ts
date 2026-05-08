@@ -301,6 +301,29 @@ export function useCloneBomRoot() {
   });
 }
 
+export function useUpdateBomRoot() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { rootId: string; projectId: string; name: string }) => {
+      const client = supabase as unknown as {
+        from: (t: string) => {
+          update: (v: AnyRecord) => {
+            eq: (col: string, val: unknown) => Promise<{ error: unknown }>;
+          };
+        };
+      };
+      const { error } = await client
+        .from('bom_root')
+        .update({ name: args.name })
+        .eq('id', args.rootId);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['bom-roots', vars.projectId] });
+    },
+  });
+}
+
 export function useDeleteBomRoot() {
   const qc = useQueryClient();
   return useMutation({
