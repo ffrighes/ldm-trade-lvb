@@ -5,7 +5,6 @@ import { highlightMatch } from '@/lib/highlight';
 import { SEARCH_MIN_LENGTH } from '@/lib/sanitizeSearch';
 import {
   useSolicitacoesPaginated,
-  useSolicitacoesKpis,
   useProjects,
   useMaterials,
   useDeleteSolicitacao,
@@ -30,7 +29,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { DateRangeFilter } from '@/components/solicitacoes/DateRangeFilter';
 import { SortableHeader } from '@/components/solicitacoes/SortableHeader';
 import { SolicitacoesPagination } from '@/components/solicitacoes/SolicitacoesPagination';
-import { KpiCards } from '@/components/solicitacoes/KpiCards';
 import { SavedViewsMenu } from '@/components/solicitacoes/SavedViewsMenu';
 import { BulkActionsBar } from '@/components/solicitacoes/BulkActionsBar';
 import { SolicitacoesMobileCards } from '@/components/solicitacoes/SolicitacoesMobileCards';
@@ -101,13 +99,6 @@ export default function SolicitacoesPage() {
   }, [state]);
 
   const { data, isLoading, isFetching } = useSolicitacoesPaginated(queryParams);
-  const { data: kpis, isLoading: kpisLoading } = useSolicitacoesKpis({
-    search: queryParams.search,
-    status: queryParams.status,
-    projetoId: queryParams.projetoId,
-    dateFrom: queryParams.dateFrom,
-    dateTo: queryParams.dateTo,
-  });
   const { data: projects = [], isLoading: projectsLoading } = useProjects();
   const projetoAtual = useMemo(
     () => projects.find((p) => p.id === routeProjetoId) ?? null,
@@ -349,8 +340,6 @@ export default function SolicitacoesPage() {
           )}
         </div>
       </div>
-
-      <KpiCards kpis={kpis} isLoading={kpisLoading} />
 
       <Card>
         <CardHeader>
