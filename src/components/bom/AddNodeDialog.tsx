@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,12 +7,29 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useMaterials } from '@/hooks/useSupabaseData';
 import { useAddBomNode } from '@/hooks/useBomTree';
 import { toast } from 'sonner';
 import { ChevronsUpDown } from 'lucide-react';
 
 interface MaterialLite { id: string; descricao: string; bitola: string; unidade: string; }
+
+function parseBitolaValue(b: string): number {
+  const trimmed = b.trim();
+  const spaceParts = trimmed.split(' ');
+  if (spaceParts.length === 2) {
+    const whole = parseFloat(spaceParts[0]) || 0;
+    const fracParts = spaceParts[1].split('/');
+    const frac = fracParts.length === 2 ? (parseFloat(fracParts[0]) || 0) / (parseFloat(fracParts[1]) || 1) : 0;
+    return whole + frac;
+  }
+  if (trimmed.includes('/')) {
+    const fracParts = trimmed.split('/');
+    return (parseFloat(fracParts[0]) || 0) / (parseFloat(fracParts[1]) || 1);
+  }
+  return parseFloat(trimmed) || 0;
+}
 
 interface Props {
   open: boolean;
@@ -28,11 +45,32 @@ export function AddNodeDialog({ open, onOpenChange, versionId, parentId, default
   const [name, setName] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [notes, setNotes] = useState('');
+  const [familia, setFamilia] = useState<string | null>(null);
+  const [familiaSearchOpen, setFamiliaSearchOpen] = useState(false);
   const [materialId, setMaterialId] = useState<string | null>(null);
-  const [matSearchOpen, setMatSearchOpen] = useState(false);
 
   const { data: materials = [] } = useMaterials();
   const add = useAddBomNode();
+
+  const familias = useMemo(() => {
+    const set = new Set<string>();
+    (materials as MaterialLite[]).forEach((m) => set.add(m.descricao));
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [materials]);
+
+  const bitolasForFamilia = useMemo(() => {
+    if (!familia) return [] as MaterialLite[];
+    return (materials as MaterialLite[])
+      .filter((m) => m.descricao === familia)
+      .sort((a, b) => parseBitolaValue(a.bitola) - parseBitolaValue(b.bitola));
+  }, [materials, familia]);
+
+  useEffect(() => {
+    if (!familia) { setMaterialId(null); return; }
+    if (materialId && !bitolasForFamilia.some((m) => m.id === materialId)) {
+      setMaterialId(null);
+    }
+  }, [familia, bitolasForFamilia, materialId]);
 
   const selectedMaterial = useMemo(
     () => (materials as MaterialLite[]).find((m) => m.id === materialId) ?? null,
@@ -40,7 +78,7 @@ export function AddNodeDialog({ open, onOpenChange, versionId, parentId, default
   );
 
   const reset = () => {
-    setName(''); setQuantity('1'); setNotes(''); setMaterialId(null);
+    setName(''); setQuantity('1'); setNotes(''); setFamilia(null); setMaterialId(null);
   };
 
   const submit = async () => {
@@ -51,8 +89,11 @@ export function AddNodeDialog({ open, onOpenChange, versionId, parentId, default
     if (tab === 'subconjunto' && !name.trim()) {
       toast.error('Nome do subconjunto é obrigatório'); return;
     }
+    if (tab === 'item' && !familia) {
+      toast.error('Selecione uma família'); return;
+    }
     if (tab === 'item' && !materialId) {
-      toast.error('Selecione um item da base de dados'); return;
+      toast.error('Selecione a bitola'); return;
     }
     try {
       await add.mutateAsync({
@@ -97,30 +138,27 @@ export function AddNodeDialog({ open, onOpenChange, versionId, parentId, default
           </TabsContent>
           <TabsContent value="item" className="space-y-3 pt-3">
             <div>
-              <Label>Item da base de dados *</Label>
-              <Popover open={matSearchOpen} onOpenChange={setMatSearchOpen}>
+              <Label>Família *</Label>
+              <Popover open={familiaSearchOpen} onOpenChange={setFamiliaSearchOpen}>
                 <PopoverTrigger asChild>
                   <Button variant="outline" className="w-full justify-between" type="button">
-                    {selectedMaterial
-                      ? `${selectedMaterial.descricao}${selectedMaterial.bitola ? ` — ${selectedMaterial.bitola}` : ''}`
-                      : 'Selecionar item…'}
-                    <ChevronsUpDown className="h-4 w-4 opacity-50" />
+                    <span className="truncate">{familia ?? 'Buscar família…'}</span>
+                    <ChevronsUpDown className="h-4 w-4 opacity-50 shrink-0" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="p-0 w-[--radix-popover-trigger-width] max-w-[640px]">
                   <Command>
-                    <CommandInput placeholder="Buscar por descrição ou bitola…" />
+                    <CommandInput placeholder="Buscar família…" />
                     <CommandList>
-                      <CommandEmpty>Nenhum item.</CommandEmpty>
+                      <CommandEmpty>Nenhuma família.</CommandEmpty>
                       <CommandGroup>
-                        {(materials as MaterialLite[]).map((m) => (
+                        {familias.map((f) => (
                           <CommandItem
-                            key={m.id}
-                            value={`${m.descricao} ${m.bitola}`}
-                            onSelect={() => { setMaterialId(m.id); setMatSearchOpen(false); }}
+                            key={f}
+                            value={f}
+                            onSelect={() => { setFamilia(f); setFamiliaSearchOpen(false); }}
                           >
-                            <span className="truncate">{m.descricao}</span>
-                            <span className="ml-2 text-xs text-muted-foreground">{m.bitola} · {m.unidade}</span>
+                            <span className="truncate">{f}</span>
                           </CommandItem>
                         ))}
                       </CommandGroup>
@@ -128,6 +166,25 @@ export function AddNodeDialog({ open, onOpenChange, versionId, parentId, default
                   </Command>
                 </PopoverContent>
               </Popover>
+            </div>
+            <div>
+              <Label>Bitola *</Label>
+              <Select
+                value={materialId ?? ''}
+                onValueChange={(v) => setMaterialId(v)}
+                disabled={!familia || bitolasForFamilia.length === 0}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={familia ? 'Selecionar bitola…' : 'Selecione uma família primeiro'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {bitolasForFamilia.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.bitola} <span className="text-xs text-muted-foreground">· {m.unidade}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               {selectedMaterial && (
                 <p className="text-xs text-muted-foreground mt-1">Unidade: {selectedMaterial.unidade}</p>
               )}
