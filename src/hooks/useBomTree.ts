@@ -305,7 +305,10 @@ export function useDeleteBomRoot() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (args: { rootId: string; projectId: string }) => {
-      const { error } = await sb.rpc('bom_delete_root', { p_root_id: args.rootId });
+      // Calls bom_drop_root (returns jsonb) instead of bom_delete_root (returns
+      // void) — the former works around a gateway-level error seen in some
+      // environments when the legacy void-return RPC is invoked from the browser.
+      const { error } = await sb.rpc('bom_drop_root', { p_root_id: args.rootId });
       if (error) throw error;
     },
     onSuccess: (_d, vars) => {
