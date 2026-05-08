@@ -11,6 +11,7 @@ import ProjectsPage from "@/pages/ProjectsPage";
 import BOMsPage from "@/pages/BOMsPage";
 import BOMFormPage from "@/pages/BOMFormPage";
 import BomTreePage from "@/pages/BomTreePage";
+import ProjectEnvironmentLayout, { ProjectEnvironmentPlaceholder } from "@/components/ProjectEnvironmentLayout";
 import LegacyBOMRedirect from "@/pages/LegacyBOMRedirect";
 import BaseDadosPage from "@/pages/BaseDadosPage";
 import AdminUsersPage from "@/pages/AdminUsersPage";
@@ -43,11 +44,13 @@ const App = () => (
                     <Routes>
                       <Route path="/" element={<DashboardPage />} />
                       <Route path="/projetos" element={<ProjectsPage />} />
-                      <Route path="/projetos/:projetoId" element={<Navigate to="solicitacoes" replace />} />
-                      <Route path="/projetos/:projetoId/solicitacoes" element={<BOMsPage />} />
-                      <Route path="/projetos/:projetoId/solicitacoes/nova" element={<BOMFormPage />} />
-                      <Route path="/projetos/:projetoId/solicitacoes/:id" element={<BOMFormPage />} />
-                      <Route path="/projetos/:projetoId/boms" element={<BomTreePage />} />
+                      <Route path="/projetos/:projetoId" element={<ProjectEnvironmentLayout />}>
+                        <Route index element={<ProjectEnvironmentPlaceholder />} />
+                        <Route path="solicitacoes" element={<BOMsPage />} />
+                        <Route path="solicitacoes/nova" element={<BOMFormPage />} />
+                        <Route path="solicitacoes/:id" element={<BOMFormPage />} />
+                        <Route path="boms" element={<BomTreePage />} />
+                      </Route>
                       {/* Legacy redirects */}
                       <Route path="/solicitacoes" element={<Navigate to="/projetos" replace />} />
                       <Route path="/solicitacoes/:id" element={<LegacyBOMRedirect />} />

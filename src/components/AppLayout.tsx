@@ -65,7 +65,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </p>
           ) : (
             sortedProjects.map((p) => {
-              const to = `/projetos/${p.id}/solicitacoes`;
+              const to = `/projetos/${p.id}`;
               const active = pathname.startsWith(`/projetos/${p.id}`);
               return (
                 <Link
@@ -243,7 +243,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               sortedProjects.map((p) => (
                 <Link
                   key={p.id}
-                  to={`/projetos/${p.id}/solicitacoes`}
+                  to={`/projetos/${p.id}`}
                   onClick={() => setProjectsOpen(false)}
                   className="block px-3 py-2 rounded-md text-sm hover:bg-accent"
                 >
