@@ -10,6 +10,7 @@ import DashboardPage from "@/pages/DashboardPage";
 import ProjectsPage from "@/pages/ProjectsPage";
 import BOMsPage from "@/pages/BOMsPage";
 import BOMFormPage from "@/pages/BOMFormPage";
+import BomTreePage from "@/pages/BomTreePage";
 import LegacyBOMRedirect from "@/pages/LegacyBOMRedirect";
 import BaseDadosPage from "@/pages/BaseDadosPage";
 import AdminUsersPage from "@/pages/AdminUsersPage";
@@ -46,6 +47,7 @@ const App = () => (
                       <Route path="/projetos/:projetoId/solicitacoes" element={<BOMsPage />} />
                       <Route path="/projetos/:projetoId/solicitacoes/nova" element={<BOMFormPage />} />
                       <Route path="/projetos/:projetoId/solicitacoes/:id" element={<BOMFormPage />} />
+                      <Route path="/projetos/:projetoId/boms" element={<BomTreePage />} />
                       {/* Legacy redirects */}
                       <Route path="/solicitacoes" element={<Navigate to="/projetos" replace />} />
                       <Route path="/solicitacoes/:id" element={<LegacyBOMRedirect />} />
