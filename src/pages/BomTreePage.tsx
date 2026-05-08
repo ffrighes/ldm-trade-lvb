@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Plus, Copy } from 'lucide-react';
+import { ArrowLeft, Plus, Copy, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { toast } from 'sonner';
 import { useProjects } from '@/hooks/useSupabaseData';
-import { useBomRoots, useBomVersions } from '@/hooks/useBomTree';
+import { useBomRoots, useBomVersions, useDeleteBomRoot } from '@/hooks/useBomTree';
 import { usePermissions } from '@/hooks/usePermissions';
 import { CreateConjuntoDialog } from '@/components/bom/CreateConjuntoDialog';
 import { CloneFromProjectDialog } from '@/components/bom/CloneFromProjectDialog';
@@ -19,13 +24,15 @@ export default function BomTreePage() {
   const { data: projects = [] } = useProjects();
   const { data: roots = [], isLoading: rootsLoading } = useBomRoots(projetoId);
 
-  const { canEditBomDraft, canCloneBom } = usePermissions();
+  const { canEditBomDraft, canCloneBom, canDeleteBomRoot } = usePermissions();
+  const deleteRoot = useDeleteBomRoot();
 
   const [selectedRootId, setSelectedRootId] = useState<string | undefined>();
   const [selectedVersionId, setSelectedVersionId] = useState<string | undefined>();
   const [search, setSearch] = useState('');
   const [openCreate, setOpenCreate] = useState(false);
   const [openClone, setOpenClone] = useState(false);
+  const [confirmDeleteRootId, setConfirmDeleteRootId] = useState<string | null>(null);
 
   const { data: versions = [] } = useBomVersions(selectedRootId);
 
@@ -90,9 +97,9 @@ export default function BomTreePage() {
             ) : (
               <ul className="space-y-1">
                 {roots.map((r) => (
-                  <li key={r.id}>
+                  <li key={r.id} className="group flex items-center gap-1">
                     <button
-                      className={`w-full text-left px-2 py-1.5 rounded hover:bg-muted text-sm flex items-center gap-2 ${
+                      className={`flex-1 text-left px-2 py-1.5 rounded hover:bg-muted text-sm flex items-center gap-2 min-w-0 ${
                         r.id === selectedRootId ? 'bg-muted font-medium' : ''
                       }`}
                       onClick={() => { setSelectedRootId(r.id); setSelectedVersionId(undefined); }}
@@ -103,6 +110,18 @@ export default function BomTreePage() {
                         {r.name}
                       </span>
                     </button>
+                    {canDeleteBomRoot && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                        aria-label={`Excluir Conjunto ${r.codigo}`}
+                        title="Excluir Conjunto"
+                        onClick={(e) => { e.stopPropagation(); setConfirmDeleteRootId(r.id); }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      </Button>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -162,6 +181,44 @@ export default function BomTreePage() {
         targetProjectId={projetoId}
         onCloned={(rootId, versionId) => { setSelectedRootId(rootId); setSelectedVersionId(versionId); }}
       />
+
+      <AlertDialog
+        open={!!confirmDeleteRootId}
+        onOpenChange={(o) => { if (!o) setConfirmDeleteRootId(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Conjunto?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação remove o Conjunto, todas as suas versões (incluindo RELEASED e
+              OBSOLETE) e todos os nós da estrutura. A operação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!confirmDeleteRootId) return;
+                const id = confirmDeleteRootId;
+                try {
+                  await deleteRoot.mutateAsync({ rootId: id, projectId: projetoId });
+                  toast.success('Conjunto excluído');
+                  if (selectedRootId === id) {
+                    setSelectedRootId(undefined);
+                    setSelectedVersionId(undefined);
+                  }
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : 'Erro ao excluir');
+                } finally {
+                  setConfirmDeleteRootId(null);
+                }
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

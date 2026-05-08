@@ -301,6 +301,20 @@ export function useCloneBomRoot() {
   });
 }
 
+export function useDeleteBomRoot() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { rootId: string; projectId: string }) => {
+      const { error } = await sb.rpc('bom_delete_root', { p_root_id: args.rootId });
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['bom-roots', vars.projectId] });
+      qc.removeQueries({ queryKey: ['bom-versions', vars.rootId] });
+    },
+  });
+}
+
 export function useBomDiff(versionA: string | undefined, versionB: string | undefined) {
   return useQuery({
     queryKey: ['bom-diff', versionA, versionB],

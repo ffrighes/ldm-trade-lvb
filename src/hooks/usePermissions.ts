@@ -25,6 +25,7 @@ export interface Permissions {
   canEditBomDraft: boolean;
   canReleaseBomVersion: boolean;
   canCloneBom: boolean;
+  canDeleteBomRoot: boolean;
 
   // Admin
   canAccessAdmin: boolean;
@@ -111,6 +112,7 @@ export function usePermissions(): Permissions {
   const canEditBomDraft = isAdmin || isGerente || isProjetista;
   const canReleaseBomVersion = isAdmin || isGerente;
   const canCloneBom = isAdmin || isGerente || isProjetista;
+  const canDeleteBomRoot = isAdmin || isGerente;
 
   // Admin page
   const canAccessAdmin = isAdmin;
@@ -119,6 +121,7 @@ export function usePermissions(): Permissions {
     canEditBomDraft,
     canReleaseBomVersion,
     canCloneBom,
+    canDeleteBomRoot,
     canCreateBOM,
     canEditBOM,
     canDeleteBOM,
