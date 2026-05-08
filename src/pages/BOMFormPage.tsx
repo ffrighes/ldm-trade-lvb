@@ -3,7 +3,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useMaterials, useProjects, useSolicitacao, useAddSolicitacao, useUpdateSolicitacao } from '@/hooks/useSupabaseData';
+import { useMaterials, useProjects, useBOM, useAddBOM, useUpdateBOM } from '@/hooks/useSupabaseData';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,12 +19,12 @@ import { formatBRL } from '@/lib/formatCurrency';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { History, MessageSquare, FileText as FileTextIcon } from 'lucide-react';
-import { AuditTimeline } from '@/components/solicitacoes/AuditTimeline';
-import { CommentsPanel } from '@/components/solicitacoes/CommentsPanel';
-import { DrawingsManager } from '@/components/solicitacoes/DrawingsManager';
+import { AuditTimeline } from '@/components/boms/AuditTimeline';
+import { CommentsPanel } from '@/components/boms/CommentsPanel';
+import { DrawingsManager } from '@/components/boms/DrawingsManager';
 import { useAuth } from '@/hooks/useAuth';
-import { useSolicitacaoRealtime } from '@/hooks/useSolicitacaoRealtime';
-import { useSolicitacaoComments } from '@/hooks/useSolicitacaoActivity';
+import { useBOMRealtime } from '@/hooks/useBOMRealtime';
+import { useBOMComments } from '@/hooks/useBOMActivity';
 import { SEM_CATEGORIA_LABEL } from '@/lib/categorias';
 import { useCategorias } from '@/hooks/useCategorias';
 
@@ -57,26 +57,26 @@ const emptyItem = (): FormItem => ({
   custo_total: 0,
 });
 
-export default function SolicitacaoFormPage() {
+export default function BOMFormPage() {
   const { id, projetoId: routeProjetoId } = useParams<{ id?: string; projetoId?: string }>();
   const navigate = useNavigate();
   const listPath = routeProjetoId ? `/projetos/${routeProjetoId}/solicitacoes` : '/projetos';
   const { data: projects = [] } = useProjects();
   const { data: materials = [] } = useMaterials();
   const { data: categorias = [] } = useCategorias();
-  const { data: existing } = useSolicitacao(id);
-  const addSolicitacao = useAddSolicitacao();
-  const updateSolicitacao = useUpdateSolicitacao();
+  const { data: existing } = useBOM(id);
+  const addSolicitacao = useAddBOM();
+  const updateSolicitacao = useUpdateBOM();
 
-  const { canCreateSolicitacao, canEditSolicitacao, canChangeStatus, getAllowedStatuses } = usePermissions();
+  const { canCreateBOM, canEditBOM, canChangeStatus, getAllowedStatuses } = usePermissions();
   const { user } = useAuth();
-  useSolicitacaoRealtime(existing?.id, { currentUserId: user?.id });
-  const { data: comments = [] } = useSolicitacaoComments(existing?.id);
+  useBOMRealtime(existing?.id, { currentUserId: user?.id });
+  const { data: comments = [] } = useBOMComments(existing?.id);
 
   const isNew = !id || id === 'nova';
   const isReadOnly = isNew
-    ? !canCreateSolicitacao
-    : !canEditSolicitacao(existing?.status || 'Aberta');
+    ? !canCreateBOM
+    : !canEditBOM(existing?.status || 'Aberta');
 
   const [projetoId, setProjetoId] = useState(routeProjetoId ?? '');
   const [dataSolicitacao, setDataSolicitacao] = useState(new Date().toISOString().split('T')[0]);
@@ -1165,7 +1165,7 @@ export default function SolicitacaoFormPage() {
           <Button
             onClick={handleSave}
             disabled={
-              (isNew && !canCreateSolicitacao) ||
+              (isNew && !canCreateBOM) ||
               (!isNew && isReadOnly && !statusChanged) ||
               (!isNew && statusChanged && !canChangeStatus) ||
               addSolicitacao.isPending ||

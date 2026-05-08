@@ -77,7 +77,7 @@ function drawHeaderFooter(doc: jsPDF, generatedAt: string) {
   doc.setTextColor(0);
 }
 
-export function exportSolicitacoesToPdf(
+export function exportBOMsToPdf(
   solicitacoes: SolicitacaoLite[],
   projects: ProjectLite[],
   materials: MaterialLite[],

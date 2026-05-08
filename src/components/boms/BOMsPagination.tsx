@@ -11,7 +11,7 @@ interface Props {
   onPageSizeChange: (size: number) => void;
 }
 
-export function SolicitacoesPagination({ page, pageSize, total, pageSizes, onPageChange, onPageSizeChange }: Props) {
+export function BOMsPagination({ page, pageSize, total, pageSizes, onPageChange, onPageSizeChange }: Props) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const currentPage = Math.min(page, totalPages - 1);
   const firstRow = total === 0 ? 0 : currentPage * pageSize + 1;

@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 // ============= AUDIT =============
 
-export interface SolicitacaoAuditEntry {
+export interface BOMAuditEntry {
   id: number;
   solicitacao_id: string | null;
   solicitacao_numero: string | null;
@@ -16,7 +16,7 @@ export interface SolicitacaoAuditEntry {
   at: string;
 }
 
-export function useSolicitacaoAudit(solicitacaoId: string | undefined) {
+export function useBOMAudit(solicitacaoId: string | undefined) {
   return useQuery({
     queryKey: ['solicitacao_audit', solicitacaoId],
     enabled: !!solicitacaoId,
@@ -27,7 +27,7 @@ export function useSolicitacaoAudit(solicitacaoId: string | undefined) {
         .eq('solicitacao_id', solicitacaoId!)
         .order('at', { ascending: false });
       if (error) throw error;
-      return (data ?? []) as unknown as SolicitacaoAuditEntry[];
+      return (data ?? []) as unknown as BOMAuditEntry[];
     },
   });
 }
@@ -43,7 +43,7 @@ export interface SolicitacaoComment {
   created_at: string;
 }
 
-export function useSolicitacaoComments(solicitacaoId: string | undefined) {
+export function useBOMComments(solicitacaoId: string | undefined) {
   return useQuery({
     queryKey: ['solicitacao_comments', solicitacaoId],
     enabled: !!solicitacaoId,
@@ -109,7 +109,7 @@ export interface SolicitacaoDrawing {
   uploaded_at: string;
 }
 
-export function useSolicitacaoDrawings(solicitacaoId: string | undefined) {
+export function useBOMDrawings(solicitacaoId: string | undefined) {
   return useQuery({
     queryKey: ['solicitacao_drawings', solicitacaoId],
     enabled: !!solicitacaoId,

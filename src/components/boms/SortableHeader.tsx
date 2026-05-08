@@ -1,13 +1,13 @@
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { TableHead } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
-import type { SolicitacoesSortField } from '@/hooks/useSupabaseData';
+import type { BOMsSortField } from '@/hooks/useSupabaseData';
 
 interface Props {
-  field: SolicitacoesSortField;
-  activeField: SolicitacoesSortField;
+  field: BOMsSortField;
+  activeField: BOMsSortField;
   direction: 'asc' | 'desc';
-  onSort: (field: SolicitacoesSortField) => void;
+  onSort: (field: BOMsSortField) => void;
   className?: string;
   children: React.ReactNode;
 }

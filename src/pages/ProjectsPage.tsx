@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useProjects, useAddProject, useUpdateProject, useDeleteProject, useSolicitacoes } from '@/hooks/useSupabaseData';
+import { useProjects, useAddProject, useUpdateProject, useDeleteProject, useBOMs } from '@/hooks/useSupabaseData';
 import { formatBRL } from '@/lib/formatCurrency';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,7 +20,7 @@ import { toast } from 'sonner';
 export default function ProjectsPage() {
   const navigate = useNavigate();
   const { data: projects = [] } = useProjects();
-  const { data: solicitacoes = [] } = useSolicitacoes();
+  const { data: solicitacoes = [] } = useBOMs();
   const { canCreateProject, canEditProject, canDeleteProject } = usePermissions();
 
   const projectCosts = useMemo(() => {

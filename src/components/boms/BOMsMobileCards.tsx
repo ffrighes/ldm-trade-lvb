@@ -53,7 +53,7 @@ interface Props {
   refreshingCosts: boolean;
 }
 
-export function SolicitacoesMobileCards({
+export function BOMsMobileCards({
   rows,
   isLoading,
   selectedIds,
@@ -66,7 +66,7 @@ export function SolicitacoesMobileCards({
   onView,
   refreshingCosts,
 }: Props) {
-  const { canDeleteSolicitacao } = usePermissions();
+  const { canDeleteBOM } = usePermissions();
 
   if (isLoading) {
     return (
@@ -150,7 +150,7 @@ export function SolicitacoesMobileCards({
                     <RefreshCw className="h-4 w-4 mr-1 text-primary" />Custos
                   </Button>
                 )}
-                {canDeleteSolicitacao(s.status) && (
+                {canDeleteBOM(s.status) && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="ghost" size="sm" className="text-destructive ml-auto" aria-label="Excluir BOM">

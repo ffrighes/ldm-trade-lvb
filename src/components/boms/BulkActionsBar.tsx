@@ -52,7 +52,7 @@ export function BulkActionsBar({
   onExportPdf,
   onRefreshCosts,
 }: Props) {
-  const { canChangeStatus, getAllowedStatuses, canDeleteSolicitacao } = usePermissions();
+  const { canChangeStatus, getAllowedStatuses, canDeleteBOM } = usePermissions();
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   const count = selected.length;
@@ -69,7 +69,7 @@ export function BulkActionsBar({
     return intersection.filter((s) => !(allSameStatus && s === selected[0].status));
   }, [selected, canChangeStatus, getAllowedStatuses]);
 
-  const allDeletable = selected.every((s) => canDeleteSolicitacao(s.status));
+  const allDeletable = selected.every((s) => canDeleteBOM(s.status));
   const anyOpen = selected.some((s) => s.status === 'Aberta');
 
   if (count === 0) return null;

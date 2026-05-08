@@ -2,10 +2,10 @@ import { FileText, FolderOpen, Layers, TrendingUp } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatBRL } from '@/lib/formatCurrency';
-import type { SolicitacoesKpis } from '@/hooks/useSupabaseData';
+import type { BOMsKpis } from '@/hooks/useSupabaseData';
 
 interface Props {
-  kpis: SolicitacoesKpis | undefined;
+  kpis: BOMsKpis | undefined;
   isLoading: boolean;
 }
 
