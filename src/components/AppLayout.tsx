@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useProjects } from '@/hooks/useSupabaseData';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import ProjectEnvironmentPanel, { useProjectEnvironmentMatch } from '@/components/ProjectEnvironmentPanel';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation();
@@ -15,6 +16,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, signOut } = useAuth();
   const { canAccessAdmin } = usePermissions();
   const { data: projects = [] } = useProjects();
+  const projectEnv = useProjectEnvironmentMatch();
 
   const isProjectsActive = pathname.startsWith('/projetos');
   const [projectsOpen, setProjectsOpen] = useState(isProjectsActive);
@@ -65,7 +67,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </p>
           ) : (
             sortedProjects.map((p) => {
-              const to = `/projetos/${p.id}`;
+              const to = `/projetos/${p.id}/solicitacoes`;
               const active = pathname.startsWith(`/projetos/${p.id}`);
               return (
                 <Link
@@ -243,7 +245,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               sortedProjects.map((p) => (
                 <Link
                   key={p.id}
-                  to={`/projetos/${p.id}`}
+                  to={`/projetos/${p.id}/solicitacoes`}
                   onClick={() => setProjectsOpen(false)}
                   className="block px-3 py-2 rounded-md text-sm hover:bg-accent"
                 >
@@ -263,6 +265,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       )}
+
+      {projectEnv && <ProjectEnvironmentPanel projetoId={projectEnv.projetoId} />}
 
       <main className="flex-1 overflow-auto pb-20 md:pb-0">
         <div className="p-4 md:p-8 max-w-7xl mx-auto animate-fade-in">

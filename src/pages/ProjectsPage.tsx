@@ -166,7 +166,7 @@ export default function ProjectsPage() {
                   </TableCell>
                 </TableRow>
               ) : filtered.map(p => {
-                const openProject = () => navigate(`/projetos/${p.id}`);
+                const openProject = () => navigate(`/projetos/${p.id}/solicitacoes`);
                 return (
                 <TableRow
                   key={p.id}
