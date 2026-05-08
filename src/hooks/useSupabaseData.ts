@@ -1,5 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
+
+type SolicitacaoRow = Database['public']['Tables']['solicitacoes']['Row'];
+type SolicitacaoItemRow = Database['public']['Tables']['solicitacao_itens']['Row'];
+export type SolicitacaoWithItens = SolicitacaoRow & {
+  solicitacao_itens: SolicitacaoItemRow[];
+};
+
+export interface PaginatedSolicitacoesResult {
+  rows: SolicitacaoWithItens[];
+  total: number;
+}
 
 // ============= MATERIALS =============
 
@@ -145,7 +157,7 @@ function sanitizeForOrFilter(s: string): string {
 }
 
 export function useBOMsPaginated(params: BOMsQueryParams) {
-  return useQuery({
+  return useQuery<PaginatedSolicitacoesResult>({
     queryKey: ['solicitacoes', 'list', params],
     placeholderData: (prev) => prev,
     // Search results are stable enough that re-focusing or fast filter toggles
@@ -196,7 +208,10 @@ export function useBOMsPaginated(params: BOMsQueryParams) {
 
       const { data, error, count } = await query;
       if (error) throw error;
-      return { rows: data ?? [], total: count ?? 0 };
+      return {
+        rows: (data ?? []) as SolicitacaoWithItens[],
+        total: count ?? 0,
+      };
     },
   });
 }
