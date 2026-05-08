@@ -4,15 +4,15 @@ import { useSearch } from '@/hooks/useSearch';
 import { highlightMatch } from '@/lib/highlight';
 import { SEARCH_MIN_LENGTH } from '@/lib/sanitizeSearch';
 import {
-  useSolicitacoesPaginated,
+  useBOMsPaginated,
   useProjects,
   useMaterials,
-  useDeleteSolicitacao,
-  useUpdateSolicitacaoItemCosts,
-  useBulkUpdateSolicitacaoStatus,
-  useBulkDeleteSolicitacoes,
+  useDeleteBOM,
+  useUpdateBOMItemCosts,
+  useBulkUpdateBOMStatus,
+  useBulkDeleteBOMs,
 } from '@/hooks/useSupabaseData';
-import { useSolicitacoesFilters, ALL_STATUSES, type StatusValue, type SolicitacoesFiltersState } from '@/hooks/useSolicitacoesFilters';
+import { useBOMsFilters, ALL_STATUSES, type StatusValue, type BOMsFiltersState } from '@/hooks/useBOMsFilters';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -26,15 +26,15 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { DateRangeFilter } from '@/components/solicitacoes/DateRangeFilter';
-import { SortableHeader } from '@/components/solicitacoes/SortableHeader';
-import { SolicitacoesPagination } from '@/components/solicitacoes/SolicitacoesPagination';
-import { SavedViewsMenu } from '@/components/solicitacoes/SavedViewsMenu';
-import { BulkActionsBar } from '@/components/solicitacoes/BulkActionsBar';
-import { SolicitacoesMobileCards } from '@/components/solicitacoes/SolicitacoesMobileCards';
-import { SolicitacaoDetailsDialog } from '@/components/solicitacoes/SolicitacaoDetailsDialog';
-import { exportSolicitacoesToXlsx } from '@/lib/exportSolicitacoes';
-import { exportSolicitacoesToPdf } from '@/lib/exportSolicitacoesPdf';
+import { DateRangeFilter } from '@/components/boms/DateRangeFilter';
+import { SortableHeader } from '@/components/boms/SortableHeader';
+import { BOMsPagination } from '@/components/boms/BOMsPagination';
+import { SavedViewsMenu } from '@/components/boms/SavedViewsMenu';
+import { BulkActionsBar } from '@/components/boms/BulkActionsBar';
+import { BOMsMobileCards } from '@/components/boms/BOMsMobileCards';
+import { BOMDetailsDialog } from '@/components/boms/BOMDetailsDialog';
+import { exportBOMsToXlsx } from '@/lib/exportBOMs';
+import { exportBOMsToPdf } from '@/lib/exportBOMsPdf';
 
 type SolicitacaoStatus = 'Aberta' | 'Aprovada' | 'Finalizada' | 'Material Comprado' | 'Material enviado para Obra' | 'Cancelada';
 
@@ -52,9 +52,9 @@ const PRESET_STATUSES = {
   finalizadas: ['Finalizada'] as StatusValue[],
 };
 
-export default function SolicitacoesPage() {
+export default function BOMsPage() {
   const { projetoId: routeProjetoId } = useParams<{ projetoId: string }>();
-  const { state, update, pageSizes } = useSolicitacoesFilters({ projetoId: routeProjetoId });
+  const { state, update, pageSizes } = useBOMsFilters({ projetoId: routeProjetoId });
   const search = useSearch({
     initialValue: state.search,
     debounceMs: 300,
@@ -98,19 +98,19 @@ export default function SolicitacoesPage() {
     };
   }, [state]);
 
-  const { data, isLoading, isFetching } = useSolicitacoesPaginated(queryParams);
+  const { data, isLoading, isFetching } = useBOMsPaginated(queryParams);
   const { data: projects = [], isLoading: projectsLoading } = useProjects();
   const projetoAtual = useMemo(
     () => projects.find((p) => p.id === routeProjetoId) ?? null,
     [projects, routeProjetoId],
   );
   const { data: materials = [] } = useMaterials();
-  const deleteSolicitacao = useDeleteSolicitacao();
-  const updateItemCosts = useUpdateSolicitacaoItemCosts();
-  const bulkUpdateStatus = useBulkUpdateSolicitacaoStatus();
-  const bulkDelete = useBulkDeleteSolicitacoes();
+  const deleteSolicitacao = useDeleteBOM();
+  const updateItemCosts = useUpdateBOMItemCosts();
+  const bulkUpdateStatus = useBulkUpdateBOMStatus();
+  const bulkDelete = useBulkDeleteBOMs();
   const navigate = useNavigate();
-  const { canCreateSolicitacao, canDeleteSolicitacao } = usePermissions();
+  const { canCreateBOM, canDeleteBOM } = usePermissions();
   const isMobile = useIsMobile();
 
   const rows = useMemo(() => data?.rows ?? [], [data]);
@@ -253,7 +253,7 @@ export default function SolicitacoesPage() {
         .select('*, solicitacao_itens(*)')
         .in('id', ids);
       if (error) throw error;
-      exportSolicitacoesToXlsx(full ?? [], projects);
+      exportBOMsToXlsx(full ?? [], projects);
       toast.success(`Exportadas ${ids.length} BOM(s)`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Erro ao exportar');
@@ -272,7 +272,7 @@ export default function SolicitacoesPage() {
         .select('*, solicitacao_itens(*)')
         .in('id', ids);
       if (error) throw error;
-      exportSolicitacoesToPdf(full ?? [], projects, materials);
+      exportBOMsToPdf(full ?? [], projects, materials);
       toast.success(`PDF gerado para ${ids.length} BOM(s)`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Erro ao exportar PDF');
@@ -283,7 +283,7 @@ export default function SolicitacoesPage() {
 
   // Saved views -----------------------------------------------------
 
-  const savableFilters: Partial<SolicitacoesFiltersState> = useMemo(() => ({
+  const savableFilters: Partial<BOMsFiltersState> = useMemo(() => ({
     search: state.search,
     status: state.status,
     projetoId: state.projetoId,
@@ -335,7 +335,7 @@ export default function SolicitacoesPage() {
         <h1 className="text-2xl font-bold">BOMs</h1>
         <div className="flex items-center gap-2">
           <SavedViewsMenu currentFilters={savableFilters as Record<string, unknown>} onApply={applySavedView} />
-          {canCreateSolicitacao && (
+          {canCreateBOM && (
             <Button onClick={() => navigate(`/projetos/${routeProjetoId}/solicitacoes/nova`)}><Plus className="h-4 w-4 mr-2" />Criar Nova BOM</Button>
           )}
         </div>
@@ -412,7 +412,7 @@ export default function SolicitacoesPage() {
           />
 
           {isMobile ? (
-            <SolicitacoesMobileCards
+            <BOMsMobileCards
               rows={rows}
               isLoading={isLoading}
               selectedIds={selectedIds}
@@ -503,7 +503,7 @@ export default function SolicitacoesPage() {
                                 <RefreshCw className="h-4 w-4 text-primary" />
                               </Button>
                             )}
-                            {canDeleteSolicitacao(s.status) && (
+                            {canDeleteBOM(s.status) && (
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                   <Button variant="ghost" size="icon" aria-label="Excluir BOM" onClick={(e) => e.stopPropagation()}><Trash2 className="h-4 w-4 text-destructive" /></Button>
@@ -530,7 +530,7 @@ export default function SolicitacoesPage() {
             </div>
           )}
 
-          <SolicitacoesPagination
+          <BOMsPagination
             page={state.page}
             pageSize={state.pageSize}
             total={total}
@@ -541,7 +541,7 @@ export default function SolicitacoesPage() {
         </CardContent>
       </Card>
 
-      <SolicitacaoDetailsDialog
+      <BOMDetailsDialog
         solicitacaoId={viewSolicitacaoId}
         open={!!viewSolicitacaoId}
         onOpenChange={(open) => { if (!open) setViewSolicitacaoId(null); }}

@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
  * redirecting to the nested /projetos/:projetoId/solicitacoes/:id route.
  * If the id is "nova" or unresolvable, falls back to /projetos.
  */
-export default function LegacySolicitacaoRedirect() {
+export default function LegacyBOMRedirect() {
   const { id } = useParams();
   const [target, setTarget] = useState<string | null>(null);
 

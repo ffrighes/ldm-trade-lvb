@@ -1,4 +1,4 @@
-import { useMaterials, useProjects, useSolicitacoes } from '@/hooks/useSupabaseData';
+import { useMaterials, useProjects, useBOMs } from '@/hooks/useSupabaseData';
 import { FolderKanban, FileText, Database, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
@@ -6,7 +6,7 @@ import { formatBRL } from '@/lib/formatCurrency';
 
 export default function DashboardPage() {
   const { data: projects = [] } = useProjects();
-  const { data: solicitacoes = [] } = useSolicitacoes();
+  const { data: solicitacoes = [] } = useBOMs();
   const { data: materials = [] } = useMaterials();
 
   const abertas = solicitacoes.filter(s => s.status === 'Aberta').length;

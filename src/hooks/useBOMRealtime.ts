@@ -13,7 +13,7 @@ interface Options {
  * changes the status, fires a toast. Always invalidates relevant queries so
  * the form re-fetches itself.
  */
-export function useSolicitacaoRealtime(solicitacaoId: string | undefined, opts: Options = {}) {
+export function useBOMRealtime(solicitacaoId: string | undefined, opts: Options = {}) {
   const qc = useQueryClient();
   const { currentUserId } = opts;
 

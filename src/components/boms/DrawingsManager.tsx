@@ -17,7 +17,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { useSolicitacaoDrawings, useUploadDrawing, useDeleteDrawing } from '@/hooks/useSolicitacaoActivity';
+import { useBOMDrawings, useUploadDrawing, useDeleteDrawing } from '@/hooks/useBOMActivity';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { toast } from 'sonner';
@@ -33,7 +33,7 @@ export function DrawingsManager({ solicitacaoId, legacyDesenho, isReadOnly }: Pr
   const { data: role } = useUserRole();
   const isPrivileged = role === 'admin' || role === 'gerente' || role === 'projetista';
 
-  const { data: drawings = [], isLoading } = useSolicitacaoDrawings(solicitacaoId);
+  const { data: drawings = [], isLoading } = useBOMDrawings(solicitacaoId);
   const uploadDrawing = useUploadDrawing();
   const deleteDrawing = useDeleteDrawing();
 

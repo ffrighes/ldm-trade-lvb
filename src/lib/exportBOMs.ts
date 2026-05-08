@@ -40,7 +40,7 @@ function timestampSuffix(): string {
   return format(new Date(), 'yyyyMMdd_HHmm');
 }
 
-export function exportSolicitacoesToXlsx(
+export function exportBOMsToXlsx(
   solicitacoes: SolicitacaoLite[],
   projects: ProjectLite[],
   filename = `boms_${timestampSuffix()}.xlsx`,

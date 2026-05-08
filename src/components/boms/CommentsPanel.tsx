@@ -16,7 +16,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { useSolicitacaoComments, useAddComment, useDeleteComment } from '@/hooks/useSolicitacaoActivity';
+import { useBOMComments, useAddComment, useDeleteComment } from '@/hooks/useBOMActivity';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { toast } from 'sonner';
@@ -38,7 +38,7 @@ export function CommentsPanel({ solicitacaoId }: Props) {
   const { data: role } = useUserRole();
   const isPrivileged = role === 'admin' || role === 'gerente';
 
-  const { data: comments = [], isLoading } = useSolicitacaoComments(solicitacaoId);
+  const { data: comments = [], isLoading } = useBOMComments(solicitacaoId);
   const addComment = useAddComment();
   const deleteComment = useDeleteComment();
 

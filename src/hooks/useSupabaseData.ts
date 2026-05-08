@@ -103,7 +103,7 @@ export function useDeleteProject() {
 
 // ============= SOLICITACOES =============
 
-export function useSolicitacoes() {
+export function useBOMs() {
   return useQuery({
     queryKey: ['solicitacoes'],
     queryFn: async () => {
@@ -117,17 +117,17 @@ export function useSolicitacoes() {
   });
 }
 
-export type SolicitacoesSortField =
+export type BOMsSortField =
   | 'numero'
   | 'data_solicitacao'
   | 'status'
   | 'erp'
   | 'created_at';
 
-export interface SolicitacoesQueryParams {
+export interface BOMsQueryParams {
   page: number;
   pageSize: number;
-  sortBy: SolicitacoesSortField;
+  sortBy: BOMsSortField;
   sortDir: 'asc' | 'desc';
   search?: string;
   status?: string[];
@@ -144,7 +144,7 @@ function sanitizeForOrFilter(s: string): string {
   return s.replace(/[%_,()*\\]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
-export function useSolicitacoesPaginated(params: SolicitacoesQueryParams) {
+export function useBOMsPaginated(params: BOMsQueryParams) {
   return useQuery({
     queryKey: ['solicitacoes', 'list', params],
     placeholderData: (prev) => prev,
@@ -201,7 +201,7 @@ export function useSolicitacoesPaginated(params: SolicitacoesQueryParams) {
   });
 }
 
-export interface SolicitacoesKpis {
+export interface BOMsKpis {
   total_solicitacoes: number;
   total_abertas: number;
   valor_abertas: number;
@@ -210,7 +210,7 @@ export interface SolicitacoesKpis {
   ticket_medio: number;
 }
 
-export function useSolicitacoesKpis(params: Omit<SolicitacoesQueryParams, 'page' | 'pageSize' | 'sortBy' | 'sortDir'>) {
+export function useBOMsKpis(params: Omit<BOMsQueryParams, 'page' | 'pageSize' | 'sortBy' | 'sortDir'>) {
   return useQuery({
     queryKey: ['solicitacoes', 'kpis', params],
     placeholderData: (prev) => prev,
@@ -243,7 +243,7 @@ export function useSolicitacoesKpis(params: Omit<SolicitacoesQueryParams, 'page'
       // Postgres returns numeric/bigint as strings; coerce to number.
       const k = (row ?? {}) as Record<string, string | number | null>;
       const num = (v: string | number | null | undefined) => Number(v ?? 0);
-      const result: SolicitacoesKpis = {
+      const result: BOMsKpis = {
         total_solicitacoes: num(k.total_solicitacoes),
         total_abertas: num(k.total_abertas),
         valor_abertas: num(k.valor_abertas),
@@ -305,7 +305,7 @@ export function useDeleteSavedView() {
   });
 }
 
-export function useSolicitacao(id: string | undefined) {
+export function useBOM(id: string | undefined) {
   return useQuery({
     queryKey: ['solicitacoes', id],
     enabled: !!id && id !== 'nova',
@@ -340,7 +340,7 @@ async function insertItens(rows: ItemInput[]) {
   if (error) throw error;
 }
 
-export function useAddSolicitacao() {
+export function useAddBOM() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: {
@@ -382,7 +382,7 @@ export function useAddSolicitacao() {
   });
 }
 
-export function useUpdateSolicitacao() {
+export function useUpdateBOM() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: {
@@ -423,7 +423,7 @@ export function useUpdateSolicitacao() {
   });
 }
 
-export function useUpdateSolicitacaoItemCosts() {
+export function useUpdateBOMItemCosts() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (items: Array<{ id: string; custo_unitario: number; custo_total: number }>) => {
@@ -439,7 +439,7 @@ export function useUpdateSolicitacaoItemCosts() {
   });
 }
 
-export function useDeleteSolicitacao() {
+export function useDeleteBOM() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
@@ -452,7 +452,7 @@ export function useDeleteSolicitacao() {
 
 // ============= BULK SOLICITAÇÃO ACTIONS =============
 
-export function useBulkUpdateSolicitacaoStatus() {
+export function useBulkUpdateBOMStatus() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ ids, status }: { ids: string[]; status: string }) => {
@@ -466,7 +466,7 @@ export function useBulkUpdateSolicitacaoStatus() {
   });
 }
 
-export function useBulkDeleteSolicitacoes() {
+export function useBulkDeleteBOMs() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (ids: string[]) => {
@@ -478,7 +478,7 @@ export function useBulkDeleteSolicitacoes() {
   });
 }
 
-export function useSolicitacoesByIds(ids: string[]) {
+export function useBOMsByIds(ids: string[]) {
   return useQuery({
     queryKey: ['solicitacoes', 'by-ids', ids],
     enabled: ids.length > 0,

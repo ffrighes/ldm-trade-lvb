@@ -7,9 +7,9 @@ type SolicitacaoStatus = 'Aberta' | 'Aprovada' | 'Material Comprado' | 'Material
 
 export interface Permissions {
   // BOMs
-  canCreateSolicitacao: boolean;
-  canEditSolicitacao: (status: string) => boolean;
-  canDeleteSolicitacao: (status: string) => boolean;
+  canCreateBOM: boolean;
+  canEditBOM: (status: string) => boolean;
+  canDeleteBOM: (status: string) => boolean;
   canChangeStatus: boolean;
   getAllowedStatuses: (currentStatus: string) => SolicitacaoStatus[];
 
@@ -39,10 +39,10 @@ export function usePermissions(): Permissions {
   const isCoordenadorCampo = role === 'coordenador_campo';
 
   // Solicitações: admin, gerente, projetista, coordenador_campo can create
-  const canCreateSolicitacao = isAdmin || isGerente || isProjetista || isCoordenadorCampo;
+  const canCreateBOM = isAdmin || isGerente || isProjetista || isCoordenadorCampo;
 
   // Editing solicitação content (not status)
-  const canEditSolicitacao = (status: string): boolean => {
+  const canEditBOM = (status: string): boolean => {
     if (isAdmin) return true;
     if (isGerente || isProjetista) return status === 'Aberta';
     if (isCoordenadorCampo) return status === 'Aberta';
@@ -50,7 +50,7 @@ export function usePermissions(): Permissions {
   };
 
   // Deleting solicitações
-  const canDeleteSolicitacao = (status: string): boolean => {
+  const canDeleteBOM = (status: string): boolean => {
     if (isAdmin) return true;
     if (isGerente) return status === 'Aberta';
     if (isCoordenadorCampo) return status === 'Aberta';
@@ -106,9 +106,9 @@ export function usePermissions(): Permissions {
   const canAccessAdmin = isAdmin;
 
   return {
-    canCreateSolicitacao,
-    canEditSolicitacao,
-    canDeleteSolicitacao,
+    canCreateBOM,
+    canEditBOM,
+    canDeleteBOM,
     canChangeStatus,
     getAllowedStatuses,
     canCreateProject,

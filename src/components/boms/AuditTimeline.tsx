@@ -4,7 +4,7 @@ import { ptBR } from 'date-fns/locale';
 import { ChevronDown, ChevronUp, FilePlus2, FileX2, History, Loader2, Pencil } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useSolicitacaoAudit, type SolicitacaoAuditEntry } from '@/hooks/useSolicitacaoActivity';
+import { useBOMAudit, type BOMAuditEntry } from '@/hooks/useBOMActivity';
 import { formatBRL } from '@/lib/formatCurrency';
 
 interface Props {
@@ -37,24 +37,24 @@ function formatFieldValue(field: string, value: unknown): string {
   return String(value);
 }
 
-function ActionIcon({ action }: { action: SolicitacaoAuditEntry['action'] }) {
+function ActionIcon({ action }: { action: BOMAuditEntry['action'] }) {
   if (action === 'INSERT') return <FilePlus2 className="h-4 w-4 text-success" />;
   if (action === 'DELETE') return <FileX2 className="h-4 w-4 text-destructive" />;
   return <Pencil className="h-4 w-4 text-info" />;
 }
 
-function actionLabel(action: SolicitacaoAuditEntry['action']): string {
+function actionLabel(action: BOMAuditEntry['action']): string {
   if (action === 'INSERT') return 'Criada';
   if (action === 'DELETE') return 'Excluída';
   return 'Alterada';
 }
 
-function visibleChangedFields(entry: SolicitacaoAuditEntry): string[] {
+function visibleChangedFields(entry: BOMAuditEntry): string[] {
   const fields = entry.changed_fields ?? [];
   return fields.filter((f) => !HIDDEN_FIELDS.has(f));
 }
 
-function AuditEntry({ entry }: { entry: SolicitacaoAuditEntry }) {
+function AuditEntry({ entry }: { entry: BOMAuditEntry }) {
   const [expanded, setExpanded] = useState(false);
   const fields = visibleChangedFields(entry);
   const isUpdate = entry.action === 'UPDATE';
@@ -127,7 +127,7 @@ function AuditEntry({ entry }: { entry: SolicitacaoAuditEntry }) {
 }
 
 export function AuditTimeline({ solicitacaoId }: Props) {
-  const { data: entries = [], isLoading } = useSolicitacaoAudit(solicitacaoId);
+  const { data: entries = [], isLoading } = useBOMAudit(solicitacaoId);
 
   // Drop UPDATE entries with no visible changes (e.g. only created_at touched).
   const visible = useMemo(

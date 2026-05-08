@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import type { SolicitacoesSortField } from './useSupabaseData';
+import type { BOMsSortField } from './useSupabaseData';
 
 export const ALL_STATUSES = [
   'Aberta',
@@ -13,10 +13,10 @@ export const ALL_STATUSES = [
 
 export type StatusValue = (typeof ALL_STATUSES)[number];
 
-export interface SolicitacoesFiltersState {
+export interface BOMsFiltersState {
   page: number;
   pageSize: number;
-  sortBy: SolicitacoesSortField;
+  sortBy: BOMsSortField;
   sortDir: 'asc' | 'desc';
   search: string;
   status: StatusValue[];
@@ -26,7 +26,7 @@ export interface SolicitacoesFiltersState {
   preset: 'all' | 'abertas' | 'finalizadas';
 }
 
-const DEFAULTS: SolicitacoesFiltersState = {
+const DEFAULTS: BOMsFiltersState = {
   page: 0,
   pageSize: 25,
   sortBy: 'created_at',
@@ -49,14 +49,14 @@ function parseStatuses(raw: string | null): StatusValue[] {
     .filter((s): s is StatusValue => (ALL_STATUSES as readonly string[]).includes(s));
 }
 
-function parsePreset(raw: string | null): SolicitacoesFiltersState['preset'] {
+function parsePreset(raw: string | null): BOMsFiltersState['preset'] {
   return raw === 'abertas' || raw === 'finalizadas' ? raw : 'all';
 }
 
-function parseSortBy(raw: string | null): SolicitacoesSortField {
-  const allowed: SolicitacoesSortField[] = ['numero', 'data_solicitacao', 'status', 'erp', 'created_at'];
-  return allowed.includes(raw as SolicitacoesSortField)
-    ? (raw as SolicitacoesSortField)
+function parseSortBy(raw: string | null): BOMsSortField {
+  const allowed: BOMsSortField[] = ['numero', 'data_solicitacao', 'status', 'erp', 'created_at'];
+  return allowed.includes(raw as BOMsSortField)
+    ? (raw as BOMsSortField)
     : DEFAULTS.sortBy;
 }
 
@@ -69,11 +69,11 @@ export interface UseSolicitacoesFiltersOptions {
   projetoId?: string;
 }
 
-export function useSolicitacoesFilters(options: UseSolicitacoesFiltersOptions = {}) {
+export function useBOMsFilters(options: UseSolicitacoesFiltersOptions = {}) {
   const [params, setParams] = useSearchParams();
   const lockedProjetoId = options.projetoId;
 
-  const state: SolicitacoesFiltersState = useMemo(() => {
+  const state: BOMsFiltersState = useMemo(() => {
     const pageSizeRaw = Number(params.get('size') ?? DEFAULTS.pageSize);
     const pageSize = (PAGE_SIZES as readonly number[]).includes(pageSizeRaw)
       ? pageSizeRaw
@@ -93,7 +93,7 @@ export function useSolicitacoesFilters(options: UseSolicitacoesFiltersOptions = 
   }, [params, lockedProjetoId]);
 
   const update = useCallback(
-    (patch: Partial<SolicitacoesFiltersState>) => {
+    (patch: Partial<BOMsFiltersState>) => {
       setParams(
         (prev) => {
           const next = new URLSearchParams(prev);

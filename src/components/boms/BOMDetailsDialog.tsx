@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { FileText, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useSolicitacao, useProjects } from '@/hooks/useSupabaseData';
+import { useBOM, useProjects } from '@/hooks/useSupabaseData';
 import { formatBRL } from '@/lib/formatCurrency';
 
 type SolicitacaoStatus = 'Aberta' | 'Aprovada' | 'Finalizada' | 'Material Comprado' | 'Material enviado para Obra' | 'Cancelada';
@@ -26,9 +26,9 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
-export function SolicitacaoDetailsDialog({ solicitacaoId, open, onOpenChange }: Props) {
+export function BOMDetailsDialog({ solicitacaoId, open, onOpenChange }: Props) {
   const navigate = useNavigate();
-  const { data, isLoading, isError, error } = useSolicitacao(solicitacaoId ?? undefined);
+  const { data, isLoading, isError, error } = useBOM(solicitacaoId ?? undefined);
   const { data: projects = [] } = useProjects();
 
   const projeto = data ? projects.find((p) => p.id === data.projeto_id) : null;

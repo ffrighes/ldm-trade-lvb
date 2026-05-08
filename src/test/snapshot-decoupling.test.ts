@@ -33,7 +33,7 @@ type Item = {
 };
 
 /**
- * Mirror of the snapshot insertion contract used by SolicitacaoFormPage:
+ * Mirror of the snapshot insertion contract used by BOMFormPage:
  * copy every relevant attribute from the master row.
  */
 function buildSnapshotFromMaterial(mat: Material, quantidade: number): Item {
@@ -50,7 +50,7 @@ function buildSnapshotFromMaterial(mat: Material, quantidade: number): Item {
 }
 
 /**
- * Mirror of the read-time mapping in SolicitacaoFormPage.tsx (the form
+ * Mirror of the read-time mapping in BOMFormPage.tsx (the form
  * load effect): values come from the stored item, NOT from the materials
  * lookup. This function takes both and asserts the read path ignores the
  * master row.
@@ -66,7 +66,7 @@ function readItemForDisplay(stored: Item, _materialsTable: Material[]) {
 }
 
 /**
- * Mirror of the cost-report aggregation in SolicitacaoFormPage.tsx
+ * Mirror of the cost-report aggregation in BOMFormPage.tsx
  * (handleExportCostPDF). After the decoupling fix, the cost-report PDF
  * uses item.custo_unitario regardless of the material's current price.
  */
