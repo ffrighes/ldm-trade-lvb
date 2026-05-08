@@ -101,15 +101,15 @@ export default function BomTreePage() {
                 {roots.map((r) => (
                   <li key={r.id} className="group flex items-center gap-1">
                     <button
-                      className={`flex-1 text-left px-2 py-1.5 rounded hover:bg-muted text-sm flex items-center gap-2 min-w-0 ${
+                      className={`flex-1 text-left px-2 py-1.5 rounded hover:bg-muted text-sm flex items-start gap-2 min-w-0 ${
                         r.id === selectedRootId ? 'bg-muted font-medium' : ''
                       }`}
                       onClick={() => { setSelectedRootId(r.id); setSelectedVersionId(undefined); }}
                     >
-                      <BomNodeIcon type="CONJUNTO" />
-                      <span className="truncate">
-                        <span className="font-mono text-xs text-muted-foreground">{r.codigo}</span>{' '}
-                        {r.name}
+                      <span className="pt-0.5"><BomNodeIcon type="CONJUNTO" /></span>
+                      <span className="flex-1 min-w-0 flex flex-col">
+                        <span className="font-mono text-xs text-muted-foreground">{r.codigo}</span>
+                        <span className="break-words">{r.name}</span>
                       </span>
                     </button>
                     {canEditBomDraft && (
