@@ -330,7 +330,7 @@ export function useCloneBomRoot() {
 export function useUpdateBomRoot() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (args: { rootId: string; projectId: string; name: string }) => {
+    mutationFn: async (args: { rootId: string; projectId: string; name: string; codigo?: string }) => {
       const client = supabase as unknown as {
         from: (t: string) => {
           update: (v: AnyRecord) => {
@@ -338,9 +338,11 @@ export function useUpdateBomRoot() {
           };
         };
       };
+      const payload: AnyRecord = { name: args.name };
+      if (args.codigo !== undefined) payload.codigo = args.codigo;
       const { error } = await client
         .from('bom_root')
-        .update({ name: args.name })
+        .update(payload)
         .eq('id', args.rootId);
       if (error) throw error;
     },
