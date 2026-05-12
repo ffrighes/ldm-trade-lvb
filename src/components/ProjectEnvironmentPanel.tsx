@@ -1,7 +1,14 @@
+import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { FileText, Boxes } from 'lucide-react';
+import { FileText, Boxes, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useProjects } from '@/hooks/useSupabaseData';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { ConjuntosSidebarList } from '@/components/bom/ConjuntosSidebarList';
 
 const ENVIRONMENTS = [
   {
@@ -35,6 +42,7 @@ export default function ProjectEnvironmentPanel({ projetoId }: { projetoId: stri
   const { data: projects = [] } = useProjects();
   const project = projects.find((p) => p.id === projetoId);
   const basePath = `/projetos/${projetoId}`;
+  const [conjuntosOpen, setConjuntosOpen] = useState(true);
 
   return (
     <aside
@@ -58,7 +66,7 @@ export default function ProjectEnvironmentPanel({ projetoId }: { projetoId: stri
         {ENVIRONMENTS.map(({ key, label, description, icon: Icon, pathSuffix }) => {
           const to = `${basePath}/${pathSuffix}`;
           const active = pathname.startsWith(to);
-          return (
+          const link = (
             <NavLink
               key={key}
               to={to}
@@ -83,6 +91,32 @@ export default function ProjectEnvironmentPanel({ projetoId }: { projetoId: stri
               </div>
             </NavLink>
           );
+
+          if (key === 'boms' && active) {
+            return (
+              <div key={key} className="space-y-1">
+                {link}
+                <Collapsible open={conjuntosOpen} onOpenChange={setConjuntosOpen}>
+                  <CollapsibleTrigger
+                    className="flex w-full items-center justify-between px-3 py-1.5 rounded-md text-xs font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                  >
+                    <span>Conjuntos</span>
+                    <ChevronDown
+                      className={cn(
+                        'h-3.5 w-3.5 transition-transform',
+                        conjuntosOpen ? '' : '-rotate-90',
+                      )}
+                    />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="pt-1">
+                    <ConjuntosSidebarList projectId={projetoId} />
+                  </CollapsibleContent>
+                </Collapsible>
+              </div>
+            );
+          }
+
+          return link;
         })}
       </nav>
     </aside>
