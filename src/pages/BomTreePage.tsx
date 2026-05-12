@@ -1,17 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Plus, Copy } from 'lucide-react';
+import { ArrowLeft, Plus, Copy, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { useProjects } from '@/hooks/useSupabaseData';
-import { useBomRoots, useBomVersions } from '@/hooks/useBomTree';
+import { useProjects, useMaterials } from '@/hooks/useSupabaseData';
+import { useBomRoots, useBomVersions, useBomNodes, buildBomTree } from '@/hooks/useBomTree';
 import { usePermissions } from '@/hooks/usePermissions';
 import { CreateConjuntoDialog } from '@/components/bom/CreateConjuntoDialog';
 import { CloneFromProjectDialog } from '@/components/bom/CloneFromProjectDialog';
 import { BomTreeView } from '@/components/bom/BomTreeView';
 import { VersionPanel } from '@/components/bom/VersionPanel';
 import { BomNodeIcon } from '@/components/bom/BomNodeIcon';
+import { exportConjuntoPdf } from '@/lib/exportConjuntoPdf';
 
 export default function BomTreePage() {
   const { projetoId } = useParams<{ projetoId: string }>();
@@ -19,6 +20,7 @@ export default function BomTreePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { data: projects = [] } = useProjects();
   const { data: roots = [] } = useBomRoots(projetoId);
+  const { data: materials = [] } = useMaterials();
 
   const { canEditBomDraft, canCloneBom } = usePermissions();
 
@@ -30,6 +32,7 @@ export default function BomTreePage() {
   const [openClone, setOpenClone] = useState(false);
 
   const { data: versions = [] } = useBomVersions(selectedRootId);
+  const { data: nodes = [] } = useBomNodes(selectedVersionId);
 
   const projeto = useMemo(
     () => (projects as Array<{ id: string; numero: string; descricao: string }>).find((p) => p.id === projetoId) ?? null,
@@ -75,6 +78,14 @@ export default function BomTreePage() {
   const currentVersion = versions.find((v) => v.id === selectedVersionId);
   const isReadOnly = !canEditBomDraft || !currentVersion || currentVersion.status !== 'DRAFT';
 
+  const handleExportPdf = () => {
+    if (!currentRoot || !currentVersion || nodes.length === 0) return;
+    const tree = buildBomTree(nodes);
+    if (!tree) return;
+    const matMap = new Map((materials ?? []).map((m) => [m.id, m]));
+    exportConjuntoPdf(currentRoot, currentVersion, tree, matMap);
+  };
+
   const handleSelectVersion = (versionId: string) => setSelection(selectedRootId, versionId);
 
   return (
@@ -108,11 +119,23 @@ export default function BomTreePage() {
         <CardHeader className="space-y-2">
           {currentRoot ? (
             <>
-              <CardTitle className="flex items-center gap-2">
-                <BomNodeIcon type="CONJUNTO" />
-                <span className="font-mono text-sm text-muted-foreground">{currentRoot.codigo}</span>
-                <span>{currentRoot.name}</span>
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <BomNodeIcon type="CONJUNTO" />
+                  <span className="font-mono text-sm text-muted-foreground">{currentRoot.codigo}</span>
+                  <span>{currentRoot.name}</span>
+                </CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportPdf}
+                  disabled={!currentVersion || nodes.length === 0}
+                  title="Exportar PDF"
+                >
+                  <FileText className="h-4 w-4 mr-1" />
+                  PDF
+                </Button>
+              </div>
               <VersionPanel
                 rootId={currentRoot.id}
                 versions={versions}
