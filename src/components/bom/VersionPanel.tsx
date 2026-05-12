@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Plus, Lock, ArchiveRestore, Trash2 } from 'lucide-react';
 import { usePermissions } from '@/hooks/usePermissions';
-import { useDeleteBomVersion, useObsoleteBomVersion, useReleaseBomVersion } from '@/hooks/useBomTree';
+import { useDeleteBomVersion, useObsoleteBomVersion, useReleaseBomVersion, useRevertBomVersionToDraft } from '@/hooks/useBomTree';
 import type { BomVersion, BomVersionStatus } from '@/types/bom';
 import { toast } from 'sonner';
 import { NewVersionDialog } from './NewVersionDialog';
@@ -27,11 +27,12 @@ interface Props {
 }
 
 export function VersionPanel({ rootId, versions, selectedId, onSelect }: Props) {
-  const { canReleaseBomVersion, canEditBomDraft, canDeleteObsoleteVersion } = usePermissions();
+  const { canReleaseBomVersion, canEditBomDraft, canDeleteObsoleteVersion, canRevertObsoleteToDraft } = usePermissions();
   const [newOpen, setNewOpen] = useState(false);
   const release = useReleaseBomVersion();
   const obsolete = useObsoleteBomVersion();
   const deleteVersion = useDeleteBomVersion();
+  const revertToDraft = useRevertBomVersionToDraft();
 
   const current = versions.find((v) => v.id === selectedId);
   const maxVersionNumber = Math.max(...versions.map((v) => v.version_number));
@@ -109,6 +110,23 @@ export function VersionPanel({ rootId, versions, selectedId, onSelect }: Props) 
           }}
         >
           <ArchiveRestore className="h-3.5 w-3.5 mr-1" /> Marcar OBSOLETE
+        </Button>
+      )}
+
+      {current?.status === 'OBSOLETE' && canRevertObsoleteToDraft && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={async () => {
+            try {
+              await revertToDraft.mutateAsync({ rootId, versionId: current.id });
+              toast.success(`v${current.version_number} revertida para DRAFT`);
+            } catch (e) {
+              toast.error(e instanceof Error ? e.message : 'Erro ao reverter versão');
+            }
+          }}
+        >
+          <ArchiveRestore className="h-3.5 w-3.5 mr-1" /> Reverter para DRAFT
         </Button>
       )}
 
