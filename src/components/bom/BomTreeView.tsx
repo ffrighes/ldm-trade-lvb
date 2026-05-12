@@ -8,7 +8,7 @@ import {
   useDroppable,
   type DragEndEvent,
 } from '@dnd-kit/core';
-import { ChevronDown, ChevronRight, MoreVertical, Plus, Edit3, Copy, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
+import { ChevronDown, ChevronRight, MoreVertical, Package, FolderPlus, Edit3, Copy, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -49,7 +49,7 @@ export function BomTreeView({ versionId, readOnly, search = '' }: Props) {
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [showCumulative, setShowCumulative] = useState(false);
-  const [addState, setAddState] = useState<{ parentId: string } | null>(null);
+  const [addState, setAddState] = useState<{ parentId: string; defaultTab: 'item' | 'subconjunto' } | null>(null);
   const [editNode, setEditNode] = useState<BomTreeNode | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<BomTreeNode | null>(null);
 
@@ -131,7 +131,7 @@ export function BomTreeView({ versionId, readOnly, search = '' }: Props) {
             matById={matById}
             readOnly={readOnly}
             showCumulative={showCumulative}
-            onAdd={(pid) => setAddState({ parentId: pid })}
+            onAdd={(pid, tab) => setAddState({ parentId: pid, defaultTab: tab })}
             onEdit={(n) => setEditNode(n)}
             onDelete={(n) => setConfirmDelete(n)}
             visible={matchesSearch(tree)}
@@ -148,6 +148,7 @@ export function BomTreeView({ versionId, readOnly, search = '' }: Props) {
           onOpenChange={(o) => { if (!o) setAddState(null); }}
           versionId={versionId}
           parentId={addState.parentId}
+          defaultTab={addState.defaultTab}
         />
       )}
       <EditNodeDialog open={!!editNode} onOpenChange={(o) => { if (!o) setEditNode(null); }} node={editNode} />
@@ -164,7 +165,7 @@ interface RowProps {
   matById: Map<string, MaterialLite>;
   readOnly: boolean;
   showCumulative: boolean;
-  onAdd: (parentId: string) => void;
+  onAdd: (parentId: string, defaultTab: 'item' | 'subconjunto') => void;
   onEdit: (n: BomTreeNode) => void;
   onDelete: (n: BomTreeNode) => void;
   visible: boolean;
@@ -251,15 +252,26 @@ function NodeRow(props: RowProps) {
         {!readOnly && (
           <div className="ml-auto flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
             {!isItem && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                title="Adicionar nó"
-                onClick={(e) => { e.stopPropagation(); onAdd(node.id); }}
-              >
-                <Plus className="h-3.5 w-3.5" />
-              </Button>
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  title="Adicionar item"
+                  onClick={(e) => { e.stopPropagation(); onAdd(node.id, 'item'); }}
+                >
+                  <Package className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  title="Adicionar subconjunto"
+                  onClick={(e) => { e.stopPropagation(); onAdd(node.id, 'subconjunto'); }}
+                >
+                  <FolderPlus className="h-3.5 w-3.5" />
+                </Button>
+              </>
             )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
