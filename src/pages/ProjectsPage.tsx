@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useProjects, useAddProject, useUpdateProject, useDeleteProject, useBOMs } from '@/hooks/useSupabaseData';
-import { formatBRL } from '@/lib/formatCurrency';
+import { useProjects, useAddProject, useUpdateProject, useDeleteProject } from '@/hooks/useSupabaseData';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -20,19 +19,8 @@ import { toast } from 'sonner';
 export default function ProjectsPage() {
   const navigate = useNavigate();
   const { data: projects = [] } = useProjects();
-  const { data: solicitacoes = [] } = useBOMs();
   const { canCreateProject, canEditProject, canDeleteProject } = usePermissions();
 
-  const projectCosts = useMemo(() => {
-    const costs: Record<string, number> = {};
-    solicitacoes.forEach(s => {
-      if (s.status === 'Aberta' || s.status === 'Cancelada') return;
-      const itens = s.solicitacao_itens || [];
-      const total = itens.reduce((a: number, i: any) => a + (i.custo_total || 0), 0);
-      costs[s.projeto_id] = (costs[s.projeto_id] || 0) + total;
-    });
-    return costs;
-  }, [solicitacoes]);
   const addProject = useAddProject();
   const updateProject = useUpdateProject();
   const deleteProject = useDeleteProject();
@@ -152,7 +140,6 @@ export default function ProjectsPage() {
                 <TableHead>Número</TableHead>
                 <TableHead>Descrição</TableHead>
                 <TableHead>Data de Criação</TableHead>
-                <TableHead className="text-right">Custo Total</TableHead>
                 {(canEditProject || canDeleteProject) && <TableHead className="w-24">Ações</TableHead>}
               </TableRow>
             </TableHeader>
@@ -180,7 +167,6 @@ export default function ProjectsPage() {
                   <TableCell className="font-mono font-medium">{highlightMatch(p.numero, search.debounced)}</TableCell>
                   <TableCell>{highlightMatch(p.descricao, search.debounced)}</TableCell>
                   <TableCell className="text-muted-foreground">{p.data_criacao}</TableCell>
-                  <TableCell className="text-right font-mono font-medium">{formatBRL(projectCosts[p.id] || 0)}</TableCell>
                   {(canEditProject || canDeleteProject) && (
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="flex gap-1">
