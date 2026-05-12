@@ -279,6 +279,17 @@ export function useObsoleteBomVersion() {
   });
 }
 
+export function useDeleteBomVersion() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { rootId: string; versionId: string }) => {
+      const { error } = await sb.rpc('bom_drop_obsolete_version', { p_version_id: args.versionId });
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => qc.invalidateQueries({ queryKey: ['bom-versions', vars.rootId] }),
+  });
+}
+
 export function useCloneBomRoot() {
   const qc = useQueryClient();
   return useMutation({
