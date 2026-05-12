@@ -390,7 +390,7 @@ function NodeRow(props: RowProps) {
         )}
       </div>
 
-      {isOpen && hasChildren && (
+      {isOpen && (hasChildren || (!isItem && (drafts[node.id]?.length ?? 0) > 0)) && (
         <div>
           {assemblyChildren.map((c, i) => (
             <NodeRow
