@@ -8,10 +8,6 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
 import DashboardPage from "@/pages/DashboardPage";
 import ProjectsPage from "@/pages/ProjectsPage";
-import BOMsPage from "@/pages/BOMsPage";
-import BOMFormPage from "@/pages/BOMFormPage";
-import BomTreePage from "@/pages/BomTreePage";
-import LegacyBOMRedirect from "@/pages/LegacyBOMRedirect";
 import BaseDadosPage from "@/pages/BaseDadosPage";
 import AdminUsersPage from "@/pages/AdminUsersPage";
 import LoginPage from "@/pages/LoginPage";
@@ -43,14 +39,7 @@ const App = () => (
                     <Routes>
                       <Route path="/" element={<DashboardPage />} />
                       <Route path="/projetos" element={<ProjectsPage />} />
-                      <Route path="/projetos/:projetoId" element={<Navigate to="solicitacoes" replace />} />
-                      <Route path="/projetos/:projetoId/solicitacoes" element={<BOMsPage />} />
-                      <Route path="/projetos/:projetoId/solicitacoes/nova" element={<BOMFormPage />} />
-                      <Route path="/projetos/:projetoId/solicitacoes/:id" element={<BOMFormPage />} />
-                      <Route path="/projetos/:projetoId/boms" element={<BomTreePage />} />
-                      {/* Legacy redirects */}
-                      <Route path="/solicitacoes" element={<Navigate to="/projetos" replace />} />
-                      <Route path="/solicitacoes/:id" element={<LegacyBOMRedirect />} />
+                      <Route path="/projetos/:projetoId" element={<Navigate to="/projetos" replace />} />
                       <Route path="/base-dados" element={<BaseDadosPage />} />
                       <Route path="/admin/usuarios" element={<AdminUsersPage />} />
                       <Route path="*" element={<NotFound />} />
