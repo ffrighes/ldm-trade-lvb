@@ -24,7 +24,8 @@ import {
 import { toast } from 'sonner';
 import { useMaterials } from '@/hooks/useSupabaseData';
 import {
-  buildBomTree, useBomNodes, useDuplicateBomSubtree, useMoveBomNode, useRemoveBomSubtree, useUpdateBomNode,
+  buildBomTree, useAddBomNode, useBomNodes, useDuplicateBomSubtree, useMoveBomNode,
+  useRemoveBomSubtree, useUpdateBomNode,
 } from '@/hooks/useBomTree';
 import type { BomTreeNode } from '@/types/bom';
 import { BomNodeIcon, bomNodeTypeLabel } from './BomNodeIcon';
@@ -62,6 +63,7 @@ export function BomTreeView({ versionId, readOnly, search = '' }: Props) {
   const [editNode, setEditNode] = useState<BomTreeNode | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<BomTreeNode | null>(null);
   const [editingItems, setEditingItems] = useState<Set<string>>(new Set());
+  const [drafts, setDrafts] = useState<Record<string, string[]>>({});
 
   const toggleItemEdit = (nodeId: string) =>
     setEditingItems((prev) => {
@@ -69,6 +71,28 @@ export function BomTreeView({ versionId, readOnly, search = '' }: Props) {
       if (next.has(nodeId)) next.delete(nodeId); else next.add(nodeId);
       return next;
     });
+
+  const addDraft = (parentId: string) => {
+    setDrafts((prev) => {
+      const list = prev[parentId] ?? [];
+      const newId =
+        typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? crypto.randomUUID()
+          : `draft-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      return { ...prev, [parentId]: [...list, newId] };
+    });
+    setExpanded((p) => new Set(p).add(parentId));
+  };
+
+  const removeDraft = (parentId: string, draftId: string) => {
+    setDrafts((prev) => {
+      const list = (prev[parentId] ?? []).filter((id) => id !== draftId);
+      const next = { ...prev };
+      if (list.length === 0) delete next[parentId];
+      else next[parentId] = list;
+      return next;
+    });
+  };
 
   const matById = useMemo(() => {
     const m = new Map<string, MaterialLite>();
@@ -154,7 +178,16 @@ export function BomTreeView({ versionId, readOnly, search = '' }: Props) {
             showCumulative={showCumulative}
             editingItems={editingItems}
             onToggleItemEdit={toggleItemEdit}
-            onAdd={(pid, tab) => setAddState({ parentId: pid, defaultTab: tab })}
+            drafts={drafts}
+            onAddDraft={addDraft}
+            onRemoveDraft={removeDraft}
+            onAdd={(pid, tab) => {
+              if (tab === 'item') {
+                addDraft(pid);
+              } else {
+                setAddState({ parentId: pid, defaultTab: tab });
+              }
+            }}
             onEdit={(n) => setEditNode(n)}
             onDelete={(n) => setConfirmDelete(n)}
             visible={matchesSearch(tree)}
@@ -192,6 +225,9 @@ interface RowProps {
   showCumulative: boolean;
   editingItems: Set<string>;
   onToggleItemEdit: (nodeId: string) => void;
+  drafts: Record<string, string[]>;
+  onAddDraft: (parentId: string) => void;
+  onRemoveDraft: (parentId: string, draftId: string) => void;
   onAdd: (parentId: string, defaultTab: 'item' | 'subconjunto') => void;
   onEdit: (n: BomTreeNode) => void;
   onDelete: (n: BomTreeNode) => void;
@@ -204,7 +240,8 @@ interface RowProps {
 function NodeRow(props: RowProps) {
   const {
     node, depth, expanded, setExpanded, matById, materials, categoriaOrder,
-    readOnly, showCumulative, editingItems, onToggleItemEdit, onAdd, onEdit, onDelete, search,
+    readOnly, showCumulative, editingItems, onToggleItemEdit,
+    drafts, onAddDraft, onRemoveDraft, onAdd, onEdit, onDelete, search,
   } = props;
   const isOpen = expanded.has(node.id) || (search.trim().length > 0);
   const hasChildren = node.children.length > 0;
@@ -369,6 +406,9 @@ function NodeRow(props: RowProps) {
               showCumulative={showCumulative}
               editingItems={editingItems}
               onToggleItemEdit={onToggleItemEdit}
+              drafts={drafts}
+              onAddDraft={onAddDraft}
+              onRemoveDraft={onRemoveDraft}
               onAdd={onAdd}
               onEdit={onEdit}
               onDelete={onDelete}
@@ -378,9 +418,12 @@ function NodeRow(props: RowProps) {
               siblingIndex={i}
             />
           ))}
-          {!isItem && itemChildren.length > 0 && (
+          {!isItem && (itemChildren.length > 0 || (drafts[node.id]?.length ?? 0) > 0) && (
             <ItemsByCategoryTable
+              parentId={node.id}
+              versionId={node.version_id}
               items={itemChildren}
+              draftIds={drafts[node.id] ?? []}
               depth={depth + 1}
               matById={matById}
               materials={materials}
@@ -389,6 +432,7 @@ function NodeRow(props: RowProps) {
               showCumulative={showCumulative}
               editingItems={editingItems}
               onToggleItemEdit={onToggleItemEdit}
+              onRemoveDraft={onRemoveDraft}
               onDelete={onDelete}
             />
           )}
@@ -399,7 +443,10 @@ function NodeRow(props: RowProps) {
 }
 
 interface ItemsTableProps {
+  parentId: string;
+  versionId: string;
   items: BomTreeNode[];
+  draftIds: string[];
   depth: number;
   matById: Map<string, MaterialLite>;
   materials: MaterialLite[];
@@ -408,6 +455,7 @@ interface ItemsTableProps {
   showCumulative: boolean;
   editingItems: Set<string>;
   onToggleItemEdit: (nodeId: string) => void;
+  onRemoveDraft: (parentId: string, draftId: string) => void;
   onDelete: (n: BomTreeNode) => void;
 }
 
@@ -428,8 +476,8 @@ function parseBitolaValue(b: string): number {
 }
 
 function ItemsByCategoryTable({
-  items, depth, matById, materials, categoriaOrder, readOnly, showCumulative,
-  editingItems, onToggleItemEdit, onDelete,
+  parentId, versionId, items, draftIds, depth, matById, materials, categoriaOrder,
+  readOnly, showCumulative, editingItems, onToggleItemEdit, onRemoveDraft, onDelete,
 }: ItemsTableProps) {
   const duplicate = useDuplicateBomSubtree();
 
@@ -583,6 +631,37 @@ function ItemsByCategoryTable({
           </div>
         </div>
       ))}
+
+      {!readOnly && draftIds.length > 0 && (
+        <div className="rounded-md border bg-card/40">
+          <div className="px-3 py-2 border-b flex items-center gap-2">
+            <span className="font-semibold text-sm">Novo item</span>
+            <span className="text-xs text-muted-foreground">
+              ({draftIds.length} {draftIds.length === 1 ? 'item' : 'itens'})
+            </span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+              <tbody>
+                {draftIds.map((draftId, di) => (
+                  <tr key={draftId} className="border-b">
+                    <td className="p-0">
+                      <NewItemDraftRow
+                        index={items.length + di}
+                        parentId={parentId}
+                        versionId={versionId}
+                        materials={materials}
+                        onDone={() => onRemoveDraft(parentId, draftId)}
+                        onDiscard={() => onRemoveDraft(parentId, draftId)}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -697,6 +776,194 @@ function ItemEditRow({ item, index, materials, extraActions, onDone }: ItemEditR
             <Check className="h-4 w-4 text-primary" />
           </Button>
           {extraActions}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-6 lg:grid-cols-12 gap-3">
+        <div className="col-span-1 sm:col-span-2 lg:col-span-2">
+          <Label className="text-xs font-medium text-foreground/80">TAG</Label>
+          <Input value={tag} onChange={(e) => setTag(e.target.value)} placeholder="-" />
+        </div>
+
+        <div className="col-span-2 sm:col-span-6 lg:col-span-5">
+          <Label className="text-xs font-medium text-foreground/80">Descrição *</Label>
+          <SearchableSelect
+            options={descriptions}
+            value={descricao}
+            onValueChange={handleDescChange}
+            placeholder="Selecione"
+            searchPlaceholder="Buscar material..."
+            emptyMessage="Nenhum material encontrado."
+          />
+        </div>
+
+        <div className="col-span-2 sm:col-span-3 lg:col-span-3">
+          <Label className="text-xs font-medium text-foreground/80">Bitola *</Label>
+          <SearchableSelect
+            options={bitolas}
+            value={bitola}
+            onValueChange={handleBitolaChange}
+            disabled={!descricao}
+            placeholder="Bitola"
+            searchPlaceholder="Buscar bitola..."
+            emptyMessage="Nenhuma bitola encontrada."
+          />
+        </div>
+
+        <div className="col-span-1 sm:col-span-3 lg:col-span-2">
+          <Label className="text-xs font-medium text-foreground/80">ERP</Label>
+          <div className="h-10 flex items-center px-3 rounded-md border border-input bg-muted/40 text-sm">
+            {currentMaterial?.erp || '-'}
+          </div>
+        </div>
+
+        <div className="col-span-1 sm:col-span-2 lg:col-span-2">
+          <Label className="text-xs font-medium text-foreground/80">Qtd *</Label>
+          <Input
+            type="number"
+            min={0}
+            step="any"
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+          />
+        </div>
+
+        <div className="col-span-1 sm:col-span-2 lg:col-span-2">
+          <Label className="text-xs font-medium text-foreground/80">Unid.</Label>
+          <div className="h-10 flex items-center px-3 rounded-md border border-input bg-muted/40 text-sm">
+            {currentMaterial?.unidade || '-'}
+          </div>
+        </div>
+
+        <div className="col-span-2 sm:col-span-6 lg:col-span-8">
+          <Label className="text-xs font-medium text-foreground/80">Notas</Label>
+          <Input
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Observações"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface NewItemDraftRowProps {
+  index: number;
+  parentId: string;
+  versionId: string;
+  materials: MaterialLite[];
+  onDone: () => void;
+  onDiscard: () => void;
+}
+
+function NewItemDraftRow({
+  index, parentId, versionId, materials, onDone, onDiscard,
+}: NewItemDraftRowProps) {
+  const add = useAddBomNode();
+
+  const [tag, setTag] = useState('');
+  const [descricao, setDescricao] = useState('');
+  const [bitola, setBitola] = useState('');
+  const [materialId, setMaterialId] = useState<string | null>(null);
+  const [quantity, setQuantity] = useState('1');
+  const [notes, setNotes] = useState('');
+
+  const descriptions = useMemo(
+    () => [...new Set(materials.map((m) => m.descricao))].sort(),
+    [materials],
+  );
+  const bitolas = useMemo(() => {
+    if (!descricao) return [] as string[];
+    const set = new Set(materials.filter((m) => m.descricao === descricao).map((m) => m.bitola));
+    return [...set].sort((a, b) => parseBitolaValue(a) - parseBitolaValue(b));
+  }, [materials, descricao]);
+
+  const currentMaterial = useMemo(
+    () => materials.find((m) => m.id === materialId) ?? null,
+    [materials, materialId],
+  );
+
+  const handleDescChange = (v: string) => {
+    setDescricao(v);
+    setBitola('');
+    setMaterialId(null);
+  };
+  const handleBitolaChange = (v: string) => {
+    setBitola(v);
+    const mat = materials.find((m) => m.descricao === descricao && m.bitola === v);
+    setMaterialId(mat?.id ?? null);
+  };
+
+  const persist = async () => {
+    const qty = Number(quantity);
+    if (!Number.isFinite(qty) || qty <= 0) {
+      toast.error('Quantidade deve ser > 0');
+      return false;
+    }
+    if (!materialId) {
+      toast.error('Selecione descrição e bitola');
+      return false;
+    }
+    const trimmedTag = tag.trim();
+    const trimmedNotes = notes.trim();
+    try {
+      await add.mutateAsync({
+        versionId,
+        parentId,
+        nodeType: 'ITEM',
+        name: trimmedTag || null,
+        materialId,
+        quantity: qty,
+        notes: trimmedNotes || null,
+      });
+      toast.success('Item adicionado');
+      return true;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao adicionar');
+      return false;
+    }
+  };
+
+  const saveAndClose = async () => {
+    if (await persist()) onDone();
+  };
+
+  return (
+    <div
+      className="bg-card/40 p-3 sm:p-4"
+      onKeyDown={async (e) => {
+        if (e.key !== 'Enter' || e.defaultPrevented) return;
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'TEXTAREA') return;
+        e.preventDefault();
+        (target as HTMLElement).blur?.();
+        await saveAndClose();
+      }}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-sm font-semibold text-foreground">Item {index + 1}</span>
+        <div className="flex items-center gap-1 shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            title="Adicionar item"
+            onClick={saveAndClose}
+            disabled={add.isPending}
+          >
+            <Check className="h-4 w-4 text-primary" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            title="Descartar"
+            onClick={onDiscard}
+            disabled={add.isPending}
+          >
+            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+          </Button>
         </div>
       </div>
 
