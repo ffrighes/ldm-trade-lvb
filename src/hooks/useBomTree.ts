@@ -173,6 +173,8 @@ export function useUpdateBomNode() {
       notes?: string | null;
       position?: number | null;
       clearNotes?: boolean;
+      materialId?: string | null;
+      clearName?: boolean;
     }) => {
       const { error } = await sb.rpc('bom_update_node', {
         p_node_id: args.nodeId,
@@ -181,6 +183,8 @@ export function useUpdateBomNode() {
         p_notes: args.notes ?? null,
         p_position: args.position ?? null,
         p_clear_notes: args.clearNotes ?? false,
+        p_material_id: args.materialId ?? null,
+        p_clear_name: args.clearName ?? false,
       });
       if (error) throw error;
     },
