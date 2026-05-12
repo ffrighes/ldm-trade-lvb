@@ -7,7 +7,7 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { useBomRoots, useDeleteBomRoot } from '@/hooks/useBomTree';
+import { useBomRoots, useBomVersions, useDeleteBomRoot } from '@/hooks/useBomTree';
 import { usePermissions } from '@/hooks/usePermissions';
 import { BomNodeIcon } from '@/components/bom/BomNodeIcon';
 import { EditConjuntoDialog } from '@/components/bom/EditConjuntoDialog';
@@ -26,6 +26,9 @@ export function ConjuntosSidebarList({ projectId }: Props) {
 
   const [editRootId, setEditRootId] = useState<string | null>(null);
   const [confirmDeleteRootId, setConfirmDeleteRootId] = useState<string | null>(null);
+
+  const { data: editingVersions = [] } = useBomVersions(editRootId ?? undefined);
+  const editingRootHasDraft = editingVersions.some((v) => v.status === 'DRAFT');
 
   const selectRoot = (rootId: string) => {
     const next = new URLSearchParams(searchParams);
@@ -94,6 +97,7 @@ export function ConjuntosSidebarList({ projectId }: Props) {
         rootId={editRootId}
         codigo={editingRoot?.codigo ?? ''}
         currentName={editingRoot?.name ?? ''}
+        isDraft={editingRootHasDraft}
       />
 
       <AlertDialog
