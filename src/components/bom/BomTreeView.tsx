@@ -27,12 +27,17 @@ import type { BomTreeNode } from '@/types/bom';
 import { BomNodeIcon, bomNodeTypeLabel } from './BomNodeIcon';
 import { AddNodeDialog } from './AddNodeDialog';
 import { EditNodeDialog } from './EditNodeDialog';
+import { SEM_CATEGORIA_LABEL } from '@/lib/categorias';
+import { useCategorias } from '@/hooks/useCategorias';
 
 interface MaterialLite {
   id: string;
   descricao: string;
   bitola: string;
   unidade: string;
+  categoria?: string | null;
+  erp?: string | null;
+  notas?: string | null;
 }
 
 interface Props {
@@ -44,6 +49,7 @@ interface Props {
 export function BomTreeView({ versionId, readOnly, search = '' }: Props) {
   const { data: nodes = [], isLoading } = useBomNodes(versionId);
   const { data: materials = [] } = useMaterials();
+  const { data: categorias = [] } = useCategorias();
   const tree = useMemo(() => buildBomTree(nodes), [nodes]);
   const move = useMoveBomNode();
 
@@ -58,6 +64,8 @@ export function BomTreeView({ versionId, readOnly, search = '' }: Props) {
     for (const x of materials as MaterialLite[]) m.set(x.id, x);
     return m;
   }, [materials]);
+
+  const categoriaOrder = useMemo(() => categorias as string[], [categorias]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
@@ -129,6 +137,7 @@ export function BomTreeView({ versionId, readOnly, search = '' }: Props) {
             expanded={expanded}
             setExpanded={setExpanded}
             matById={matById}
+            categoriaOrder={categoriaOrder}
             readOnly={readOnly}
             showCumulative={showCumulative}
             onAdd={(pid, tab) => setAddState({ parentId: pid, defaultTab: tab })}
@@ -163,6 +172,7 @@ interface RowProps {
   expanded: Set<string>;
   setExpanded: React.Dispatch<React.SetStateAction<Set<string>>>;
   matById: Map<string, MaterialLite>;
+  categoriaOrder: string[];
   readOnly: boolean;
   showCumulative: boolean;
   onAdd: (parentId: string, defaultTab: 'item' | 'subconjunto') => void;
@@ -175,11 +185,19 @@ interface RowProps {
 }
 
 function NodeRow(props: RowProps) {
-  const { node, depth, expanded, setExpanded, matById, readOnly, showCumulative, onAdd, onEdit, onDelete, search } = props;
+  const { node, depth, expanded, setExpanded, matById, categoriaOrder, readOnly, showCumulative, onAdd, onEdit, onDelete, search } = props;
   const isOpen = expanded.has(node.id) || (search.trim().length > 0);
   const hasChildren = node.children.length > 0;
   const isItem = node.node_type === 'ITEM';
   const isConjunto = node.node_type === 'CONJUNTO';
+  const itemChildren = useMemo(
+    () => node.children.filter((c) => c.node_type === 'ITEM'),
+    [node.children],
+  );
+  const assemblyChildren = useMemo(
+    () => node.children.filter((c) => c.node_type !== 'ITEM'),
+    [node.children],
+  );
 
   const update = useUpdateBomNode();
   const duplicate = useDuplicateBomSubtree();
@@ -317,7 +335,7 @@ function NodeRow(props: RowProps) {
 
       {isOpen && hasChildren && (
         <div>
-          {node.children.map((c, i) => (
+          {assemblyChildren.map((c, i) => (
             <NodeRow
               key={c.id}
               node={c}
@@ -325,6 +343,7 @@ function NodeRow(props: RowProps) {
               expanded={expanded}
               setExpanded={setExpanded}
               matById={matById}
+              categoriaOrder={categoriaOrder}
               readOnly={readOnly}
               showCumulative={showCumulative}
               onAdd={onAdd}
@@ -332,12 +351,161 @@ function NodeRow(props: RowProps) {
               onDelete={onDelete}
               visible
               search={search}
-              siblings={node.children.length}
+              siblings={assemblyChildren.length}
               siblingIndex={i}
             />
           ))}
+          {!isItem && itemChildren.length > 0 && (
+            <ItemsByCategoryTable
+              items={itemChildren}
+              depth={depth + 1}
+              matById={matById}
+              categoriaOrder={categoriaOrder}
+              readOnly={readOnly}
+              showCumulative={showCumulative}
+              onEdit={onEdit}
+              onDelete={onDelete}
+            />
+          )}
         </div>
       )}
+    </div>
+  );
+}
+
+interface ItemsTableProps {
+  items: BomTreeNode[];
+  depth: number;
+  matById: Map<string, MaterialLite>;
+  categoriaOrder: string[];
+  readOnly: boolean;
+  showCumulative: boolean;
+  onEdit: (n: BomTreeNode) => void;
+  onDelete: (n: BomTreeNode) => void;
+}
+
+function ItemsByCategoryTable({
+  items, depth, matById, categoriaOrder, readOnly, showCumulative, onEdit, onDelete,
+}: ItemsTableProps) {
+  const duplicate = useDuplicateBomSubtree();
+
+  const grouped = useMemo(() => {
+    const groups = new Map<string, BomTreeNode[]>();
+    for (const it of items) {
+      const mat = it.material_id ? matById.get(it.material_id) : null;
+      const cat = (mat?.categoria || '').trim() || SEM_CATEGORIA_LABEL;
+      const list = groups.get(cat) ?? [];
+      list.push(it);
+      groups.set(cat, list);
+    }
+    const ordered: [string, BomTreeNode[]][] = [];
+    const seen = new Set<string>();
+    for (const c of categoriaOrder) {
+      if (groups.has(c)) { ordered.push([c, groups.get(c)!]); seen.add(c); }
+    }
+    for (const [c, list] of groups) {
+      if (c !== SEM_CATEGORIA_LABEL && !seen.has(c)) ordered.push([c, list]);
+    }
+    if (groups.has(SEM_CATEGORIA_LABEL)) ordered.push([SEM_CATEGORIA_LABEL, groups.get(SEM_CATEGORIA_LABEL)!]);
+    return ordered;
+  }, [items, matById, categoriaOrder]);
+
+  return (
+    <div style={{ paddingLeft: `${depth * 18 + 4}px` }} className="space-y-3 py-2">
+      {grouped.map(([categoria, entries]) => (
+        <div key={categoria} className="rounded-md border bg-card/40">
+          <div className="px-3 py-2 border-b flex items-center gap-2">
+            <span className="font-semibold text-sm">{categoria}</span>
+            <span className="text-xs text-muted-foreground">
+              ({entries.length} {entries.length === 1 ? 'item' : 'itens'})
+            </span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="border-b text-left text-xs font-normal text-muted-foreground">
+                  <th className="py-2 px-2 font-normal w-10">#</th>
+                  <th className="py-2 px-2 font-normal">TAG</th>
+                  <th className="py-2 px-2 font-normal">Descrição</th>
+                  <th className="py-2 px-2 font-normal">Bitola</th>
+                  <th className="py-2 px-2 font-normal">ERP</th>
+                  <th className="py-2 px-2 font-normal text-right">Qtd</th>
+                  <th className="py-2 px-2 font-normal">Un.</th>
+                  <th className="py-2 px-2 font-normal">Notas</th>
+                  {!readOnly && <th className="py-2 px-2 font-normal w-1"></th>}
+                </tr>
+              </thead>
+              <tbody>
+                {entries.map((it, idx) => {
+                  const mat = it.material_id ? matById.get(it.material_id) : null;
+                  const descricao = mat?.descricao || '(item desconhecido)';
+                  const bitola = mat?.bitola || '—';
+                  const erp = mat?.erp || '—';
+                  const unidade = mat?.unidade || '—';
+                  const notas = (it.notes && it.notes.trim()) || mat?.notas || '—';
+                  const qty = (showCumulative ? it.cumulativeQuantity : it.quantity) ?? 0;
+                  return (
+                    <tr key={it.id} className="border-b hover:bg-muted/30">
+                      <td className="py-2 px-2 align-middle">{idx + 1}</td>
+                      <td className="py-2 px-2 align-middle">-</td>
+                      <td className="py-2 px-2 align-middle max-w-[20rem]">
+                        <span className="block truncate" title={descricao}>{descricao}</span>
+                      </td>
+                      <td className="py-2 px-2 align-middle">{bitola}</td>
+                      <td className="py-2 px-2 align-middle">{erp}</td>
+                      <td className="py-2 px-2 align-middle text-right tabular-nums">{qty}</td>
+                      <td className="py-2 px-2 align-middle">{unidade}</td>
+                      <td className="py-2 px-2 align-middle max-w-[14rem]">
+                        <span className="block truncate" title={notas}>{notas}</span>
+                      </td>
+                      {!readOnly && (
+                        <td className="py-1 px-2 align-middle">
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              title="Editar item"
+                              onClick={() => onEdit(it)}
+                            >
+                              <Edit3 className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              title="Duplicar item"
+                              onClick={async () => {
+                                try {
+                                  await duplicate.mutateAsync({ versionId: it.version_id, nodeId: it.id });
+                                  toast.success('Item duplicado');
+                                } catch (e) {
+                                  toast.error(e instanceof Error ? e.message : 'Erro ao duplicar');
+                                }
+                              }}
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              title="Remover item"
+                              onClick={() => onDelete(it)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                            </Button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
