@@ -1,0 +1,77 @@
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { useCreateConjunto } from '@/hooks/useBomTree';
+import { toast } from 'sonner';
+
+interface Props {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  projectId: string;
+  onCreated?: (rootId: string, versionId: string) => void;
+}
+
+export function CreateConjuntoDialog({ open, onOpenChange, projectId, onCreated }: Props) {
+  const [codigo, setCodigo] = useState('');
+  const [name, setName] = useState('');
+  const [label, setLabel] = useState('');
+  const [notes, setNotes] = useState('');
+  const create = useCreateConjunto();
+
+  const submit = async () => {
+    if (!codigo.trim() || !name.trim()) {
+      toast.error('Código e nome são obrigatórios');
+      return;
+    }
+    try {
+      const res = await create.mutateAsync({
+        projectId,
+        codigo: codigo.trim(),
+        name: name.trim(),
+        label: label.trim() || null,
+        notes: notes.trim() || null,
+      });
+      toast.success(`Conjunto ${codigo} criado`);
+      onCreated?.(res.root_id, res.version_id);
+      setCodigo(''); setName(''); setLabel(''); setNotes('');
+      onOpenChange(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao criar Conjunto');
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Novo Conjunto</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label>Código *</Label>
+            <Input value={codigo} onChange={(e) => setCodigo(e.target.value)} placeholder="ex.: CJ-001" />
+          </div>
+          <div>
+            <Label>Nome *</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome do produto/módulo" />
+          </div>
+          <div>
+            <Label>Rótulo da versão (opcional)</Label>
+            <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="ex.: Rev A" />
+          </div>
+          <div>
+            <Label>Notas (opcional)</Label>
+            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button onClick={submit} disabled={create.isPending}>
+            {create.isPending ? 'Criando…' : 'Criar Conjunto'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
