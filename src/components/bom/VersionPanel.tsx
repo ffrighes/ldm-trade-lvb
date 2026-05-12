@@ -6,9 +6,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Plus, Lock, ArchiveRestore } from 'lucide-react';
+import { Plus, Lock, ArchiveRestore, Trash2 } from 'lucide-react';
 import { usePermissions } from '@/hooks/usePermissions';
-import { useObsoleteBomVersion, useReleaseBomVersion } from '@/hooks/useBomTree';
+import { useDeleteBomVersion, useObsoleteBomVersion, useReleaseBomVersion } from '@/hooks/useBomTree';
 import type { BomVersion, BomVersionStatus } from '@/types/bom';
 import { toast } from 'sonner';
 import { NewVersionDialog } from './NewVersionDialog';
@@ -27,12 +27,14 @@ interface Props {
 }
 
 export function VersionPanel({ rootId, versions, selectedId, onSelect }: Props) {
-  const { canReleaseBomVersion, canEditBomDraft } = usePermissions();
+  const { canReleaseBomVersion, canEditBomDraft, canDeleteObsoleteVersion } = usePermissions();
   const [newOpen, setNewOpen] = useState(false);
   const release = useReleaseBomVersion();
   const obsolete = useObsoleteBomVersion();
+  const deleteVersion = useDeleteBomVersion();
 
   const current = versions.find((v) => v.id === selectedId);
+  const maxVersionNumber = Math.max(...versions.map((v) => v.version_number));
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
@@ -109,6 +111,47 @@ export function VersionPanel({ rootId, versions, selectedId, onSelect }: Props) 
           <ArchiveRestore className="h-3.5 w-3.5 mr-1" /> Marcar OBSOLETE
         </Button>
       )}
+
+      {current?.status === 'OBSOLETE' &&
+        current.version_number === maxVersionNumber &&
+        canDeleteObsoleteVersion && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                <Trash2 className="h-3.5 w-3.5 mr-1" /> Deletar versão
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Deletar versão OBSOLETE?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  A versão v{current.version_number} será removida permanentemente junto com todos
+                  os seus nós. Esta ação não pode ser desfeita.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={async () => {
+                    try {
+                      await deleteVersion.mutateAsync({ rootId, versionId: current.id });
+                      const remaining = versions.filter((v) => v.id !== current.id);
+                      if (remaining.length > 0) {
+                        onSelect(remaining[remaining.length - 1].id);
+                      }
+                      toast.success(`v${current.version_number} deletada`);
+                    } catch (e) {
+                      toast.error(e instanceof Error ? e.message : 'Erro ao deletar versão');
+                    }
+                  }}
+                >
+                  Deletar
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
 
       <NewVersionDialog
         open={newOpen}
