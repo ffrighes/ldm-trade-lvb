@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   DndContext,
   PointerSensor,
@@ -58,6 +58,17 @@ export function BomTreeView({ versionId, readOnly, search = '' }: Props) {
   const move = useMoveBomNode();
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!tree) return;
+    const ids = new Set<string>();
+    const collect = (n: BomTreeNode) => {
+      if (n.children.length > 0) { ids.add(n.id); n.children.forEach(collect); }
+    };
+    collect(tree);
+    setExpanded(ids);
+  }, [tree?.id]);
+
   const [showCumulative, setShowCumulative] = useState(false);
   const [addState, setAddState] = useState<{ parentId: string; defaultTab: 'item' | 'subconjunto' } | null>(null);
   const [editNode, setEditNode] = useState<BomTreeNode | null>(null);
