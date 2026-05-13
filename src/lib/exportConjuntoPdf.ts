@@ -63,6 +63,7 @@ interface ItemRow {
   erp: string;
   unidade: string;
   quantidade: number;
+  notes: string | null;
 }
 
 /** Collect all ITEM nodes from a subtree. baseCumulative normalises quantities (e.g. qty per subconjunto unit). */
@@ -82,12 +83,35 @@ function collectItems(
       erp: mat?.erp ?? '',
       unidade: mat?.unidade ?? '',
       quantidade: node.cumulativeQuantity / baseCumulative,
+      notes: node.notes ?? null,
     });
   }
   for (const child of node.children) {
     items.push(...collectItems(child, baseCumulative, matMap));
   }
   return items;
+}
+
+/** Collect only direct ITEM children of a node (not recursive into subconjuntos). */
+function collectDirectItems(
+  node: BomTreeNode,
+  matMap: Map<string, MaterialLite>,
+): ItemRow[] {
+  return node.children
+    .filter((c) => c.node_type === 'ITEM')
+    .map((c) => {
+      const mat = c.material_id ? matMap.get(c.material_id) : undefined;
+      return {
+        materialId: c.material_id,
+        tag: c.name ?? '',
+        descricao: mat?.descricao ?? c.name ?? '',
+        bitola: mat?.bitola ?? '',
+        erp: mat?.erp ?? '',
+        unidade: mat?.unidade ?? '',
+        quantidade: c.cumulativeQuantity,
+        notes: c.notes ?? null,
+      };
+    });
 }
 
 /**
@@ -157,18 +181,19 @@ const CONSOLIDATED_TABLE_STYLES = {
   margin: { top: MARGIN_TOP, bottom: MARGIN_BOTTOM, left: MARGIN_LEFT, right: MARGIN_RIGHT },
 };
 
-/** 7-column detail table: # | TAG | Descrição | Bitola | ERP | Qtd/unid. | Unidade */
+/** 8-column detail table: # | TAG | Descrição | Bitola | ERP | Qtd/unid. | Unidade | Notas */
 const DETAIL_TABLE_STYLES = {
   styles: { fontSize: 9, cellPadding: 3, overflow: 'linebreak' as const },
   headStyles: { fillColor: [40, 40, 40] as [number, number, number], textColor: 255 },
   columnStyles: {
-    0: { cellWidth: 22 },
-    1: { cellWidth: 56 },
+    0: { cellWidth: 20 },
+    1: { cellWidth: 48 },
     2: { cellWidth: 'auto' as const },
-    3: { cellWidth: 56 },
-    4: { cellWidth: 56 },
-    5: { cellWidth: 48, halign: 'right' as const },
-    6: { cellWidth: 40 },
+    3: { cellWidth: 50 },
+    4: { cellWidth: 50 },
+    5: { cellWidth: 44, halign: 'right' as const },
+    6: { cellWidth: 38 },
+    7: { cellWidth: 85 },
   },
   margin: { top: MARGIN_TOP, bottom: MARGIN_BOTTOM, left: MARGIN_LEFT, right: MARGIN_RIGHT },
 };
@@ -181,6 +206,7 @@ function renderConsolidatedPage(
   subtitle: string,
   items: ItemRow[],
   generatedAt: string,
+  versionNotes?: string | null,
 ) {
   const consolidated = consolidateItems(items);
   const body = consolidated.map((r) => [
@@ -191,27 +217,48 @@ function renderConsolidatedPage(
     r.unidade || '—',
   ]);
 
+  const pageWidth = doc.internal.pageSize.getWidth();
+  let y = MARGIN_TOP;
+
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0);
-  doc.text(label, MARGIN_LEFT, MARGIN_TOP);
+  doc.text(label, MARGIN_LEFT, y);
+  y += 16;
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.text(subtitle, MARGIN_LEFT, MARGIN_TOP + 16);
+  doc.text(subtitle, MARGIN_LEFT, y);
+  y += 14;
+
+  if (versionNotes) {
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(80);
+    const noteLines = doc.splitTextToSize(
+      `Notas: ${versionNotes}`,
+      pageWidth - MARGIN_LEFT - MARGIN_RIGHT,
+    );
+    doc.text(noteLines, MARGIN_LEFT, y);
+    y += (noteLines as string[]).length * 12 + 4;
+    doc.setTextColor(0);
+  }
+
+  y += 4;
 
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
-  doc.text('Lista Consolidada de Itens', MARGIN_LEFT, MARGIN_TOP + 34);
+  doc.text('Lista Consolidada de Itens', MARGIN_LEFT, y);
+  y += 12;
 
   if (body.length === 0) {
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.text('Nenhum item neste conjunto.', MARGIN_LEFT, MARGIN_TOP + 52);
+    doc.text('Nenhum item neste conjunto.', MARGIN_LEFT, y + 6);
     drawHeaderFooter(doc, generatedAt);
   } else {
     autoTable(doc, {
-      startY: MARGIN_TOP + 46,
+      startY: y + 6,
       head: [['Descrição', 'Bitola', 'ERP', 'Quantidade', 'Unidade']],
       body,
       ...CONSOLIDATED_TABLE_STYLES,
@@ -232,11 +279,13 @@ function renderSubconjuntoPage(
   doc.addPage();
   drawHeaderFooter(doc, generatedAt);
 
+  let y = MARGIN_TOP;
+
   // Breadcrumb
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100);
-  doc.text(breadcrumb.join(' › '), MARGIN_LEFT, MARGIN_TOP - 14, {
+  doc.text(breadcrumb.join(' › '), MARGIN_LEFT, y - 14, {
     maxWidth: pageWidth - MARGIN_LEFT - MARGIN_RIGHT,
   });
   doc.setTextColor(0);
@@ -244,22 +293,40 @@ function renderSubconjuntoPage(
   // Title
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text(sub.name ?? '', MARGIN_LEFT, MARGIN_TOP);
+  doc.text(sub.name ?? '', MARGIN_LEFT, y);
+  y += 14;
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.text(
     `Quantidade no conjunto: ${formatQty(sub.cumulativeQuantity)}`,
     MARGIN_LEFT,
-    MARGIN_TOP + 14,
+    y,
   );
+  y += 12;
 
-  // Items — individual rows with TAG (no consolidation)
+  // Subconjunto notes
+  if (sub.notes) {
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(80);
+    const noteLines = doc.splitTextToSize(
+      `Notas: ${sub.notes}`,
+      pageWidth - MARGIN_LEFT - MARGIN_RIGHT,
+    );
+    doc.text(noteLines, MARGIN_LEFT, y);
+    y += (noteLines as string[]).length * 12 + 2;
+    doc.setTextColor(0);
+  }
+
+  y += 4;
+
+  // Items — individual rows with TAG and Notas (no consolidation)
   const items = collectItems(sub, sub.cumulativeQuantity, matMap);
 
   if (items.length === 0) {
     doc.setFontSize(10);
-    doc.text('Nenhum item neste subconjunto.', MARGIN_LEFT, MARGIN_TOP + 32);
+    doc.text('Nenhum item neste subconjunto.', MARGIN_LEFT, y);
     return;
   }
 
@@ -271,12 +338,13 @@ function renderSubconjuntoPage(
     r.erp || '—',
     formatQty(r.quantidade),
     r.unidade || '—',
+    r.notes || '',
   ]);
 
   let pageIdx = 0;
   autoTable(doc, {
-    startY: MARGIN_TOP + 26,
-    head: [['#', 'TAG', 'Descrição', 'Bitola', 'ERP', 'Qtd/unid.', 'Unidade']],
+    startY: y,
+    head: [['#', 'TAG', 'Descrição', 'Bitola', 'ERP', 'Qtd/unid.', 'Unidade', 'Notas']],
     body,
     ...DETAIL_TABLE_STYLES,
     showHead: 'everyPage',
@@ -296,7 +364,104 @@ function renderSubconjuntoPage(
   });
 }
 
-/** Recursively render a child BomRoot section: consolidated page → subconjunto pages → nested children. */
+/**
+ * Render the section page for a child BomRoot.
+ * Shows the child label, version notes, and direct items (with TAG + Notas).
+ * Does NOT consolidate — only the top-level parent list consolidates.
+ */
+function renderChildRootPage(
+  doc: jsPDF,
+  child: ExportChildData,
+  matMap: Map<string, MaterialLite>,
+  generatedAt: string,
+) {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const childLabel = `${child.root.codigo} — ${child.root.name}`;
+  const childVersionLabel = child.version.label
+    ? `v${child.version.version_number} — ${child.version.label}`
+    : `v${child.version.version_number}`;
+
+  doc.addPage();
+  drawHeaderFooter(doc, generatedAt);
+
+  let y = MARGIN_TOP;
+
+  // Breadcrumb
+  if (child.breadcrumb.length > 0) {
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100);
+    doc.text(child.breadcrumb.join(' › '), MARGIN_LEFT, y - 14, {
+      maxWidth: pageWidth - MARGIN_LEFT - MARGIN_RIGHT,
+    });
+    doc.setTextColor(0);
+  }
+
+  // Title
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text(childLabel, MARGIN_LEFT, y);
+  y += 16;
+
+  // Version info
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text(
+    `Versão: ${childVersionLabel}  |  Status: ${child.version.status}`,
+    MARGIN_LEFT,
+    y,
+  );
+  y += 14;
+
+  // Version notes
+  if (child.version.notes) {
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(80);
+    const noteLines = doc.splitTextToSize(
+      `Notas: ${child.version.notes}`,
+      pageWidth - MARGIN_LEFT - MARGIN_RIGHT,
+    );
+    doc.text(noteLines, MARGIN_LEFT, y);
+    y += (noteLines as string[]).length * 12 + 4;
+    doc.setTextColor(0);
+  }
+
+  y += 4;
+
+  // Direct ITEM children (not in any subconjunto)
+  const directItems = collectDirectItems(child.tree, matMap);
+
+  if (directItems.length === 0) {
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(120);
+    doc.text('(sem itens diretos — ver subconjuntos)', MARGIN_LEFT, y);
+    doc.setTextColor(0);
+    return;
+  }
+
+  const body = directItems.map((r, idx) => [
+    String(idx + 1),
+    r.tag || '—',
+    r.descricao,
+    r.bitola || '—',
+    r.erp || '—',
+    formatQty(r.quantidade),
+    r.unidade || '—',
+    r.notes || '',
+  ]);
+
+  autoTable(doc, {
+    startY: y,
+    head: [['#', 'TAG', 'Descrição', 'Bitola', 'ERP', 'Qtd/unid.', 'Unidade', 'Notas']],
+    body,
+    ...DETAIL_TABLE_STYLES,
+    didDrawPage: () => drawHeaderFooter(doc, generatedAt),
+  });
+}
+
+/** Recursively render a child BomRoot section: header page (with TAG/Notas) → subconjunto pages → nested children. */
 function renderChildSection(
   doc: jsPDF,
   child: ExportChildData,
@@ -304,30 +469,13 @@ function renderChildSection(
   generatedAt: string,
 ) {
   const childLabel = `${child.root.codigo} — ${child.root.name}`;
-  const childVersionLabel = child.version.label
-    ? `v${child.version.version_number} — ${child.version.label}`
-    : `v${child.version.version_number}`;
-  const childSubtitle = `Versão: ${childVersionLabel}  |  Status: ${child.version.status}`;
+  const childBreadcrumb = [...child.breadcrumb, childLabel];
 
-  // Consolidated page for this child root (includes all descendant BomRoot items)
-  doc.addPage();
-  drawHeaderFooter(doc, generatedAt);
+  // Header page with direct items (TAG + Notas) — no consolidation for child lists
+  renderChildRootPage(doc, child, matMap, generatedAt);
 
-  const pageWidth = doc.internal.pageSize.getWidth();
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(100);
-  doc.text(child.breadcrumb.join(' › '), MARGIN_LEFT, MARGIN_TOP - 14, {
-    maxWidth: pageWidth - MARGIN_LEFT - MARGIN_RIGHT,
-  });
-  doc.setTextColor(0);
-
-  const allChildItems = collectAllItems(child.tree, matMap, child.children);
-  renderConsolidatedPage(doc, childLabel, childSubtitle, allChildItems, generatedAt);
-
-  // Per-subconjunto pages within this child root's own BOM tree (individual items with TAG)
-  const childRootBreadcrumb = [...child.breadcrumb, childLabel];
-  for (const { node: sub, breadcrumb } of collectAllSubconjuntos(child.tree, childRootBreadcrumb)) {
+  // Per-subconjunto pages within this child root's own BOM tree (individual items with TAG + Notas)
+  for (const { node: sub, breadcrumb } of collectAllSubconjuntos(child.tree, childBreadcrumb)) {
     renderSubconjuntoPage(doc, sub, breadcrumb, matMap, generatedAt);
   }
 
@@ -356,15 +504,15 @@ export function exportConjuntoPdf(
 
   // ---- Page 1: consolidated list (own tree + all descendant child BomRoots) ----
   const allItems = collectAllItems(tree, matMap, childConjuntos);
-  renderConsolidatedPage(doc, rootLabel, subtitle, allItems, generatedAt);
+  renderConsolidatedPage(doc, rootLabel, subtitle, allItems, generatedAt, version.notes);
 
-  // ---- Per-subconjunto pages for root's own BOM tree (individual items with TAG) ----
+  // ---- Per-subconjunto pages for root's own BOM tree (individual items with TAG + Notas) ----
   const rootBreadcrumb = [rootLabel];
   for (const { node: sub, breadcrumb } of collectAllSubconjuntos(tree, rootBreadcrumb)) {
     renderSubconjuntoPage(doc, sub, breadcrumb, matMap, generatedAt);
   }
 
-  // ---- Child BomRoot sections (recursive) ----
+  // ---- Child BomRoot sections (no consolidation — only parent consolidates) ----
   for (const child of childConjuntos) {
     renderChildSection(doc, child, matMap, generatedAt);
   }
