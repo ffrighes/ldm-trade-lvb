@@ -57,22 +57,7 @@ export type Database = {
           root_id?: string | null
           version_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "bom_audit_root_id_fkey"
-            columns: ["root_id"]
-            isOneToOne: false
-            referencedRelation: "bom_root"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "bom_audit_version_id_fkey"
-            columns: ["version_id"]
-            isOneToOne: false
-            referencedRelation: "bom_version"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       bom_comments: {
         Row: {
@@ -222,6 +207,7 @@ export type Database = {
           created_by: string | null
           id: string
           name: string
+          parent_id: string | null
           project_id: string
           updated_at: string
         }
@@ -232,6 +218,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           name: string
+          parent_id?: string | null
           project_id: string
           updated_at?: string
         }
@@ -242,6 +229,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           name?: string
+          parent_id?: string | null
           project_id?: string
           updated_at?: string
         }
@@ -249,6 +237,13 @@ export type Database = {
           {
             foreignKeyName: "bom_root_cloned_from_root_id_fkey"
             columns: ["cloned_from_root_id"]
+            isOneToOne: false
+            referencedRelation: "bom_root"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bom_root_parent_id_fkey"
+            columns: ["parent_id"]
             isOneToOne: false
             referencedRelation: "bom_root"
             referencedColumns: ["id"]
@@ -766,6 +761,12 @@ export type Database = {
           quantity_b: number
         }[]
       }
+      bom_drop_obsolete_version: {
+        Args: { p_version_id: string }
+        Returns: Json
+      }
+      bom_drop_root: { Args: { p_root_id: string }; Returns: Json }
+      bom_drop_root_cascade: { Args: { p_root_id: string }; Returns: undefined }
       bom_duplicate_subtree: { Args: { p_node_id: string }; Returns: string }
       bom_move_node: {
         Args: {
@@ -793,17 +794,43 @@ export type Database = {
         Returns: undefined
       }
       bom_remove_subtree: { Args: { p_node_id: string }; Returns: undefined }
-      bom_update_node: {
-        Args: {
-          p_clear_notes?: boolean
-          p_name?: string
-          p_node_id: string
-          p_notes?: string
-          p_position?: number
-          p_quantity?: number
-        }
+      bom_revert_version_to_draft: {
+        Args: { p_version_id: string }
+        Returns: Json
+      }
+      bom_root_set_parent: {
+        Args: { p_parent_id: string; p_root_id: string }
         Returns: undefined
       }
+      bom_root_would_cycle: {
+        Args: { p_new_parent: string; p_root_id: string }
+        Returns: boolean
+      }
+      bom_update_node:
+        | {
+            Args: {
+              p_clear_notes?: boolean
+              p_name?: string
+              p_node_id: string
+              p_notes?: string
+              p_position?: number
+              p_quantity?: number
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_clear_name?: boolean
+              p_clear_notes?: boolean
+              p_material_id?: string
+              p_name?: string
+              p_node_id: string
+              p_notes?: string
+              p_position?: number
+              p_quantity?: number
+            }
+            Returns: undefined
+          }
       get_solicitacoes_kpis: {
         Args: {
           p_from?: string
