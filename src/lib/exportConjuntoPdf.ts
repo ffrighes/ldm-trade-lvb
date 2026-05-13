@@ -73,6 +73,25 @@ function collectItems(
   return items;
 }
 
+interface SubconjuntoEntry {
+  node: BomTreeNode;
+  breadcrumb: string[];
+}
+
+function collectAllSubconjuntos(
+  node: BomTreeNode,
+  breadcrumb: string[],
+): SubconjuntoEntry[] {
+  const result: SubconjuntoEntry[] = [];
+  for (const child of node.children) {
+    if (child.node_type === 'SUBCONJUNTO') {
+      result.push({ node: child, breadcrumb });
+      result.push(...collectAllSubconjuntos(child, [...breadcrumb, child.name ?? '']));
+    }
+  }
+  return result;
+}
+
 function consolidateItems(rows: ItemRow[]): ItemRow[] {
   const map = new Map<string, ItemRow>();
   for (const r of rows) {
@@ -158,17 +177,22 @@ export function exportConjuntoPdf(
     });
   }
 
-  // ---- Per-subconjunto pages ----
-  const subconjuntos = tree.children.filter((c) => c.node_type === 'SUBCONJUNTO');
+  // ---- Per-subconjunto pages (all levels, depth-first) ----
+  const rootBreadcrumb = [`${root.codigo} — ${root.name}`];
+  const allSubconjuntos = collectAllSubconjuntos(tree, rootBreadcrumb);
 
-  for (const sub of subconjuntos) {
+  for (const { node: sub, breadcrumb } of allSubconjuntos) {
     doc.addPage();
     drawHeaderFooter(doc, generatedAt);
 
-    doc.setFontSize(9);
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const breadcrumbText = breadcrumb.join(' › ');
+    doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(100);
-    doc.text(`${root.codigo} — ${root.name}`, MARGIN_LEFT, MARGIN_TOP - 14);
+    doc.text(breadcrumbText, MARGIN_LEFT, MARGIN_TOP - 14, {
+      maxWidth: pageWidth - MARGIN_LEFT - MARGIN_RIGHT,
+    });
     doc.setTextColor(0);
 
     doc.setFontSize(14);
