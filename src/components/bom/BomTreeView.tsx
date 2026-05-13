@@ -29,7 +29,7 @@ import {
 } from '@/hooks/useBomTree';
 import type { BomTreeNode } from '@/types/bom';
 import { BomNodeIcon, bomNodeTypeLabel } from './BomNodeIcon';
-import { AddNodeDialog } from './AddNodeDialog';
+import { CreateConjuntoDialog } from './CreateConjuntoDialog';
 import { EditNodeDialog } from './EditNodeDialog';
 import { SEM_CATEGORIA_LABEL } from '@/lib/categorias';
 import { useCategorias } from '@/hooks/useCategorias';
@@ -46,11 +46,13 @@ interface MaterialLite {
 
 interface Props {
   versionId: string;
+  projectId: string;
+  rootId: string;
   readOnly: boolean;
   search?: string;
 }
 
-export function BomTreeView({ versionId, readOnly, search = '' }: Props) {
+export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '' }: Props) {
   const { data: nodes = [], isLoading } = useBomNodes(versionId);
   const { data: materials = [] } = useMaterials();
   const { data: categorias = [] } = useCategorias();
@@ -70,7 +72,7 @@ export function BomTreeView({ versionId, readOnly, search = '' }: Props) {
   }, [tree?.id]);
 
   const [showCumulative, setShowCumulative] = useState(false);
-  const [addState, setAddState] = useState<{ parentId: string; defaultTab: 'item' | 'subconjunto' } | null>(null);
+  const [openChildConjunto, setOpenChildConjunto] = useState(false);
   const [editNode, setEditNode] = useState<BomTreeNode | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<BomTreeNode | null>(null);
   const [editingItems, setEditingItems] = useState<Set<string>>(new Set());
@@ -196,7 +198,7 @@ export function BomTreeView({ versionId, readOnly, search = '' }: Props) {
               if (tab === 'item') {
                 addDraft(pid);
               } else {
-                setAddState({ parentId: pid, defaultTab: tab });
+                setOpenChildConjunto(true);
               }
             }}
             onEdit={(n) => setEditNode(n)}
@@ -209,15 +211,12 @@ export function BomTreeView({ versionId, readOnly, search = '' }: Props) {
         </div>
       </DndContext>
 
-      {addState && (
-        <AddNodeDialog
-          open
-          onOpenChange={(o) => { if (!o) setAddState(null); }}
-          versionId={versionId}
-          parentId={addState.parentId}
-          defaultTab={addState.defaultTab}
-        />
-      )}
+      <CreateConjuntoDialog
+        open={openChildConjunto}
+        onOpenChange={setOpenChildConjunto}
+        projectId={projectId}
+        defaultParentId={rootId}
+      />
       <EditNodeDialog open={!!editNode} onOpenChange={(o) => { if (!o) setEditNode(null); }} node={editNode} />
       <DeleteConfirm node={confirmDelete} versionId={versionId} onClose={() => setConfirmDelete(null)} />
     </>
@@ -348,15 +347,17 @@ function NodeRow(props: RowProps) {
                 >
                   <Package className="h-3.5 w-3.5" />
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  title="Adicionar subconjunto"
-                  onClick={(e) => { e.stopPropagation(); onAdd(node.id, 'subconjunto'); }}
-                >
-                  <FolderPlus className="h-3.5 w-3.5" />
-                </Button>
+                {isConjunto && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    title="Adicionar Conjunto filho"
+                    onClick={(e) => { e.stopPropagation(); onAdd(node.id, 'subconjunto'); }}
+                  >
+                    <FolderPlus className="h-3.5 w-3.5" />
+                  </Button>
+                )}
               </>
             )}
             <DropdownMenu>
