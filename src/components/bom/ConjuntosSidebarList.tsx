@@ -98,6 +98,8 @@ export function ConjuntosSidebarList({ projectId }: Props) {
         codigo={editingRoot?.codigo ?? ''}
         currentName={editingRoot?.name ?? ''}
         isDraft={editingRootHasDraft}
+        currentParentId={editingRoot?.parent_id ?? null}
+        allRoots={roots}
       />
 
       <AlertDialog
