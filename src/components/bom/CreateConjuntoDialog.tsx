@@ -4,7 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useCreateConjunto } from '@/hooks/useBomTree';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useBomRoots, useCreateConjunto } from '@/hooks/useBomTree';
 import { toast } from 'sonner';
 
 interface Props {
@@ -17,9 +24,13 @@ interface Props {
 export function CreateConjuntoDialog({ open, onOpenChange, projectId, onCreated }: Props) {
   const [codigo, setCodigo] = useState('');
   const [name, setName] = useState('');
+  const [parentId, setParentId] = useState<string>('');
   const [label, setLabel] = useState('');
   const [notes, setNotes] = useState('');
   const create = useCreateConjunto();
+  const { data: roots = [] } = useBomRoots(projectId);
+
+  const reset = () => { setCodigo(''); setName(''); setParentId(''); setLabel(''); setNotes(''); };
 
   const submit = async () => {
     if (!codigo.trim() || !name.trim()) {
@@ -31,12 +42,13 @@ export function CreateConjuntoDialog({ open, onOpenChange, projectId, onCreated 
         projectId,
         codigo: codigo.trim(),
         name: name.trim(),
+        parentId: parentId || null,
         label: label.trim() || null,
         notes: notes.trim() || null,
       });
       toast.success(`Conjunto ${codigo} criado`);
       onCreated?.(res.root_id, res.version_id);
-      setCodigo(''); setName(''); setLabel(''); setNotes('');
+      reset();
       onOpenChange(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Erro ao criar Conjunto');
@@ -44,7 +56,7 @@ export function CreateConjuntoDialog({ open, onOpenChange, projectId, onCreated 
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) reset(); onOpenChange(o); }}>
       <DialogContent>
         <DialogHeader><DialogTitle>Novo Conjunto</DialogTitle></DialogHeader>
         <div className="space-y-3">
@@ -56,6 +68,25 @@ export function CreateConjuntoDialog({ open, onOpenChange, projectId, onCreated 
             <Label>Nome *</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome do produto/módulo" />
           </div>
+          {roots.length > 0 && (
+            <div>
+              <Label>Conjunto pai (opcional)</Label>
+              <Select value={parentId} onValueChange={setParentId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="— Nenhum (raiz) —" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">— Nenhum (raiz) —</SelectItem>
+                  {roots.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      <span className="font-mono text-xs mr-2">{r.codigo}</span>
+                      {r.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div>
             <Label>Rótulo da versão (opcional)</Label>
             <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="ex.: Rev A" />
@@ -66,7 +97,7 @@ export function CreateConjuntoDialog({ open, onOpenChange, projectId, onCreated 
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button variant="outline" onClick={() => { reset(); onOpenChange(false); }}>Cancelar</Button>
           <Button onClick={submit} disabled={create.isPending}>
             {create.isPending ? 'Criando…' : 'Criar Conjunto'}
           </Button>

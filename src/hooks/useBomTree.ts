@@ -5,6 +5,7 @@ import type {
   BomNode,
   BomNodeType,
   BomRoot,
+  BomRootTreeNode,
   BomTreeNode,
   BomVersion,
 } from '@/types/bom';
@@ -100,6 +101,41 @@ export function buildBomTree(nodes: BomNode[]): BomTreeNode | null {
   return build(roots[0], 1);
 }
 
+/** Build a tree from a flat bom_root list (ordered by codigo). */
+export function buildRootTree(roots: BomRoot[]): BomRootTreeNode[] {
+  const byParent = new Map<string | null, BomRoot[]>();
+  for (const r of roots) {
+    const arr = byParent.get(r.parent_id) ?? [];
+    arr.push(r);
+    byParent.set(r.parent_id, arr);
+  }
+
+  const build = (parentId: string | null, depth: number): BomRootTreeNode[] =>
+    (byParent.get(parentId) ?? []).map((r) => ({
+      ...r,
+      depth,
+      children: build(r.id, depth + 1),
+    }));
+
+  return build(null, 0);
+}
+
+/** Returns the set of IDs that are descendants of rootId (inclusive). */
+export function getDescendantIds(roots: BomRoot[], rootId: string): Set<string> {
+  const result = new Set<string>([rootId]);
+  const queue = [rootId];
+  while (queue.length) {
+    const parentId = queue.shift()!;
+    for (const r of roots) {
+      if (r.parent_id === parentId) {
+        result.add(r.id);
+        queue.push(r.id);
+      }
+    }
+  }
+  return result;
+}
+
 // ------------------------------------------------------------------ mutations
 
 function invalidateVersion(qc: ReturnType<typeof useQueryClient>, versionId: string) {
@@ -113,6 +149,7 @@ export function useCreateConjunto() {
       projectId: string;
       codigo: string;
       name: string;
+      parentId?: string | null;
       label?: string | null;
       notes?: string | null;
     }) => {
@@ -124,7 +161,16 @@ export function useCreateConjunto() {
         p_notes: args.notes ?? null,
       });
       if (error) throw error;
-      return (data?.[0] ?? data) as { root_id: string; version_id: string; root_node_id: string };
+      const result = (data?.[0] ?? data) as { root_id: string; version_id: string; root_node_id: string };
+      // Set parent after creation if provided (bom_create_conjunto doesn't accept parent_id yet)
+      if (args.parentId) {
+        const { error: pe } = await sb.rpc('bom_root_set_parent', {
+          p_root_id: result.root_id,
+          p_parent_id: args.parentId,
+        });
+        if (pe) throw pe;
+      }
+      return result;
     },
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: ['bom-roots', vars.projectId] });
@@ -330,7 +376,14 @@ export function useCloneBomRoot() {
 export function useUpdateBomRoot() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (args: { rootId: string; projectId: string; name: string; codigo?: string }) => {
+    mutationFn: async (args: {
+      rootId: string;
+      projectId: string;
+      name: string;
+      codigo?: string;
+      /** Pass undefined to leave parent unchanged; null to unset; a uuid to set. */
+      parentId?: string | null;
+    }) => {
       const client = supabase as unknown as {
         from: (t: string) => {
           update: (v: AnyRecord) => {
@@ -344,6 +397,43 @@ export function useUpdateBomRoot() {
         .from('bom_root')
         .update(payload)
         .eq('id', args.rootId);
+      if (error) throw error;
+
+      if (args.parentId !== undefined) {
+        const { error: pe } = await sb.rpc('bom_root_set_parent', {
+          p_root_id: args.rootId,
+          p_parent_id: args.parentId,
+        });
+        if (pe) throw pe;
+      }
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['bom-roots', vars.projectId] });
+    },
+  });
+}
+
+export function useSetBomRootParent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { rootId: string; projectId: string; parentId: string | null }) => {
+      const { error } = await sb.rpc('bom_root_set_parent', {
+        p_root_id: args.rootId,
+        p_parent_id: args.parentId,
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['bom-roots', vars.projectId] });
+    },
+  });
+}
+
+export function useDropBomRootCascade() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { rootId: string; projectId: string }) => {
+      const { error } = await sb.rpc('bom_drop_root_cascade', { p_root_id: args.rootId });
       if (error) throw error;
     },
     onSuccess: (_d, vars) => {
