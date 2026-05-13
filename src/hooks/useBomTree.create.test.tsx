@@ -18,6 +18,35 @@ const wrapper = ({ children }: { children: React.ReactNode }) => {
 beforeEach(() => rpc.mockReset());
 
 describe('product structure creation', () => {
+  it('useCreateConjunto with parentId nests the new Conjunto via bom_root_set_parent', async () => {
+    rpc.mockResolvedValueOnce({
+      data: [{ root_id: 'r2', version_id: 'v2', root_node_id: 'n2' }],
+      error: null,
+    });
+    rpc.mockResolvedValueOnce({ data: null, error: null });
+
+    const { result } = renderHook(() => useCreateConjunto(), { wrapper });
+    result.current.mutate({
+      projectId: 'p1',
+      codigo: 'CH-001.1',
+      name: 'Vigas',
+      parentId: 'parent-root',
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(rpc).toHaveBeenNthCalledWith(1, 'bom_create_conjunto', {
+      p_project_id: 'p1',
+      p_codigo: 'CH-001.1',
+      p_name: 'Vigas',
+      p_label: null,
+      p_notes: null,
+    });
+    expect(rpc).toHaveBeenNthCalledWith(2, 'bom_root_set_parent', {
+      p_root_id: 'r2',
+      p_parent_id: 'parent-root',
+    });
+  });
+
   it('useCreateConjunto calls bom_create_conjunto with the form payload', async () => {
     rpc.mockResolvedValueOnce({
       data: [{ root_id: 'r1', version_id: 'v1', root_node_id: 'n1' }],

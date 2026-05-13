@@ -158,8 +158,14 @@ export default function BomTreePage() {
           )}
         </CardHeader>
         <CardContent>
-          {currentVersion ? (
-            <BomTreeView versionId={currentVersion.id} readOnly={isReadOnly} search={search} />
+          {currentVersion && currentRoot ? (
+            <BomTreeView
+              versionId={currentVersion.id}
+              projectId={projetoId}
+              rootId={currentRoot.id}
+              readOnly={isReadOnly}
+              search={search}
+            />
           ) : currentRoot ? (
             <p className="text-muted-foreground py-6">Sem versões neste Conjunto.</p>
           ) : null}
