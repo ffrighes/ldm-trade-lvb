@@ -118,14 +118,12 @@ export default function BomTreePage() {
       if (!childTree) continue;
 
       const childLabel = `${childRoot.codigo} — ${childRoot.name}`;
-      result.push({ root: childRoot, version: bestVersion, tree: childTree, breadcrumb });
-
       const grandchildren = await fetchDescendantConjuntos(
         childRoot,
         allRoots,
         [...breadcrumb, childLabel],
       );
-      result.push(...grandchildren);
+      result.push({ root: childRoot, version: bestVersion, tree: childTree, breadcrumb, children: grandchildren });
     }
 
     return result;

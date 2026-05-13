@@ -9,6 +9,8 @@ export interface ExportChildData {
   tree: BomTreeNode;
   /** Labels of ancestor roots, from top-level root down to (but not including) this root. */
   breadcrumb: string[];
+  /** Nested child BomRoots of this root (used for recursive consolidated lists). */
+  children: ExportChildData[];
 }
 
 interface MaterialLite {
@@ -46,11 +48,16 @@ function drawHeaderFooter(doc: jsPDF, generatedAt: string) {
 
 function formatQty(n: number): string {
   const v = Number(n ?? 0);
+  if (isNaN(v)) return '—';
   return Number.isInteger(v) ? String(v) : v.toFixed(2);
 }
 
+// ---- Item row types ----
+
 interface ItemRow {
   materialId: string | null;
+  /** node.name — the TAG shown in the BOM view */
+  tag: string;
   descricao: string;
   bitola: string;
   erp: string;
@@ -58,6 +65,7 @@ interface ItemRow {
   quantidade: number;
 }
 
+/** Collect all ITEM nodes from a subtree. baseCumulative normalises quantities (e.g. qty per subconjunto unit). */
 function collectItems(
   node: BomTreeNode,
   baseCumulative: number,
@@ -68,6 +76,7 @@ function collectItems(
     const mat = node.material_id ? matMap.get(node.material_id) : undefined;
     items.push({
       materialId: node.material_id,
+      tag: node.name ?? '',
       descricao: mat?.descricao ?? node.name ?? '',
       bitola: mat?.bitola ?? '',
       erp: mat?.erp ?? '',
@@ -81,23 +90,21 @@ function collectItems(
   return items;
 }
 
-interface SubconjuntoEntry {
-  node: BomTreeNode;
-  breadcrumb: string[];
-}
-
-function collectAllSubconjuntos(
-  node: BomTreeNode,
-  breadcrumb: string[],
-): SubconjuntoEntry[] {
-  const result: SubconjuntoEntry[] = [];
-  for (const child of node.children) {
-    if (child.node_type === 'SUBCONJUNTO') {
-      result.push({ node: child, breadcrumb });
-      result.push(...collectAllSubconjuntos(child, [...breadcrumb, child.name ?? '']));
-    }
+/**
+ * Collect ALL items from a BOM tree AND from all nested child BomRoots (recursively).
+ * Child BomRoot quantities are treated as qty=1 relative to the parent root since
+ * no explicit quantity is stored for that relationship.
+ */
+function collectAllItems(
+  tree: BomTreeNode,
+  matMap: Map<string, MaterialLite>,
+  childRoots: ExportChildData[],
+): ItemRow[] {
+  const items = collectItems(tree, 1, matMap);
+  for (const child of childRoots) {
+    items.push(...collectAllItems(child.tree, matMap, child.children));
   }
-  return result;
+  return items;
 }
 
 function consolidateItems(rows: ItemRow[]): ItemRow[] {
@@ -116,7 +123,28 @@ function consolidateItems(rows: ItemRow[]): ItemRow[] {
   );
 }
 
-const TABLE_STYLES = {
+// ---- Subconjunto traversal ----
+
+interface SubconjuntoEntry {
+  node: BomTreeNode;
+  breadcrumb: string[];
+}
+
+function collectAllSubconjuntos(node: BomTreeNode, breadcrumb: string[]): SubconjuntoEntry[] {
+  const result: SubconjuntoEntry[] = [];
+  for (const child of node.children) {
+    if (child.node_type === 'SUBCONJUNTO') {
+      result.push({ node: child, breadcrumb });
+      result.push(...collectAllSubconjuntos(child, [...breadcrumb, child.name ?? '']));
+    }
+  }
+  return result;
+}
+
+// ---- Table style constants ----
+
+/** 5-column consolidated table: Descrição | Bitola | ERP | Quantidade | Unidade */
+const CONSOLIDATED_TABLE_STYLES = {
   styles: { fontSize: 9, cellPadding: 4, overflow: 'linebreak' as const },
   headStyles: { fillColor: [40, 40, 40] as [number, number, number], textColor: 255 },
   columnStyles: {
@@ -128,6 +156,188 @@ const TABLE_STYLES = {
   },
   margin: { top: MARGIN_TOP, bottom: MARGIN_BOTTOM, left: MARGIN_LEFT, right: MARGIN_RIGHT },
 };
+
+/** 7-column detail table: # | TAG | Descrição | Bitola | ERP | Qtd/unid. | Unidade */
+const DETAIL_TABLE_STYLES = {
+  styles: { fontSize: 9, cellPadding: 3, overflow: 'linebreak' as const },
+  headStyles: { fillColor: [40, 40, 40] as [number, number, number], textColor: 255 },
+  columnStyles: {
+    0: { cellWidth: 22 },
+    1: { cellWidth: 56 },
+    2: { cellWidth: 'auto' as const },
+    3: { cellWidth: 56 },
+    4: { cellWidth: 56 },
+    5: { cellWidth: 48, halign: 'right' as const },
+    6: { cellWidth: 40 },
+  },
+  margin: { top: MARGIN_TOP, bottom: MARGIN_BOTTOM, left: MARGIN_LEFT, right: MARGIN_RIGHT },
+};
+
+// ---- Page rendering helpers ----
+
+function renderConsolidatedPage(
+  doc: jsPDF,
+  label: string,
+  subtitle: string,
+  items: ItemRow[],
+  generatedAt: string,
+) {
+  const consolidated = consolidateItems(items);
+  const body = consolidated.map((r) => [
+    r.descricao,
+    r.bitola || '—',
+    r.erp || '—',
+    formatQty(r.quantidade),
+    r.unidade || '—',
+  ]);
+
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0);
+  doc.text(label, MARGIN_LEFT, MARGIN_TOP);
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text(subtitle, MARGIN_LEFT, MARGIN_TOP + 16);
+
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Lista Consolidada de Itens', MARGIN_LEFT, MARGIN_TOP + 34);
+
+  if (body.length === 0) {
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Nenhum item neste conjunto.', MARGIN_LEFT, MARGIN_TOP + 52);
+    drawHeaderFooter(doc, generatedAt);
+  } else {
+    autoTable(doc, {
+      startY: MARGIN_TOP + 46,
+      head: [['Descrição', 'Bitola', 'ERP', 'Quantidade', 'Unidade']],
+      body,
+      ...CONSOLIDATED_TABLE_STYLES,
+      didDrawPage: () => drawHeaderFooter(doc, generatedAt),
+    });
+  }
+}
+
+function renderSubconjuntoPage(
+  doc: jsPDF,
+  sub: BomTreeNode,
+  breadcrumb: string[],
+  matMap: Map<string, MaterialLite>,
+  generatedAt: string,
+) {
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  doc.addPage();
+  drawHeaderFooter(doc, generatedAt);
+
+  // Breadcrumb
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100);
+  doc.text(breadcrumb.join(' › '), MARGIN_LEFT, MARGIN_TOP - 14, {
+    maxWidth: pageWidth - MARGIN_LEFT - MARGIN_RIGHT,
+  });
+  doc.setTextColor(0);
+
+  // Title
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text(sub.name ?? '', MARGIN_LEFT, MARGIN_TOP);
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text(
+    `Quantidade no conjunto: ${formatQty(sub.cumulativeQuantity)}`,
+    MARGIN_LEFT,
+    MARGIN_TOP + 14,
+  );
+
+  // Items — individual rows with TAG (no consolidation)
+  const items = collectItems(sub, sub.cumulativeQuantity, matMap);
+
+  if (items.length === 0) {
+    doc.setFontSize(10);
+    doc.text('Nenhum item neste subconjunto.', MARGIN_LEFT, MARGIN_TOP + 32);
+    return;
+  }
+
+  const body = items.map((r, idx) => [
+    String(idx + 1),
+    r.tag || '—',
+    r.descricao,
+    r.bitola || '—',
+    r.erp || '—',
+    formatQty(r.quantidade),
+    r.unidade || '—',
+  ]);
+
+  let pageIdx = 0;
+  autoTable(doc, {
+    startY: MARGIN_TOP + 26,
+    head: [['#', 'TAG', 'Descrição', 'Bitola', 'ERP', 'Qtd/unid.', 'Unidade']],
+    body,
+    ...DETAIL_TABLE_STYLES,
+    showHead: 'everyPage',
+    willDrawPage: () => {
+      if (pageIdx > 0) {
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'italic');
+        doc.setTextColor(80);
+        doc.text(`${sub.name ?? ''} — continuação`, MARGIN_LEFT, MARGIN_TOP - 14);
+        doc.setTextColor(0);
+      }
+    },
+    didDrawPage: () => {
+      drawHeaderFooter(doc, generatedAt);
+      pageIdx += 1;
+    },
+  });
+}
+
+/** Recursively render a child BomRoot section: consolidated page → subconjunto pages → nested children. */
+function renderChildSection(
+  doc: jsPDF,
+  child: ExportChildData,
+  matMap: Map<string, MaterialLite>,
+  generatedAt: string,
+) {
+  const childLabel = `${child.root.codigo} — ${child.root.name}`;
+  const childVersionLabel = child.version.label
+    ? `v${child.version.version_number} — ${child.version.label}`
+    : `v${child.version.version_number}`;
+  const childSubtitle = `Versão: ${childVersionLabel}  |  Status: ${child.version.status}`;
+
+  // Consolidated page for this child root (includes all descendant BomRoot items)
+  doc.addPage();
+  drawHeaderFooter(doc, generatedAt);
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100);
+  doc.text(child.breadcrumb.join(' › '), MARGIN_LEFT, MARGIN_TOP - 14, {
+    maxWidth: pageWidth - MARGIN_LEFT - MARGIN_RIGHT,
+  });
+  doc.setTextColor(0);
+
+  const allChildItems = collectAllItems(child.tree, matMap, child.children);
+  renderConsolidatedPage(doc, childLabel, childSubtitle, allChildItems, generatedAt);
+
+  // Per-subconjunto pages within this child root's own BOM tree (individual items with TAG)
+  const childRootBreadcrumb = [...child.breadcrumb, childLabel];
+  for (const { node: sub, breadcrumb } of collectAllSubconjuntos(child.tree, childRootBreadcrumb)) {
+    renderSubconjuntoPage(doc, sub, breadcrumb, matMap, generatedAt);
+  }
+
+  // Recurse into nested child BomRoots
+  for (const grandchild of child.children) {
+    renderChildSection(doc, grandchild, matMap, generatedAt);
+  }
+}
+
+// ---- Main export function ----
 
 export function exportConjuntoPdf(
   root: BomRoot,
@@ -141,250 +351,22 @@ export function exportConjuntoPdf(
   const versionLabel = version.label
     ? `v${version.version_number} — ${version.label}`
     : `v${version.version_number}`;
+  const subtitle = `Versão: ${versionLabel}  |  Status: ${version.status}`;
+  const rootLabel = `${root.codigo} — ${root.name}`;
 
-  // ---- Page 1: consolidated list ----
-  const allItems = collectItems(tree, 1, matMap);
-  const consolidated = consolidateItems(allItems);
+  // ---- Page 1: consolidated list (own tree + all descendant child BomRoots) ----
+  const allItems = collectAllItems(tree, matMap, childConjuntos);
+  renderConsolidatedPage(doc, rootLabel, subtitle, allItems, generatedAt);
 
-  doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0);
-  doc.text(`${root.codigo} — ${root.name}`, MARGIN_LEFT, MARGIN_TOP);
-
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.text(
-    `Versão: ${versionLabel}  |  Status: ${version.status}`,
-    MARGIN_LEFT,
-    MARGIN_TOP + 16,
-  );
-
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Lista Consolidada de Itens', MARGIN_LEFT, MARGIN_TOP + 34);
-
-  const consolidatedBody = consolidated.map((r) => [
-    r.descricao,
-    r.bitola,
-    r.erp,
-    formatQty(r.quantidade),
-    r.unidade,
-  ]);
-
-  if (consolidatedBody.length === 0) {
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Nenhum item neste conjunto.', MARGIN_LEFT, MARGIN_TOP + 52);
-    drawHeaderFooter(doc, generatedAt);
-  } else {
-    autoTable(doc, {
-      startY: MARGIN_TOP + 46,
-      head: [['Descrição', 'Bitola', 'ERP', 'Quantidade', 'Unidade']],
-      body: consolidatedBody,
-      ...TABLE_STYLES,
-      didDrawPage: () => drawHeaderFooter(doc, generatedAt),
-    });
+  // ---- Per-subconjunto pages for root's own BOM tree (individual items with TAG) ----
+  const rootBreadcrumb = [rootLabel];
+  for (const { node: sub, breadcrumb } of collectAllSubconjuntos(tree, rootBreadcrumb)) {
+    renderSubconjuntoPage(doc, sub, breadcrumb, matMap, generatedAt);
   }
 
-  // ---- Per-subconjunto pages (all levels, depth-first) ----
-  const rootBreadcrumb = [`${root.codigo} — ${root.name}`];
-  const allSubconjuntos = collectAllSubconjuntos(tree, rootBreadcrumb);
-
-  for (const { node: sub, breadcrumb } of allSubconjuntos) {
-    doc.addPage();
-    drawHeaderFooter(doc, generatedAt);
-
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const breadcrumbText = breadcrumb.join(' › ');
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100);
-    doc.text(breadcrumbText, MARGIN_LEFT, MARGIN_TOP - 14, {
-      maxWidth: pageWidth - MARGIN_LEFT - MARGIN_RIGHT,
-    });
-    doc.setTextColor(0);
-
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text(sub.name ?? '', MARGIN_LEFT, MARGIN_TOP);
-
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.text(
-      `Quantidade no conjunto: ${formatQty(sub.cumulativeQuantity)}`,
-      MARGIN_LEFT,
-      MARGIN_TOP + 14,
-    );
-
-    const subItems = collectItems(sub, sub.cumulativeQuantity, matMap);
-    const consolidatedSub = consolidateItems(subItems);
-
-    if (consolidatedSub.length === 0) {
-      doc.setFontSize(10);
-      doc.text('Nenhum item neste subconjunto.', MARGIN_LEFT, MARGIN_TOP + 32);
-      continue;
-    }
-
-    const subBody = consolidatedSub.map((r) => [
-      r.descricao,
-      r.bitola,
-      r.erp,
-      formatQty(r.quantidade),
-      r.unidade,
-    ]);
-
-    let pageIdx = 0;
-    autoTable(doc, {
-      startY: MARGIN_TOP + 26,
-      head: [['Descrição', 'Bitola', 'ERP', 'Qtd/unid.', 'Unidade']],
-      body: subBody,
-      ...TABLE_STYLES,
-      showHead: 'everyPage',
-      willDrawPage: () => {
-        if (pageIdx > 0) {
-          doc.setFontSize(10);
-          doc.setFont('helvetica', 'italic');
-          doc.setTextColor(80);
-          doc.text(`${sub.name ?? ''} — continuação`, MARGIN_LEFT, MARGIN_TOP - 14);
-          doc.setTextColor(0);
-        }
-      },
-      didDrawPage: () => {
-        drawHeaderFooter(doc, generatedAt);
-        pageIdx += 1;
-      },
-    });
-  }
-
-  // ---- Child BomRoot sections (each child conjunto = its own consolidated page + subconjunto pages) ----
+  // ---- Child BomRoot sections (recursive) ----
   for (const child of childConjuntos) {
-    const childLabel = `${child.root.codigo} — ${child.root.name}`;
-    const childVersionLabel = child.version.label
-      ? `v${child.version.version_number} — ${child.version.label}`
-      : `v${child.version.version_number}`;
-
-    // Consolidated page for this child root
-    doc.addPage();
-    drawHeaderFooter(doc, generatedAt);
-
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const parentCrumb = child.breadcrumb.join(' › ');
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100);
-    doc.text(parentCrumb, MARGIN_LEFT, MARGIN_TOP - 14, {
-      maxWidth: pageWidth - MARGIN_LEFT - MARGIN_RIGHT,
-    });
-    doc.setTextColor(0);
-
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text(childLabel, MARGIN_LEFT, MARGIN_TOP);
-
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.text(
-      `Versão: ${childVersionLabel}  |  Status: ${child.version.status}`,
-      MARGIN_LEFT,
-      MARGIN_TOP + 16,
-    );
-
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Lista Consolidada de Itens', MARGIN_LEFT, MARGIN_TOP + 34);
-
-    const childAllItems = collectItems(child.tree, 1, matMap);
-    const childConsolidated = consolidateItems(childAllItems);
-    const childConsolidatedBody = childConsolidated.map((r) => [
-      r.descricao,
-      r.bitola,
-      r.erp,
-      formatQty(r.quantidade),
-      r.unidade,
-    ]);
-
-    if (childConsolidatedBody.length === 0) {
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.text('Nenhum item neste conjunto.', MARGIN_LEFT, MARGIN_TOP + 52);
-      drawHeaderFooter(doc, generatedAt);
-    } else {
-      autoTable(doc, {
-        startY: MARGIN_TOP + 46,
-        head: [['Descrição', 'Bitola', 'ERP', 'Quantidade', 'Unidade']],
-        body: childConsolidatedBody,
-        ...TABLE_STYLES,
-        didDrawPage: () => drawHeaderFooter(doc, generatedAt),
-      });
-    }
-
-    // SUBCONJUNTO pages within this child root's tree
-    const childRootBreadcrumb = [...child.breadcrumb, childLabel];
-    const childSubconjuntos = collectAllSubconjuntos(child.tree, childRootBreadcrumb);
-    for (const { node: sub, breadcrumb } of childSubconjuntos) {
-      doc.addPage();
-      drawHeaderFooter(doc, generatedAt);
-
-      const subBreadcrumbText = breadcrumb.join(' › ');
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(100);
-      doc.text(subBreadcrumbText, MARGIN_LEFT, MARGIN_TOP - 14, {
-        maxWidth: pageWidth - MARGIN_LEFT - MARGIN_RIGHT,
-      });
-      doc.setTextColor(0);
-
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.text(sub.name ?? '', MARGIN_LEFT, MARGIN_TOP);
-
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'normal');
-      doc.text(
-        `Quantidade no conjunto: ${formatQty(sub.cumulativeQuantity)}`,
-        MARGIN_LEFT,
-        MARGIN_TOP + 14,
-      );
-
-      const subItems = collectItems(sub, sub.cumulativeQuantity, matMap);
-      const consolidatedSub = consolidateItems(subItems);
-
-      if (consolidatedSub.length === 0) {
-        doc.setFontSize(10);
-        doc.text('Nenhum item neste subconjunto.', MARGIN_LEFT, MARGIN_TOP + 32);
-        continue;
-      }
-
-      const subBody = consolidatedSub.map((r) => [
-        r.descricao,
-        r.bitola,
-        r.erp,
-        formatQty(r.quantidade),
-        r.unidade,
-      ]);
-
-      let subPageIdx = 0;
-      autoTable(doc, {
-        startY: MARGIN_TOP + 26,
-        head: [['Descrição', 'Bitola', 'ERP', 'Qtd/unid.', 'Unidade']],
-        body: subBody,
-        ...TABLE_STYLES,
-        showHead: 'everyPage',
-        willDrawPage: () => {
-          if (subPageIdx > 0) {
-            doc.setFontSize(10);
-            doc.setFont('helvetica', 'italic');
-            doc.setTextColor(80);
-            doc.text(`${sub.name ?? ''} — continuação`, MARGIN_LEFT, MARGIN_TOP - 14);
-            doc.setTextColor(0);
-          }
-        },
-        didDrawPage: () => {
-          drawHeaderFooter(doc, generatedAt);
-          subPageIdx += 1;
-        },
-      });
-    }
+    renderChildSection(doc, child, matMap, generatedAt);
   }
 
   if (typeof (doc as unknown as { putTotalPages?: (s: string) => void }).putTotalPages === 'function') {
