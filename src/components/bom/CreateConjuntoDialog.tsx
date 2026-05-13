@@ -37,6 +37,7 @@ export function CreateConjuntoDialog({ open, onOpenChange, projectId, defaultPar
   const [codigo, setCodigo] = useState('');
   const [name, setName] = useState('');
   const [parentId, setParentId] = useState<string>('');
+  const [quantityInParent, setQuantityInParent] = useState<string>('1');
   const [label, setLabel] = useState('');
   const [notes, setNotes] = useState('');
   const create = useCreateConjunto();
@@ -53,12 +54,24 @@ export function CreateConjuntoDialog({ open, onOpenChange, projectId, defaultPar
     setCodigo((current) => current || suggestChildCodigo(parentRoot.codigo, siblings));
   }, [open, lockedParent, parentRoot, roots]);
 
-  const reset = () => { setCodigo(''); setName(''); setParentId(''); setLabel(''); setNotes(''); };
+  const reset = () => {
+    setCodigo(''); setName(''); setParentId(''); setQuantityInParent('1');
+    setLabel(''); setNotes('');
+  };
 
   const submit = async () => {
     if (!codigo.trim() || !name.trim()) {
       toast.error('Código e nome são obrigatórios');
       return;
+    }
+    const hasParent = !!effectiveParentId;
+    let qty: number | undefined;
+    if (hasParent) {
+      qty = Number(quantityInParent);
+      if (!Number.isFinite(qty) || qty <= 0) {
+        toast.error('Quantidade no pai deve ser maior que zero');
+        return;
+      }
     }
     try {
       const res = await create.mutateAsync({
@@ -66,6 +79,7 @@ export function CreateConjuntoDialog({ open, onOpenChange, projectId, defaultPar
         codigo: codigo.trim(),
         name: name.trim(),
         parentId: effectiveParentId || null,
+        quantityInParent: qty,
         label: label.trim() || null,
         notes: notes.trim() || null,
       });
@@ -97,6 +111,18 @@ export function CreateConjuntoDialog({ open, onOpenChange, projectId, defaultPar
             <Label>Nome *</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome do produto/módulo" />
           </div>
+          {effectiveParentId && (
+            <div>
+              <Label>Quantidade no pai *</Label>
+              <Input
+                type="number"
+                min="0.0001"
+                step="1"
+                value={quantityInParent}
+                onChange={(e) => setQuantityInParent(e.target.value)}
+              />
+            </div>
+          )}
           {!lockedParent && roots.length > 0 && (
             <div>
               <Label>Conjunto pai (opcional)</Label>

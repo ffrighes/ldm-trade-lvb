@@ -22,16 +22,19 @@ interface Props {
   codigo: string;
   currentName: string;
   currentParentId: string | null;
+  currentQuantityInParent: number;
   isDraft: boolean;
   allRoots: BomRoot[];
 }
 
 export function EditConjuntoDialog({
-  open, onOpenChange, projectId, rootId, codigo, currentName, currentParentId, isDraft, allRoots,
+  open, onOpenChange, projectId, rootId, codigo, currentName, currentParentId,
+  currentQuantityInParent, isDraft, allRoots,
 }: Props) {
   const [name, setName] = useState(currentName);
   const [codigoEdit, setCodigoEdit] = useState(codigo);
   const [parentId, setParentId] = useState<string>(currentParentId ?? '');
+  const [quantityInParent, setQuantityInParent] = useState<string>(String(currentQuantityInParent));
   const update = useUpdateBomRoot();
 
   useEffect(() => {
@@ -39,8 +42,9 @@ export function EditConjuntoDialog({
       setName(currentName);
       setCodigoEdit(codigo);
       setParentId(currentParentId ?? '');
+      setQuantityInParent(String(currentQuantityInParent));
     }
-  }, [open, currentName, codigo, currentParentId]);
+  }, [open, currentName, codigo, currentParentId, currentQuantityInParent]);
 
   // Exclude self and all descendants from the parent options to prevent cycles
   const excludedIds = rootId ? getDescendantIds(allRoots, rootId) : new Set<string>();
@@ -63,7 +67,19 @@ export function EditConjuntoDialog({
     const resolvedParent = parentId || null;
     const parentChanged = resolvedParent !== currentParentId;
 
-    if (!nameChanged && !codigoChanged && !parentChanged) {
+    const parsedQty = Number(quantityInParent);
+    const qtyValid = Number.isFinite(parsedQty) && parsedQty > 0;
+    const willHaveParent = resolvedParent !== null;
+    let quantityChanged = false;
+    if (willHaveParent) {
+      if (!qtyValid) {
+        toast.error('Quantidade no pai deve ser maior que zero');
+        return;
+      }
+      quantityChanged = parsedQty !== currentQuantityInParent;
+    }
+
+    if (!nameChanged && !codigoChanged && !parentChanged && !quantityChanged) {
       onOpenChange(false);
       return;
     }
@@ -74,12 +90,14 @@ export function EditConjuntoDialog({
         name: trimmedName,
         ...(codigoChanged ? { codigo: trimmedCodigo } : {}),
         ...(parentChanged ? { parentId: resolvedParent } : {}),
+        ...(quantityChanged && willHaveParent ? { quantityInParent: parsedQty } : {}),
       });
       const parts: string[] = [];
       if (codigoChanged && nameChanged) parts.push('Código e descrição atualizados');
       else if (codigoChanged) parts.push('Código atualizado');
       else if (nameChanged) parts.push('Descrição atualizada');
       if (parentChanged) parts.push('Pai atualizado');
+      if (quantityChanged) parts.push('Quantidade no pai atualizada');
       toast.success(parts.join(' · ') || 'Salvo');
       onOpenChange(false);
     } catch (e) {
@@ -108,6 +126,18 @@ export function EditConjuntoDialog({
               onChange={(e) => setName(e.target.value)}
               placeholder="Nome do produto/módulo"
               autoFocus
+            />
+          </div>
+          <div>
+            <Label>Quantidade no pai</Label>
+            <Input
+              type="number"
+              min="0.0001"
+              step="1"
+              value={quantityInParent}
+              onChange={(e) => setQuantityInParent(e.target.value)}
+              disabled={!parentId}
+              placeholder={parentId ? undefined : 'Aplicável apenas a conjuntos-filhos'}
             />
           </div>
           {parentOptions.length > 0 && (

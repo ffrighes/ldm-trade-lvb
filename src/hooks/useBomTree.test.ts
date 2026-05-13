@@ -2,6 +2,23 @@ import { describe, it, expect } from 'vitest';
 import { buildBomTree } from './useBomTree';
 import type { BomNode } from '@/types/bom';
 
+/**
+ * Mirrors the consolidation rule used by exportConjuntoPdf.collectAllItems:
+ * items at each level are multiplied by the running multiplier, which is the
+ * product of `quantity_in_parent` values from the root down to that node.
+ */
+function consolidateQty(
+  ownItemQty: number,
+  childRootQuantities: number[],
+  leafItemQty: number,
+): number {
+  // Helper for tests: own root has `ownItemQty` direct items + a chain of
+  // child roots (each with its quantity_in_parent), with `leafItemQty` items
+  // at the leaf.
+  const chainProduct = childRootQuantities.reduce((acc, q) => acc * q, 1);
+  return ownItemQty + leafItemQty * chainProduct;
+}
+
 const mk = (p: Partial<BomNode>): BomNode => ({
   id: p.id!,
   version_id: 'v1',
@@ -56,6 +73,15 @@ describe('buildBomTree', () => {
     ];
     const tree = buildBomTree(nodes)!;
     expect(tree.children.map((c) => c.id)).toEqual(['a', 'b']);
+  });
+
+  it('propagates child-root quantity_in_parent through consolidation', () => {
+    // A → B (×2) → 2 parafusos  →  consolidated: 4 parafusos
+    expect(consolidateQty(0, [2], 2)).toBe(4);
+    // A → B (×2) → C (×3) → 2 parafusos → 12
+    expect(consolidateQty(0, [2, 3], 2)).toBe(12);
+    // A has 1 direct + chain ×2 with 2 leaf → 1 + 4 = 5
+    expect(consolidateQty(1, [2], 2)).toBe(5);
   });
 
   it('handles deep nesting up to 10 levels', () => {

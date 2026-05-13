@@ -132,17 +132,21 @@ function collectDirectItems(
 
 /**
  * Collect ALL items from a BOM tree AND from all nested child BomRoots (recursively).
- * Child BomRoot quantities are treated as qty=1 relative to the parent root since
- * no explicit quantity is stored for that relationship.
+ * Each child BomRoot multiplies the items below it by its `quantity_in_parent`.
  */
 function collectAllItems(
   tree: BomTreeNode,
   matMap: Map<string, MaterialLite>,
   childRoots: ExportChildData[],
+  multiplier: number = 1,
 ): ItemRow[] {
-  const items = collectItems(tree, 1, matMap);
+  const items = collectItems(tree, 1, matMap).map((r) => ({
+    ...r,
+    quantidade: r.quantidade * multiplier,
+  }));
   for (const child of childRoots) {
-    items.push(...collectAllItems(child.tree, matMap, child.children));
+    const childQty = child.root.quantity_in_parent ?? 1;
+    items.push(...collectAllItems(child.tree, matMap, child.children, multiplier * childQty));
   }
   return items;
 }
@@ -651,7 +655,10 @@ function renderChildSection(
   const childVersionLabel = child.version.label
     ? `v${child.version.version_number} — ${child.version.label}`
     : `v${child.version.version_number}`;
-  const versionInfo = `Versão: ${childVersionLabel}  |  Status: ${child.version.status}`;
+  const qtyInParent = child.root.quantity_in_parent ?? 1;
+  const versionInfo = qtyInParent !== 1
+    ? `Versão: ${childVersionLabel}  |  Status: ${child.version.status}  |  Quantidade no pai: ${formatQty(qtyInParent)}`
+    : `Versão: ${childVersionLabel}  |  Status: ${child.version.status}`;
 
   const directItems = collectDirectItems(child.tree, matMap);
 

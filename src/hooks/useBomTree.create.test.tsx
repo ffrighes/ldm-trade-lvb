@@ -47,6 +47,30 @@ describe('product structure creation', () => {
     });
   });
 
+  it('useCreateConjunto with parentId + quantityInParent forwards p_quantity', async () => {
+    rpc.mockResolvedValueOnce({
+      data: [{ root_id: 'r3', version_id: 'v3', root_node_id: 'n3' }],
+      error: null,
+    });
+    rpc.mockResolvedValueOnce({ data: null, error: null });
+
+    const { result } = renderHook(() => useCreateConjunto(), { wrapper });
+    result.current.mutate({
+      projectId: 'p1',
+      codigo: 'CH-001.2',
+      name: 'Vigas',
+      parentId: 'parent-root',
+      quantityInParent: 3,
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(rpc).toHaveBeenNthCalledWith(2, 'bom_root_set_parent', {
+      p_root_id: 'r3',
+      p_parent_id: 'parent-root',
+      p_quantity: 3,
+    });
+  });
+
   it('useCreateConjunto calls bom_create_conjunto with the form payload', async () => {
     rpc.mockResolvedValueOnce({
       data: [{ root_id: 'r1', version_id: 'v1', root_node_id: 'n1' }],
