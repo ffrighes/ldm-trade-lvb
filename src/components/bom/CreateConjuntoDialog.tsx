@@ -71,12 +71,12 @@ export function CreateConjuntoDialog({ open, onOpenChange, projectId, onCreated 
           {roots.length > 0 && (
             <div>
               <Label>Conjunto pai (opcional)</Label>
-              <Select value={parentId} onValueChange={setParentId}>
+              <Select value={parentId || '__none__'} onValueChange={(v) => setParentId(v === '__none__' ? '' : v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="— Nenhum (raiz) —" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">— Nenhum (raiz) —</SelectItem>
+                  <SelectItem value="__none__">— Nenhum (raiz) —</SelectItem>
                   {roots.map((r) => (
                     <SelectItem key={r.id} value={r.id}>
                       <span className="font-mono text-xs mr-2">{r.codigo}</span>
