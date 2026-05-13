@@ -556,23 +556,46 @@ function ItemsByCategoryTable({
       list.push(it);
       groups.set(cat, list);
     }
+    const sortEntries = (list: BomTreeNode[]) =>
+      [...list].sort((a, b) => {
+        const ma = a.material_id ? matById.get(a.material_id) : null;
+        const mb = b.material_id ? matById.get(b.material_id) : null;
+        const descCmp = (ma?.descricao || '').localeCompare(mb?.descricao || '', undefined, {
+          numeric: true,
+          sensitivity: 'base',
+        });
+        if (descCmp !== 0) return descCmp;
+        return parseBitolaValue(ma?.bitola || '') - parseBitolaValue(mb?.bitola || '');
+      });
     const ordered: [string, BomTreeNode[]][] = [];
     const seen = new Set<string>();
     for (const c of categoriaOrder) {
-      if (groups.has(c)) { ordered.push([c, groups.get(c)!]); seen.add(c); }
+      if (groups.has(c)) { ordered.push([c, sortEntries(groups.get(c)!)]); seen.add(c); }
     }
     for (const [c, list] of groups) {
-      if (c !== SEM_CATEGORIA_LABEL && !seen.has(c)) ordered.push([c, list]);
+      if (c !== SEM_CATEGORIA_LABEL && !seen.has(c)) ordered.push([c, sortEntries(list)]);
     }
-    if (groups.has(SEM_CATEGORIA_LABEL)) ordered.push([SEM_CATEGORIA_LABEL, groups.get(SEM_CATEGORIA_LABEL)!]);
+    if (groups.has(SEM_CATEGORIA_LABEL)) ordered.push([SEM_CATEGORIA_LABEL, sortEntries(groups.get(SEM_CATEGORIA_LABEL)!)]);
     return ordered;
   }, [items, matById, categoriaOrder]);
+
+  const startIndexByCategory = useMemo(() => {
+    const map = new Map<string, number>();
+    let running = 0;
+    for (const [cat, entries] of grouped) {
+      map.set(cat, running);
+      running += entries.length;
+    }
+    return map;
+  }, [grouped]);
 
   const colCount = readOnly ? 8 : 9;
 
   return (
     <div style={{ paddingLeft: `${depth * 18 + 4}px` }} className="space-y-3 py-2">
-      {grouped.map(([categoria, entries]) => (
+      {grouped.map(([categoria, entries]) => {
+        const startIndex = startIndexByCategory.get(categoria) ?? 0;
+        return (
         <div key={categoria} className="rounded-md border bg-card/40">
           <div className="px-3 py-2 border-b flex items-center gap-2">
             <span className="font-semibold text-sm">{categoria}</span>
@@ -640,7 +663,7 @@ function ItemsByCategoryTable({
                   if (!isEditing) {
                     return (
                       <tr key={it.id} className="border-b hover:bg-muted/30">
-                        <td className="py-2 px-2 align-middle">{idx + 1}</td>
+                        <td className="py-2 px-2 align-middle">{startIndex + idx + 1}</td>
                         <td className="py-2 px-2 align-middle">{tag}</td>
                         <td className="py-2 px-2 align-middle max-w-[20rem]">
                           <span className="block truncate" title={descricao}>{descricao}</span>
@@ -678,7 +701,7 @@ function ItemsByCategoryTable({
                       <td colSpan={colCount} className="p-0">
                         <ItemEditRow
                           item={it}
-                          index={idx}
+                          index={startIndex + idx}
                           materials={materials}
                           extraActions={
                             <>
@@ -696,7 +719,8 @@ function ItemsByCategoryTable({
             </table>
           </div>
         </div>
-      ))}
+        );
+      })}
 
       {!readOnly && draftIds.length > 0 && (
         <div className="rounded-md border bg-card/40">
