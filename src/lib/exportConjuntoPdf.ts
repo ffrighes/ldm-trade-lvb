@@ -97,7 +97,7 @@ function collectItems(
       erp: mat?.erp ?? '',
       unidade: mat?.unidade ?? '',
       quantidade: node.cumulativeQuantity / baseCumulative,
-      notes: node.notes ?? null,
+      notes: (node.notes && node.notes.trim()) ? node.notes : (mat?.notas ?? null),
       categoria: mat?.categoria ?? null,
     });
   }
@@ -124,7 +124,7 @@ function collectDirectItems(
         erp: mat?.erp ?? '',
         unidade: mat?.unidade ?? '',
         quantidade: c.cumulativeQuantity,
-        notes: c.notes ?? null,
+        notes: (c.notes && c.notes.trim()) ? c.notes : (mat?.notas ?? null),
         categoria: mat?.categoria ?? null,
       };
     });

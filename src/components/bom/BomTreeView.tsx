@@ -754,7 +754,11 @@ function ItemEditRow({ item, index, materials, extraActions, onDone }: ItemEditR
   });
   const [materialId, setMaterialId] = useState<string | null>(item.material_id);
   const [quantity, setQuantity] = useState<string>(item.quantity != null ? String(item.quantity) : '1');
-  const [notes, setNotes] = useState<string>(item.notes ?? '');
+  const [notes, setNotes] = useState<string>(() => {
+    if (item.notes && item.notes.trim()) return item.notes;
+    const mat = item.material_id ? materials.find((m) => m.id === item.material_id) : null;
+    return mat?.notas ?? '';
+  });
 
   const descriptions = useMemo(
     () => [...new Set(materials.map((m) => m.descricao))].sort(),
@@ -780,6 +784,7 @@ function ItemEditRow({ item, index, materials, extraActions, onDone }: ItemEditR
     setBitola(v);
     const mat = materials.find((m) => m.descricao === descricao && m.bitola === v);
     setMaterialId(mat?.id ?? null);
+    setNotes(mat?.notas ?? '');
   };
 
   const persist = async () => {
@@ -959,6 +964,7 @@ function NewItemDraftRow({
     setBitola(v);
     const mat = materials.find((m) => m.descricao === descricao && m.bitola === v);
     setMaterialId(mat?.id ?? null);
+    setNotes(mat?.notas ?? '');
   };
 
   const persist = async () => {
