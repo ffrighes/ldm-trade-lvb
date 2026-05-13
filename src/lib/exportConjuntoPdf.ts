@@ -227,6 +227,7 @@ function collectAllSubconjuntos(node: BomTreeNode, breadcrumb: string[]): Subcon
 const CONSOLIDATED_TABLE_STYLES = {
   styles: { fontSize: 9, cellPadding: 4, overflow: 'linebreak' as const },
   headStyles: { fillColor: [40, 40, 40] as [number, number, number], textColor: 255 },
+  rowPageBreak: 'avoid' as const,
   columnStyles: {
     0: { cellWidth: 25, overflow: 'visible' as const },
     1: { cellWidth: 'auto' as const },
@@ -243,6 +244,7 @@ const CONSOLIDATED_TABLE_STYLES = {
 const DETAIL_TABLE_STYLES = {
   styles: { fontSize: 9, cellPadding: 3, overflow: 'linebreak' as const },
   headStyles: { fillColor: [40, 40, 40] as [number, number, number], textColor: 255 },
+  rowPageBreak: 'avoid' as const,
   columnStyles: {
     0: { cellWidth: 20, overflow: 'visible' as const },
     1: { cellWidth: 55, overflow: 'visible' as const },
