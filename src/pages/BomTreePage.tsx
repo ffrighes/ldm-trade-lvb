@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Copy, FileText } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,7 +13,9 @@ import { CloneFromProjectDialog } from '@/components/bom/CloneFromProjectDialog'
 import { BomTreeView } from '@/components/bom/BomTreeView';
 import { VersionPanel } from '@/components/bom/VersionPanel';
 import { BomNodeIcon } from '@/components/bom/BomNodeIcon';
-import { exportConjuntoPdf } from '@/lib/exportConjuntoPdf';
+import { exportConjuntoPdf, type ExportChildData } from '@/lib/exportConjuntoPdf';
+import { supabase } from '@/integrations/supabase/client';
+import type { BomNode, BomRoot, BomVersion } from '@/types/bom';
 
 export default function BomTreePage() {
   const { projetoId } = useParams<{ projetoId: string }>();
@@ -74,16 +77,77 @@ export default function BomTreePage() {
 
   if (!projetoId) return <Navigate to="/projetos" replace />;
 
+  async function fetchDescendantConjuntos(
+    parentRoot: BomRoot,
+    allRoots: BomRoot[],
+    breadcrumb: string[],
+  ): Promise<ExportChildData[]> {
+    const sb = supabase as unknown as {
+      from: (t: string) => {
+        select: (q: string) => {
+          eq: (col: string, val: unknown) => {
+            order: (col: string, opts?: { ascending: boolean }) => Promise<{ data: unknown; error: unknown }>;
+          };
+        };
+      };
+    };
+
+    const directChildren = allRoots.filter((r) => r.parent_id === parentRoot.id);
+    const result: ExportChildData[] = [];
+
+    for (const childRoot of directChildren) {
+      const { data: vData, error: vErr } = await sb
+        .from('bom_version')
+        .select('*')
+        .eq('root_id', childRoot.id)
+        .order('version_number', { ascending: false });
+      if (vErr) throw vErr;
+
+      const versions = (vData ?? []) as BomVersion[];
+      if (versions.length === 0) continue;
+      const bestVersion = versions.find((v) => v.status === 'RELEASED') ?? versions[0];
+
+      const { data: nData, error: nErr } = await sb
+        .from('bom_node')
+        .select('*')
+        .eq('version_id', bestVersion.id)
+        .order('position');
+      if (nErr) throw nErr;
+
+      const childTree = buildBomTree((nData ?? []) as BomNode[]);
+      if (!childTree) continue;
+
+      const childLabel = `${childRoot.codigo} — ${childRoot.name}`;
+      result.push({ root: childRoot, version: bestVersion, tree: childTree, breadcrumb });
+
+      const grandchildren = await fetchDescendantConjuntos(
+        childRoot,
+        allRoots,
+        [...breadcrumb, childLabel],
+      );
+      result.push(...grandchildren);
+    }
+
+    return result;
+  }
+
   const currentRoot = roots.find((r) => r.id === selectedRootId);
   const currentVersion = versions.find((v) => v.id === selectedVersionId);
   const isReadOnly = !canEditBomDraft || !currentVersion || currentVersion.status !== 'DRAFT';
 
-  const handleExportPdf = () => {
+  const handleExportPdf = async () => {
     if (!currentRoot || !currentVersion || nodes.length === 0) return;
     const tree = buildBomTree(nodes);
     if (!tree) return;
     const matMap = new Map((materials ?? []).map((m) => [m.id, m]));
-    exportConjuntoPdf(currentRoot, currentVersion, tree, matMap);
+
+    try {
+      const rootLabel = `${currentRoot.codigo} — ${currentRoot.name}`;
+      const childConjuntos = await fetchDescendantConjuntos(currentRoot, roots, [rootLabel]);
+      exportConjuntoPdf(currentRoot, currentVersion, tree, matMap, childConjuntos);
+    } catch (err) {
+      toast.error('Erro ao gerar PDF: ' + (err instanceof Error ? err.message : String(err)));
+    }
   };
 
   const handleSelectVersion = (versionId: string) => setSelection(selectedRootId, versionId);
