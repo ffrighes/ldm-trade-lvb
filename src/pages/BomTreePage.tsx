@@ -134,7 +134,7 @@ export default function BomTreePage() {
   const isReadOnly = !canEditBomDraft || !currentVersion || currentVersion.status !== 'DRAFT';
 
   const handleExportPdf = async () => {
-    if (!currentRoot || !currentVersion || nodes.length === 0) return;
+    if (!currentRoot || !currentVersion || nodes.length === 0 || !projeto) return;
     const tree = buildBomTree(nodes);
     if (!tree) return;
     const matMap = new Map((materials ?? []).map((m) => [m.id, m]));
@@ -142,7 +142,7 @@ export default function BomTreePage() {
     try {
       const rootLabel = `${currentRoot.codigo} — ${currentRoot.name}`;
       const childConjuntos = await fetchDescendantConjuntos(currentRoot, roots, [rootLabel]);
-      exportConjuntoPdf(currentRoot, currentVersion, tree, matMap, childConjuntos);
+      exportConjuntoPdf(currentRoot, currentVersion, tree, matMap, childConjuntos, projeto);
     } catch (err) {
       toast.error('Erro ao gerar PDF: ' + (err instanceof Error ? err.message : String(err)));
     }
@@ -191,7 +191,7 @@ export default function BomTreePage() {
                   variant="outline"
                   size="sm"
                   onClick={handleExportPdf}
-                  disabled={!currentVersion || nodes.length === 0}
+                  disabled={!currentVersion || nodes.length === 0 || !projeto}
                   title="Exportar PDF"
                 >
                   <FileText className="h-4 w-4 mr-1" />
