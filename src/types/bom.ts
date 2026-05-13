@@ -11,6 +11,8 @@ export interface BomRoot {
   created_at: string;
   updated_at: string;
   cloned_from_root_id: string | null;
+  /** Quantidade do filho dentro de uma unidade do pai. 1 para raízes. */
+  quantity_in_parent: number;
 }
 
 export interface BomRootTreeNode extends BomRoot {

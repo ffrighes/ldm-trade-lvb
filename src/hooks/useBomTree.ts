@@ -150,6 +150,7 @@ export function useCreateConjunto() {
       codigo: string;
       name: string;
       parentId?: string | null;
+      quantityInParent?: number;
       label?: string | null;
       notes?: string | null;
     }) => {
@@ -164,10 +165,17 @@ export function useCreateConjunto() {
       const result = (data?.[0] ?? data) as { root_id: string; version_id: string; root_node_id: string };
       // Set parent after creation if provided (bom_create_conjunto doesn't accept parent_id yet)
       if (args.parentId) {
-        const { error: pe } = await sb.rpc('bom_root_set_parent', {
+        if (args.quantityInParent !== undefined && !(args.quantityInParent > 0)) {
+          throw new Error('Quantidade no pai deve ser maior que zero.');
+        }
+        const setParentArgs: AnyRecord = {
           p_root_id: result.root_id,
           p_parent_id: args.parentId,
-        });
+        };
+        if (args.quantityInParent !== undefined) {
+          setParentArgs.p_quantity = args.quantityInParent;
+        }
+        const { error: pe } = await sb.rpc('bom_root_set_parent', setParentArgs);
         if (pe) throw pe;
       }
       return result;
@@ -383,7 +391,12 @@ export function useUpdateBomRoot() {
       codigo?: string;
       /** Pass undefined to leave parent unchanged; null to unset; a uuid to set. */
       parentId?: string | null;
+      /** Pass undefined to leave quantity unchanged. Must be > 0 when set. */
+      quantityInParent?: number;
     }) => {
+      if (args.quantityInParent !== undefined && !(args.quantityInParent > 0)) {
+        throw new Error('Quantidade no pai deve ser maior que zero.');
+      }
       const client = supabase as unknown as {
         from: (t: string) => {
           update: (v: AnyRecord) => {
@@ -400,12 +413,41 @@ export function useUpdateBomRoot() {
       if (error) throw error;
 
       if (args.parentId !== undefined) {
-        const { error: pe } = await sb.rpc('bom_root_set_parent', {
+        const setParentArgs: AnyRecord = {
           p_root_id: args.rootId,
           p_parent_id: args.parentId,
-        });
+        };
+        if (args.quantityInParent !== undefined && args.parentId !== null) {
+          setParentArgs.p_quantity = args.quantityInParent;
+        }
+        const { error: pe } = await sb.rpc('bom_root_set_parent', setParentArgs);
         if (pe) throw pe;
+      } else if (args.quantityInParent !== undefined) {
+        const { error: qe } = await sb.rpc('bom_root_set_quantity_in_parent', {
+          p_root_id: args.rootId,
+          p_quantity: args.quantityInParent,
+        });
+        if (qe) throw qe;
       }
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['bom-roots', vars.projectId] });
+    },
+  });
+}
+
+export function useSetBomRootQuantity() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { rootId: string; projectId: string; quantity: number }) => {
+      if (!(args.quantity > 0)) {
+        throw new Error('Quantidade no pai deve ser maior que zero.');
+      }
+      const { error } = await sb.rpc('bom_root_set_quantity_in_parent', {
+        p_root_id: args.rootId,
+        p_quantity: args.quantity,
+      });
+      if (error) throw error;
     },
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: ['bom-roots', vars.projectId] });

@@ -209,6 +209,7 @@ export type Database = {
           name: string
           parent_id: string | null
           project_id: string
+          quantity_in_parent: number
           updated_at: string
         }
         Insert: {
@@ -220,6 +221,7 @@ export type Database = {
           name: string
           parent_id?: string | null
           project_id: string
+          quantity_in_parent?: number
           updated_at?: string
         }
         Update: {
@@ -231,6 +233,7 @@ export type Database = {
           name?: string
           parent_id?: string | null
           project_id?: string
+          quantity_in_parent?: number
           updated_at?: string
         }
         Relationships: [
@@ -799,7 +802,11 @@ export type Database = {
         Returns: Json
       }
       bom_root_set_parent: {
-        Args: { p_parent_id: string; p_root_id: string }
+        Args: { p_parent_id: string; p_root_id: string; p_quantity?: number }
+        Returns: undefined
+      }
+      bom_root_set_quantity_in_parent: {
+        Args: { p_quantity: number; p_root_id: string }
         Returns: undefined
       }
       bom_root_would_cycle: {

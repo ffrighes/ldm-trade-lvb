@@ -57,7 +57,12 @@ export function ConjuntosSidebarList({ projectId }: Props) {
               >
                 <span className="pt-0.5"><BomNodeIcon type="CONJUNTO" /></span>
                 <span className="flex-1 min-w-0 flex flex-col">
-                  <span className="font-mono text-xs text-muted-foreground">{r.codigo}</span>
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {r.codigo}
+                    {r.parent_id && r.quantity_in_parent !== 1 && (
+                      <span className="ml-1 text-muted-foreground">×{r.quantity_in_parent}</span>
+                    )}
+                  </span>
                   <span className="break-words text-xs">{r.name}</span>
                 </span>
               </button>
@@ -99,6 +104,7 @@ export function ConjuntosSidebarList({ projectId }: Props) {
         currentName={editingRoot?.name ?? ''}
         isDraft={editingRootHasDraft}
         currentParentId={editingRoot?.parent_id ?? null}
+        currentQuantityInParent={editingRoot?.quantity_in_parent ?? 1}
         allRoots={roots}
       />
 

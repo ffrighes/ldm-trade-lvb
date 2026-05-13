@@ -109,7 +109,12 @@ function NodeRow({
         >
           <span className="pt-0.5 shrink-0"><BomNodeIcon type="CONJUNTO" /></span>
           <span className="flex-1 min-w-0 flex flex-col">
-            <span className="font-mono text-xs text-muted-foreground">{node.codigo}</span>
+            <span className="font-mono text-xs text-muted-foreground">
+              {node.codigo}
+              {node.parent_id && node.quantity_in_parent !== 1 && (
+                <span className="ml-1 text-muted-foreground">×{node.quantity_in_parent}</span>
+              )}
+            </span>
             <span className="break-words text-xs">{node.name}</span>
           </span>
         </button>
@@ -288,6 +293,7 @@ export function ConjuntosTreeList({ projectId }: Props) {
         codigo={editingRoot?.codigo ?? ''}
         currentName={editingRoot?.name ?? ''}
         currentParentId={editingRoot?.parent_id ?? null}
+        currentQuantityInParent={editingRoot?.quantity_in_parent ?? 1}
         isDraft={editingRootHasDraft}
         allRoots={roots}
       />
