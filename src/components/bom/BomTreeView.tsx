@@ -159,13 +159,44 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
   if (isLoading) return <div className="text-muted-foreground py-6">Carregando estrutura…</div>;
   if (!tree) return <div className="text-muted-foreground py-6">Sem nós nesta versão.</div>;
 
+  const rootAssemblyChildren = tree.children.filter((c) => c.node_type !== 'ITEM');
+  const rootItemChildren = tree.children.filter((c) => c.node_type === 'ITEM');
+  const rootDrafts = drafts[tree.id] ?? [];
+  const hasContent =
+    rootAssemblyChildren.length > 0 || rootItemChildren.length > 0 || rootDrafts.length > 0;
+
+  const handleAdd = (pid: string, tab: 'item' | 'subconjunto') => {
+    if (tab === 'item') addDraft(pid);
+    else setOpenChildConjunto(true);
+  };
+
   return (
     <>
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span>{nodes.length} nó(s)</span>
+          <span>{Math.max(0, nodes.length - 1)} nó(s)</span>
         </div>
         <div className="flex items-center gap-2">
+          {!readOnly && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => addDraft(tree.id)}
+                title="Adicionar item"
+              >
+                <Package className="h-3.5 w-3.5 mr-1" /> Adicionar item
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setOpenChildConjunto(true)}
+                title="Adicionar Conjunto filho"
+              >
+                <FolderPlus className="h-3.5 w-3.5 mr-1" /> Conjunto filho
+              </Button>
+            </>
+          )}
           <Button
             variant="ghost"
             size="sm"
@@ -179,35 +210,58 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
 
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
         <div className="border rounded-md p-2 bg-card">
-          <NodeRow
-            node={tree}
-            depth={0}
-            expanded={expanded}
-            setExpanded={setExpanded}
-            matById={matById}
-            materials={materials as MaterialLite[]}
-            categoriaOrder={categoriaOrder}
-            readOnly={readOnly}
-            showCumulative={showCumulative}
-            editingItems={editingItems}
-            onToggleItemEdit={toggleItemEdit}
-            drafts={drafts}
-            onAddDraft={addDraft}
-            onRemoveDraft={removeDraft}
-            onAdd={(pid, tab) => {
-              if (tab === 'item') {
-                addDraft(pid);
-              } else {
-                setOpenChildConjunto(true);
-              }
-            }}
-            onEdit={(n) => setEditNode(n)}
-            onDelete={(n) => setConfirmDelete(n)}
-            visible={matchesSearch(tree)}
-            search={search}
-            siblings={1}
-            siblingIndex={0}
-          />
+          {hasContent ? (
+            <>
+              {rootAssemblyChildren.map((c, i) => (
+                <NodeRow
+                  key={c.id}
+                  node={c}
+                  depth={0}
+                  expanded={expanded}
+                  setExpanded={setExpanded}
+                  matById={matById}
+                  materials={materials as MaterialLite[]}
+                  categoriaOrder={categoriaOrder}
+                  readOnly={readOnly}
+                  showCumulative={showCumulative}
+                  editingItems={editingItems}
+                  onToggleItemEdit={toggleItemEdit}
+                  drafts={drafts}
+                  onAddDraft={addDraft}
+                  onRemoveDraft={removeDraft}
+                  onAdd={handleAdd}
+                  onEdit={(n) => setEditNode(n)}
+                  onDelete={(n) => setConfirmDelete(n)}
+                  visible={matchesSearch(c)}
+                  search={search}
+                  siblings={rootAssemblyChildren.length}
+                  siblingIndex={i}
+                />
+              ))}
+              {(rootItemChildren.length > 0 || rootDrafts.length > 0) && (
+                <ItemsByCategoryTable
+                  parentId={tree.id}
+                  versionId={tree.version_id}
+                  items={rootItemChildren}
+                  draftIds={rootDrafts}
+                  depth={0}
+                  matById={matById}
+                  materials={materials as MaterialLite[]}
+                  categoriaOrder={categoriaOrder}
+                  readOnly={readOnly}
+                  showCumulative={showCumulative}
+                  editingItems={editingItems}
+                  onToggleItemEdit={toggleItemEdit}
+                  onRemoveDraft={removeDraft}
+                  onDelete={(n) => setConfirmDelete(n)}
+                />
+              )}
+            </>
+          ) : (
+            <div className="text-muted-foreground text-sm py-6 text-center">
+              Conjunto vazio. Adicione um item ou Conjunto filho.
+            </div>
+          )}
         </div>
       </DndContext>
 
