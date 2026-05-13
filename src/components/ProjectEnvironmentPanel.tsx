@@ -62,15 +62,7 @@ export default function ProjectEnvironmentPanel({ projetoId }: { projetoId: stri
           >
             <Boxes className="h-4 w-4 mt-0.5 shrink-0" />
             <div className="min-w-0">
-              <div className="font-medium leading-tight">Ambiente de Estruturas de Produto</div>
-              <div
-                className={cn(
-                  'text-xs mt-0.5',
-                  active ? 'text-primary-foreground/80' : 'text-muted-foreground',
-                )}
-              >
-                Árvore de BOMs e versões
-              </div>
+              <div className="font-medium leading-tight">BOMs</div>
             </div>
           </NavLink>
 
