@@ -8,7 +8,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { ConjuntosSidebarList } from '@/components/bom/ConjuntosSidebarList';
+import { ConjuntosTreeList } from '@/components/bom/ConjuntosTreeList';
 
 const PROJECT_ROUTE = /^\/projetos\/([^/]+)(?:\/.*)?$/;
 
@@ -80,7 +80,7 @@ export default function ProjectEnvironmentPanel({ projetoId }: { projetoId: stri
                 />
               </CollapsibleTrigger>
               <CollapsibleContent className="pt-1">
-                <ConjuntosSidebarList projectId={projetoId} />
+                <ConjuntosTreeList projectId={projetoId} />
               </CollapsibleContent>
             </Collapsible>
           )}

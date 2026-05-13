@@ -4,12 +4,18 @@ export type BomVersionStatus = 'DRAFT' | 'RELEASED' | 'OBSOLETE';
 export interface BomRoot {
   id: string;
   project_id: string;
+  parent_id: string | null;
   codigo: string;
   name: string;
   created_by: string | null;
   created_at: string;
   updated_at: string;
   cloned_from_root_id: string | null;
+}
+
+export interface BomRootTreeNode extends BomRoot {
+  children: BomRootTreeNode[];
+  depth: number;
 }
 
 export interface BomVersion {

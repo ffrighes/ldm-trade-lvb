@@ -3,8 +3,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useUpdateBomRoot } from '@/hooks/useBomTree';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useUpdateBomRoot, getDescendantIds } from '@/hooks/useBomTree';
 import { toast } from 'sonner';
+import type { BomRoot } from '@/types/bom';
 
 interface Props {
   open: boolean;
@@ -13,20 +21,30 @@ interface Props {
   rootId: string | null;
   codigo: string;
   currentName: string;
+  currentParentId: string | null;
   isDraft: boolean;
+  allRoots: BomRoot[];
 }
 
-export function EditConjuntoDialog({ open, onOpenChange, projectId, rootId, codigo, currentName, isDraft }: Props) {
+export function EditConjuntoDialog({
+  open, onOpenChange, projectId, rootId, codigo, currentName, currentParentId, isDraft, allRoots,
+}: Props) {
   const [name, setName] = useState(currentName);
   const [codigoEdit, setCodigoEdit] = useState(codigo);
+  const [parentId, setParentId] = useState<string>(currentParentId ?? '');
   const update = useUpdateBomRoot();
 
   useEffect(() => {
     if (open) {
       setName(currentName);
       setCodigoEdit(codigo);
+      setParentId(currentParentId ?? '');
     }
-  }, [open, currentName, codigo]);
+  }, [open, currentName, codigo, currentParentId]);
+
+  // Exclude self and all descendants from the parent options to prevent cycles
+  const excludedIds = rootId ? getDescendantIds(allRoots, rootId) : new Set<string>();
+  const parentOptions = allRoots.filter((r) => !excludedIds.has(r.id));
 
   const submit = async () => {
     if (!rootId) return;
@@ -42,7 +60,10 @@ export function EditConjuntoDialog({ open, onOpenChange, projectId, rootId, codi
     }
     const nameChanged = trimmedName !== currentName;
     const codigoChanged = isDraft && trimmedCodigo !== codigo;
-    if (!nameChanged && !codigoChanged) {
+    const resolvedParent = parentId || null;
+    const parentChanged = resolvedParent !== currentParentId;
+
+    if (!nameChanged && !codigoChanged && !parentChanged) {
       onOpenChange(false);
       return;
     }
@@ -52,13 +73,14 @@ export function EditConjuntoDialog({ open, onOpenChange, projectId, rootId, codi
         projectId,
         name: trimmedName,
         ...(codigoChanged ? { codigo: trimmedCodigo } : {}),
+        ...(parentChanged ? { parentId: resolvedParent } : {}),
       });
-      const msg = codigoChanged && nameChanged
-        ? 'Código e descrição atualizados'
-        : codigoChanged
-        ? 'Código atualizado'
-        : 'Descrição atualizada';
-      toast.success(msg);
+      const parts: string[] = [];
+      if (codigoChanged && nameChanged) parts.push('Código e descrição atualizados');
+      else if (codigoChanged) parts.push('Código atualizado');
+      else if (nameChanged) parts.push('Descrição atualizada');
+      if (parentChanged) parts.push('Pai atualizado');
+      toast.success(parts.join(' · ') || 'Salvo');
       onOpenChange(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Erro ao atualizar');
@@ -88,6 +110,25 @@ export function EditConjuntoDialog({ open, onOpenChange, projectId, rootId, codi
               autoFocus
             />
           </div>
+          {parentOptions.length > 0 && (
+            <div>
+              <Label>Conjunto pai</Label>
+              <Select value={parentId} onValueChange={setParentId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="— Nenhum (raiz) —" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">— Nenhum (raiz) —</SelectItem>
+                  {parentOptions.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      <span className="font-mono text-xs mr-2">{r.codigo}</span>
+                      {r.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
