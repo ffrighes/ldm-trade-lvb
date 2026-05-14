@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { Boxes, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useProjects } from '@/hooks/useSupabaseData';
+import { useResizablePanel } from '@/hooks/useResizablePanel';
 import {
   Collapsible,
   CollapsibleContent,
@@ -26,13 +27,20 @@ export default function ProjectEnvironmentPanel({ projetoId }: { projetoId: stri
   const project = projects.find((p) => p.id === projetoId);
   const basePath = `/projetos/${projetoId}`;
   const [conjuntosOpen, setConjuntosOpen] = useState(true);
+  const { width, isResizing, startResize, reset } = useResizablePanel({
+    storageKey: 'project-env-panel-width',
+    defaultWidth: 240,
+    minWidth: 200,
+    maxWidth: 480,
+  });
 
   const to = `${basePath}/boms`;
   const active = pathname.startsWith(to);
 
   return (
     <aside
-      className="hidden md:flex w-60 shrink-0 flex-col"
+      className="hidden md:flex shrink-0 flex-col relative"
+      style={{ width }}
       aria-label="Selecionar ambiente do projeto"
     >
       <div className="p-4 border-b border-border/60">
@@ -90,6 +98,31 @@ export default function ProjectEnvironmentPanel({ projetoId }: { projetoId: stri
           )}
         </div>
       </nav>
+
+      {/* Resize handle — invisible at rest, reveals vertical line on hover/drag */}
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Redimensionar painel"
+        aria-valuenow={width}
+        aria-valuemin={200}
+        aria-valuemax={480}
+        onMouseDown={startResize}
+        onDoubleClick={reset}
+        className={cn(
+          'absolute top-0 bottom-0 -right-1 w-2 cursor-col-resize z-10',
+          'group flex items-center justify-center',
+        )}
+      >
+        <span
+          className={cn(
+            'block h-full w-px transition-colors',
+            isResizing
+              ? 'bg-primary w-0.5'
+              : 'bg-transparent group-hover:bg-primary/60 group-hover:w-0.5',
+          )}
+        />
+      </div>
     </aside>
   );
 }
