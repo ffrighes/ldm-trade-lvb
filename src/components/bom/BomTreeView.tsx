@@ -34,6 +34,8 @@ import { EditNodeDialog } from './EditNodeDialog';
 import { SEM_CATEGORIA_LABEL } from '@/lib/categorias';
 import { useCategorias } from '@/hooks/useCategorias';
 
+type DraftEntry = { id: string; categoria: string };
+
 interface MaterialLite {
   id: string;
   descricao: string;
@@ -76,7 +78,7 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
   const [editNode, setEditNode] = useState<BomTreeNode | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<BomTreeNode | null>(null);
   const [editingItems, setEditingItems] = useState<Set<string>>(new Set());
-  const [drafts, setDrafts] = useState<Record<string, string[]>>({});
+  const [drafts, setDrafts] = useState<Record<string, DraftEntry[]>>({});
 
   const toggleItemEdit = (nodeId: string) =>
     setEditingItems((prev) => {
@@ -85,21 +87,21 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
       return next;
     });
 
-  const addDraft = (parentId: string) => {
+  const addDraft = (parentId: string, categoria: string) => {
     setDrafts((prev) => {
       const list = prev[parentId] ?? [];
       const newId =
         typeof crypto !== 'undefined' && 'randomUUID' in crypto
           ? crypto.randomUUID()
           : `draft-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      return { ...prev, [parentId]: [...list, newId] };
+      return { ...prev, [parentId]: [...list, { id: newId, categoria }] };
     });
     setExpanded((p) => new Set(p).add(parentId));
   };
 
   const removeDraft = (parentId: string, draftId: string) => {
     setDrafts((prev) => {
-      const list = (prev[parentId] ?? []).filter((id) => id !== draftId);
+      const list = (prev[parentId] ?? []).filter((d) => d.id !== draftId);
       const next = { ...prev };
       if (list.length === 0) delete next[parentId];
       else next[parentId] = list;
@@ -166,7 +168,7 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
     rootAssemblyChildren.length > 0 || rootItemChildren.length > 0 || rootDrafts.length > 0;
 
   const handleAdd = (pid: string, tab: 'item' | 'subconjunto') => {
-    if (tab === 'item') addDraft(pid);
+    if (tab === 'item') addDraft(pid, SEM_CATEGORIA_LABEL);
     else setOpenChildConjunto(true);
   };
 
@@ -182,7 +184,7 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => addDraft(tree.id)}
+                onClick={() => addDraft(tree.id, SEM_CATEGORIA_LABEL)}
                 title="Adicionar item"
               >
                 <Package className="h-3.5 w-3.5 mr-1" /> Adicionar item
@@ -243,7 +245,7 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
                   parentId={tree.id}
                   versionId={tree.version_id}
                   items={rootItemChildren}
-                  draftIds={rootDrafts}
+                  drafts={rootDrafts}
                   depth={0}
                   matById={matById}
                   materials={materials as MaterialLite[]}
@@ -290,8 +292,8 @@ interface RowProps {
   showCumulative: boolean;
   editingItems: Set<string>;
   onToggleItemEdit: (nodeId: string) => void;
-  drafts: Record<string, string[]>;
-  onAddDraft: (parentId: string) => void;
+  drafts: Record<string, DraftEntry[]>;
+  onAddDraft: (parentId: string, categoria: string) => void;
   onRemoveDraft: (parentId: string, draftId: string) => void;
   onAdd: (parentId: string, defaultTab: 'item' | 'subconjunto') => void;
   onEdit: (n: BomTreeNode) => void;
@@ -490,7 +492,7 @@ function NodeRow(props: RowProps) {
               parentId={node.id}
               versionId={node.version_id}
               items={itemChildren}
-              draftIds={drafts[node.id] ?? []}
+              drafts={drafts[node.id] ?? []}
               depth={depth + 1}
               matById={matById}
               materials={materials}
@@ -514,7 +516,7 @@ interface ItemsTableProps {
   parentId: string;
   versionId: string;
   items: BomTreeNode[];
-  draftIds: string[];
+  drafts: DraftEntry[];
   depth: number;
   matById: Map<string, MaterialLite>;
   materials: MaterialLite[];
@@ -523,7 +525,7 @@ interface ItemsTableProps {
   showCumulative: boolean;
   editingItems: Set<string>;
   onToggleItemEdit: (nodeId: string) => void;
-  onAddDraft: (parentId: string) => void;
+  onAddDraft: (parentId: string, categoria: string) => void;
   onRemoveDraft: (parentId: string, draftId: string) => void;
   onDelete: (n: BomTreeNode) => void;
 }
@@ -545,7 +547,7 @@ function parseBitolaValue(b: string): number {
 }
 
 function ItemsByCategoryTable({
-  parentId, versionId, items, draftIds, depth, matById, materials, categoriaOrder,
+  parentId, versionId, items, drafts, depth, matById, materials, categoriaOrder,
   readOnly, showCumulative, editingItems, onToggleItemEdit, onAddDraft, onRemoveDraft, onDelete,
 }: ItemsTableProps) {
   const duplicate = useDuplicateBomSubtree();
@@ -582,6 +584,23 @@ function ItemsByCategoryTable({
     return ordered;
   }, [items, matById, categoriaOrder]);
 
+  const allCategoryCards = useMemo(() => {
+    const map = new Map<string, BomTreeNode[]>(grouped);
+    for (const d of drafts) {
+      if (!map.has(d.categoria)) map.set(d.categoria, []);
+    }
+    const ordered: [string, BomTreeNode[]][] = [];
+    const seen = new Set<string>();
+    for (const c of categoriaOrder) {
+      if (map.has(c)) { ordered.push([c, map.get(c)!]); seen.add(c); }
+    }
+    for (const [c, list] of map) {
+      if (c !== SEM_CATEGORIA_LABEL && !seen.has(c)) { ordered.push([c, list]); seen.add(c); }
+    }
+    if (map.has(SEM_CATEGORIA_LABEL)) ordered.push([SEM_CATEGORIA_LABEL, map.get(SEM_CATEGORIA_LABEL)!]);
+    return ordered;
+  }, [grouped, drafts, categoriaOrder]);
+
   const startIndexByCategory = useMemo(() => {
     const map = new Map<string, number>();
     let running = 0;
@@ -596,8 +615,13 @@ function ItemsByCategoryTable({
 
   return (
     <div style={{ paddingLeft: `${depth * 18 + 4}px` }} className="space-y-3 py-2">
-      {grouped.map(([categoria, entries]) => {
+      {allCategoryCards.map(([categoria, entries]) => {
         const startIndex = startIndexByCategory.get(categoria) ?? 0;
+        const categoryDrafts = drafts.filter((d) => d.categoria === categoria);
+        const materialsInCategory = materials.filter((m) => {
+          const cat = ((m as MaterialLite).categoria || '').trim() || SEM_CATEGORIA_LABEL;
+          return cat === categoria;
+        });
         return (
         <div key={categoria} className="rounded-md border bg-card/40">
           <div className="px-3 py-2 border-b flex items-center justify-between gap-2">
@@ -612,7 +636,7 @@ function ItemsByCategoryTable({
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6 shrink-0"
-                onClick={() => onAddDraft(parentId)}
+                onClick={() => onAddDraft(parentId, categoria)}
                 aria-label={`Adicionar item em ${categoria}`}
                 title={`Adicionar item em ${categoria}`}
               >
@@ -734,41 +758,31 @@ function ItemsByCategoryTable({
                 })}
               </tbody>
             </table>
+
+            {categoryDrafts.length > 0 && (
+              <table className="w-full text-sm border-collapse border-t">
+                <tbody>
+                  {categoryDrafts.map((draft, di) => (
+                    <tr key={draft.id} className="border-b">
+                      <td className="p-0">
+                        <NewItemDraftRow
+                          index={entries.length + di}
+                          parentId={parentId}
+                          versionId={versionId}
+                          materials={materialsInCategory}
+                          onDone={() => onRemoveDraft(parentId, draft.id)}
+                          onDiscard={() => onRemoveDraft(parentId, draft.id)}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
         );
       })}
-
-      {!readOnly && draftIds.length > 0 && (
-        <div className="rounded-md border bg-card/40">
-          <div className="px-3 py-2 border-b flex items-center gap-2">
-            <span className="font-semibold text-sm">Novo item</span>
-            <span className="text-xs text-muted-foreground">
-              ({draftIds.length} {draftIds.length === 1 ? 'item' : 'itens'})
-            </span>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm border-collapse">
-              <tbody>
-                {draftIds.map((draftId, di) => (
-                  <tr key={draftId} className="border-b">
-                    <td className="p-0">
-                      <NewItemDraftRow
-                        index={items.length + di}
-                        parentId={parentId}
-                        versionId={versionId}
-                        materials={materials}
-                        onDone={() => onRemoveDraft(parentId, draftId)}
-                        onDiscard={() => onRemoveDraft(parentId, draftId)}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
