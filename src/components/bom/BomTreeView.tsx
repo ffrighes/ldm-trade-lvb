@@ -81,6 +81,7 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
   const [confirmDelete, setConfirmDelete] = useState<BomTreeNode | null>(null);
   const [editingItems, setEditingItems] = useState<Set<string>>(new Set());
   const [drafts, setDrafts] = useState<Record<string, DraftEntry[]>>({});
+  const [pendingAutoOpen, setPendingAutoOpen] = useState<string | null>(null);
 
   const toggleItemEdit = (nodeId: string) =>
     setEditingItems((prev) => {
@@ -88,6 +89,21 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
       if (next.has(nodeId)) next.delete(nodeId); else next.add(nodeId);
       return next;
     });
+
+  const openItemEdit = (nodeId: string) => {
+    setEditingItems((prev) => new Set(prev).add(nodeId));
+    setPendingAutoOpen(nodeId);
+  };
+
+  useEffect(() => {
+    if (!pendingAutoOpen) return;
+    const el = document.querySelector(`[data-item-id="${pendingAutoOpen}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const firstInput = el.querySelector<HTMLElement>('[data-autofocus]');
+    firstInput?.focus();
+    setPendingAutoOpen(null);
+  }, [pendingAutoOpen, nodes]);
 
   const addDraft = (parentId: string, categoria: string) => {
     setDrafts((prev) => {
@@ -242,6 +258,7 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
                   showCumulative={showCumulative}
                   editingItems={editingItems}
                   onToggleItemEdit={toggleItemEdit}
+                  onOpenItemEdit={openItemEdit}
                   drafts={drafts}
                   onAddDraft={addDraft}
                   onRemoveDraft={removeDraft}
@@ -268,6 +285,7 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
                   showCumulative={showCumulative}
                   editingItems={editingItems}
                   onToggleItemEdit={toggleItemEdit}
+                  onOpenItemEdit={openItemEdit}
                   onAddDraft={addDraft}
                   onRemoveDraft={removeDraft}
                   onDelete={(n) => setConfirmDelete(n)}
@@ -315,6 +333,7 @@ interface RowProps {
   showCumulative: boolean;
   editingItems: Set<string>;
   onToggleItemEdit: (nodeId: string) => void;
+  onOpenItemEdit: (nodeId: string) => void;
   drafts: Record<string, DraftEntry[]>;
   onAddDraft: (parentId: string, categoria: string) => void;
   onRemoveDraft: (parentId: string, draftId: string) => void;
@@ -330,7 +349,7 @@ interface RowProps {
 function NodeRow(props: RowProps) {
   const {
     node, depth, expanded, setExpanded, matById, materials, categoriaOrder,
-    readOnly, showCumulative, editingItems, onToggleItemEdit,
+    readOnly, showCumulative, editingItems, onToggleItemEdit, onOpenItemEdit,
     drafts, onAddDraft, onRemoveDraft, onAdd, onEdit, onDelete, search,
   } = props;
   const isOpen = expanded.has(node.id) || (search.trim().length > 0);
@@ -498,6 +517,7 @@ function NodeRow(props: RowProps) {
               showCumulative={showCumulative}
               editingItems={editingItems}
               onToggleItemEdit={onToggleItemEdit}
+              onOpenItemEdit={onOpenItemEdit}
               drafts={drafts}
               onAddDraft={onAddDraft}
               onRemoveDraft={onRemoveDraft}
@@ -524,6 +544,7 @@ function NodeRow(props: RowProps) {
               showCumulative={showCumulative}
               editingItems={editingItems}
               onToggleItemEdit={onToggleItemEdit}
+              onOpenItemEdit={onOpenItemEdit}
               onAddDraft={onAddDraft}
               onRemoveDraft={onRemoveDraft}
               onDelete={onDelete}
@@ -548,6 +569,7 @@ interface ItemsTableProps {
   showCumulative: boolean;
   editingItems: Set<string>;
   onToggleItemEdit: (nodeId: string) => void;
+  onOpenItemEdit: (nodeId: string) => void;
   onAddDraft: (parentId: string, categoria: string) => void;
   onRemoveDraft: (parentId: string, draftId: string) => void;
   onDelete: (n: BomTreeNode) => void;
@@ -571,7 +593,7 @@ function parseBitolaValue(b: string): number {
 
 function ItemsByCategoryTable({
   parentId, versionId, items, drafts, depth, matById, materials, categoriaOrder,
-  readOnly, showCumulative, editingItems, onToggleItemEdit, onAddDraft, onRemoveDraft, onDelete,
+  readOnly, showCumulative, editingItems, onToggleItemEdit, onOpenItemEdit, onAddDraft, onRemoveDraft, onDelete,
 }: ItemsTableProps) {
   const duplicate = useDuplicateBomSubtree();
 
@@ -702,8 +724,9 @@ function ItemsByCategoryTable({
                       title="Duplicar item"
                       onClick={async () => {
                         try {
-                          await duplicate.mutateAsync({ versionId: it.version_id, nodeId: it.id });
+                          const newId = await duplicate.mutateAsync({ versionId: it.version_id, nodeId: it.id });
                           toast.success('Item duplicado');
+                          if (newId) onOpenItemEdit(newId);
                         } catch (e) {
                           toast.error(e instanceof Error ? e.message : 'Erro ao duplicar');
                         }
@@ -902,6 +925,7 @@ function ItemEditRow({ item, index, materials, extraActions, onDone }: ItemEditR
   return (
     <div
       className="bg-card/40 p-3 sm:p-4"
+      data-item-id={item.id}
       onKeyDown={async (e) => {
         if (e.key !== 'Enter' || e.defaultPrevented) return;
         const target = e.target as HTMLElement;
@@ -943,6 +967,7 @@ function ItemEditRow({ item, index, materials, extraActions, onDone }: ItemEditR
             placeholder="Selecione"
             searchPlaceholder="Buscar material..."
             emptyMessage="Nenhum material encontrado."
+            triggerProps={{ 'data-autofocus': 'true' }}
           />
         </div>
 

@@ -13,6 +13,7 @@ interface SearchableSelectProps {
   searchPlaceholder?: string;
   disabled?: boolean;
   emptyMessage?: string;
+  triggerProps?: React.ButtonHTMLAttributes<HTMLButtonElement>;
 }
 
 export function SearchableSelect({
@@ -23,6 +24,7 @@ export function SearchableSelect({
   searchPlaceholder = "Buscar...",
   disabled = false,
   emptyMessage = "Nenhum item encontrado.",
+  triggerProps,
 }: SearchableSelectProps) {
   const [open, setOpen] = React.useState(false);
 
@@ -35,6 +37,7 @@ export function SearchableSelect({
           aria-expanded={open}
           disabled={disabled}
           className={cn("w-full justify-between font-normal", !value && "text-muted-foreground")}
+          {...triggerProps}
         >
           <span className="truncate">{value || placeholder}</span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
