@@ -1095,16 +1095,34 @@ export default function BaseDadosPage() {
             return (
               <Card key={categoriaKey}>
                 <CardHeader className="pb-3">
-                  <div className="flex items-center gap-3">
-                    <Badge
-                      variant={categoriaKey === "__none__" ? "outline" : "secondary"}
-                      className="text-sm"
-                    >
-                      {categoriaLabel}
-                    </Badge>
-                    <span className="text-sm text-muted-foreground">
-                      {families.length} {families.length === 1 ? "família" : "famílias"} · {totalBitolas} {totalBitolas === 1 ? "bitola" : "bitolas"}
-                    </span>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Badge
+                        variant={categoriaKey === "__none__" ? "outline" : "secondary"}
+                        className="text-sm"
+                      >
+                        {categoriaLabel}
+                      </Badge>
+                      <span className="text-sm text-muted-foreground truncate">
+                        {families.length} {families.length === 1 ? "família" : "famílias"} · {totalBitolas} {totalBitolas === 1 ? "bitola" : "bitolas"}
+                      </span>
+                    </div>
+                    {canModifyBaseDados && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0"
+                        onClick={() => {
+                          setNewFamilyInput("");
+                          setNewFamilyCategoria(categoriaKey === "__none__" ? "" : categoriaKey);
+                          setNewFamilyDialogOpen(true);
+                        }}
+                        aria-label={`Adicionar item em ${categoriaLabel}`}
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Adicionar item
+                      </Button>
+                    )}
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
