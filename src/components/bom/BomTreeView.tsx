@@ -8,7 +8,7 @@ import {
   useDroppable,
   type DragEndEvent,
 } from '@dnd-kit/core';
-import { ChevronDown, ChevronRight, MoreVertical, Package, FolderPlus, Edit3, Copy, Trash2, ArrowUp, ArrowDown, Check } from 'lucide-react';
+import { ChevronDown, ChevronRight, MoreVertical, Package, FolderPlus, Edit3, Copy, Trash2, ArrowUp, ArrowDown, Check, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -252,6 +252,7 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
                   showCumulative={showCumulative}
                   editingItems={editingItems}
                   onToggleItemEdit={toggleItemEdit}
+                  onAddDraft={addDraft}
                   onRemoveDraft={removeDraft}
                   onDelete={(n) => setConfirmDelete(n)}
                 />
@@ -498,6 +499,7 @@ function NodeRow(props: RowProps) {
               showCumulative={showCumulative}
               editingItems={editingItems}
               onToggleItemEdit={onToggleItemEdit}
+              onAddDraft={onAddDraft}
               onRemoveDraft={onRemoveDraft}
               onDelete={onDelete}
             />
@@ -521,6 +523,7 @@ interface ItemsTableProps {
   showCumulative: boolean;
   editingItems: Set<string>;
   onToggleItemEdit: (nodeId: string) => void;
+  onAddDraft: (parentId: string) => void;
   onRemoveDraft: (parentId: string, draftId: string) => void;
   onDelete: (n: BomTreeNode) => void;
 }
@@ -543,7 +546,7 @@ function parseBitolaValue(b: string): number {
 
 function ItemsByCategoryTable({
   parentId, versionId, items, draftIds, depth, matById, materials, categoriaOrder,
-  readOnly, showCumulative, editingItems, onToggleItemEdit, onRemoveDraft, onDelete,
+  readOnly, showCumulative, editingItems, onToggleItemEdit, onAddDraft, onRemoveDraft, onDelete,
 }: ItemsTableProps) {
   const duplicate = useDuplicateBomSubtree();
 
@@ -597,11 +600,25 @@ function ItemsByCategoryTable({
         const startIndex = startIndexByCategory.get(categoria) ?? 0;
         return (
         <div key={categoria} className="rounded-md border bg-card/40">
-          <div className="px-3 py-2 border-b flex items-center gap-2">
-            <span className="font-semibold text-sm">{categoria}</span>
-            <span className="text-xs text-muted-foreground">
-              ({entries.length} {entries.length === 1 ? 'item' : 'itens'})
-            </span>
+          <div className="px-3 py-2 border-b flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="font-semibold text-sm truncate">{categoria}</span>
+              <span className="text-xs text-muted-foreground shrink-0">
+                ({entries.length} {entries.length === 1 ? 'item' : 'itens'})
+              </span>
+            </div>
+            {!readOnly && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 shrink-0"
+                onClick={() => onAddDraft(parentId)}
+                aria-label={`Adicionar item em ${categoria}`}
+                title={`Adicionar item em ${categoria}`}
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
+            )}
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm border-collapse">
