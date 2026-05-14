@@ -11,6 +11,7 @@ import { useBomRoots, useBomVersions, useDeleteBomRoot } from '@/hooks/useBomTre
 import { usePermissions } from '@/hooks/usePermissions';
 import { BomNodeIcon } from '@/components/bom/BomNodeIcon';
 import { EditConjuntoDialog } from '@/components/bom/EditConjuntoDialog';
+import { cn } from '@/lib/utils';
 
 interface Props {
   projectId: string;
@@ -48,46 +49,54 @@ export function ConjuntosSidebarList({ projectId }: Props) {
       ) : (
         <ul className="space-y-0.5">
           {roots.map((r) => (
-            <li key={r.id} className="group flex items-center gap-1">
+            <li
+              key={r.id}
+              className={cn(
+                'group relative flex items-center gap-0.5 h-7 pr-1 pl-1.5',
+                'border-l-2 border-transparent transition-colors',
+                r.id === selectedRootId
+                  ? 'bg-primary/10 border-l-primary'
+                  : 'hover:bg-muted/40',
+              )}
+            >
               <button
-                className={`flex-1 text-left px-2 py-1.5 rounded hover:bg-muted text-sm flex items-start gap-2 min-w-0 ${
-                  r.id === selectedRootId ? 'bg-muted font-medium' : ''
-                }`}
+                className="flex-1 min-w-0 text-left flex items-center gap-2 py-0.5 px-1 rounded-sm"
                 onClick={() => selectRoot(r.id)}
+                title={`${r.codigo} — ${r.name}`}
               >
-                <span className="pt-0.5"><BomNodeIcon type="CONJUNTO" /></span>
-                <span className="flex-1 min-w-0 flex flex-col">
-                  <span className="font-mono text-xs text-muted-foreground">
+                <BomNodeIcon type="CONJUNTO" />
+                <span className="flex-1 min-w-0 flex items-baseline gap-1.5 truncate">
+                  <span className="font-mono text-[11px] text-muted-foreground tracking-tight shrink-0">
                     {r.codigo}
-                    {r.parent_id && r.quantity_in_parent !== 1 && (
-                      <span className="ml-1 text-muted-foreground">×{r.quantity_in_parent}</span>
-                    )}
                   </span>
-                  <span className="break-words text-xs">{r.name}</span>
+                  <span className="text-muted-foreground/40 shrink-0">·</span>
+                  <span className="text-xs truncate">{r.name}</span>
                 </span>
               </button>
+
               {canEditBomDraft && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                   aria-label={`Editar descrição do Conjunto ${r.codigo}`}
                   title="Editar descrição"
                   onClick={(e) => { e.stopPropagation(); setEditRootId(r.id); }}
                 >
-                  <Pencil className="h-3.5 w-3.5" />
+                  <Pencil className="h-3 w-3" />
                 </Button>
               )}
+
               {canDeleteBomRoot && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                   aria-label={`Excluir Conjunto ${r.codigo}`}
                   title="Excluir Conjunto"
                   onClick={(e) => { e.stopPropagation(); setConfirmDeleteRootId(r.id); }}
                 >
-                  <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  <Trash2 className="h-3 w-3 text-destructive" />
                 </Button>
               )}
             </li>

@@ -32,11 +32,13 @@ export default function ProjectEnvironmentPanel({ projetoId }: { projetoId: stri
 
   return (
     <aside
-      className="hidden md:flex w-60 shrink-0 flex-col border-r border-border bg-card/30"
+      className="hidden md:flex w-60 shrink-0 flex-col"
       aria-label="Selecionar ambiente do projeto"
     >
-      <div className="p-4 border-b border-border">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">Projeto</p>
+      <div className="p-4 border-b border-border/60">
+        <p className="text-[10px] uppercase tracking-widest font-medium text-muted-foreground">
+          Projeto
+        </p>
         <p className="font-mono text-sm font-semibold mt-0.5">
           {project?.numero ?? '...'}
         </p>
@@ -48,7 +50,9 @@ export default function ProjectEnvironmentPanel({ projetoId }: { projetoId: stri
       </div>
 
       <nav className="p-3 space-y-1">
-        <p className="px-1 pb-1 text-xs font-medium text-muted-foreground">Ambientes</p>
+        <p className="px-1 pb-2 text-[10px] uppercase tracking-widest font-medium text-muted-foreground">
+          Ambientes
+        </p>
 
         <div className="space-y-1">
           <NavLink

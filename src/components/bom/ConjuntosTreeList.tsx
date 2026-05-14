@@ -23,6 +23,7 @@ import {
 import { usePermissions } from '@/hooks/usePermissions';
 import { BomNodeIcon } from '@/components/bom/BomNodeIcon';
 import { EditConjuntoDialog } from '@/components/bom/EditConjuntoDialog';
+import { cn } from '@/lib/utils';
 import type { BomRootTreeNode } from '@/types/bom';
 
 interface Props {
@@ -85,37 +86,51 @@ function NodeRow({
 
   return (
     <>
-      <li className="group flex items-center gap-0.5" style={{ paddingLeft: indent }}>
-        {/* expand/collapse toggle (14 px reserved even for leaves for alignment) */}
-        <span className="w-5 h-6 flex items-center justify-center shrink-0">
+      <li
+        className={cn(
+          'group relative flex items-center gap-0.5 h-6 pr-1',
+          'border-l-2 border-transparent transition-colors',
+          isSelected
+            ? 'bg-primary/10 border-l-primary'
+            : 'hover:bg-muted/40',
+        )}
+        style={{ paddingLeft: indent }}
+      >
+        {Array.from({ length: node.depth }).map((_, i) => (
+          <span
+            key={i}
+            aria-hidden
+            className="absolute top-0 bottom-0 w-px bg-border/50"
+            style={{ left: i * 14 + 9 }}
+          />
+        ))}
+
+        <span className="relative w-5 h-6 flex items-center justify-center shrink-0">
           {hasChildren ? (
             <button
               onClick={(e) => { e.stopPropagation(); onToggle(node.id); }}
-              className="rounded hover:bg-muted p-0.5 transition-colors"
+              className="rounded-sm hover:bg-muted p-0.5 transition-colors"
               aria-label={isExpanded ? 'Recolher' : 'Expandir'}
             >
               {isExpanded
-                ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                ? <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                : <ChevronRight className="h-3 w-3 text-muted-foreground" />}
             </button>
           ) : null}
         </span>
 
         <button
-          className={`flex-1 text-left px-1.5 py-1.5 rounded hover:bg-muted text-sm flex items-start gap-2 min-w-0 ${
-            isSelected ? 'bg-muted font-medium' : ''
-          }`}
+          className="relative flex-1 min-w-0 text-left flex items-center gap-2 py-0.5 px-1 rounded-sm"
           onClick={() => onSelect(node.id)}
+          title={`${node.codigo} — ${node.name}`}
         >
-          <span className="pt-0.5 shrink-0"><BomNodeIcon type="CONJUNTO" /></span>
-          <span className="flex-1 min-w-0 flex flex-col">
-            <span className="font-mono text-xs text-muted-foreground">
+          <BomNodeIcon type="CONJUNTO" />
+          <span className="flex-1 min-w-0 flex items-baseline gap-1.5 truncate">
+            <span className="font-mono text-[11px] text-muted-foreground tracking-tight shrink-0">
               {node.codigo}
-              {node.parent_id && node.quantity_in_parent !== 1 && (
-                <span className="ml-1 text-muted-foreground">×{node.quantity_in_parent}</span>
-              )}
             </span>
-            <span className="break-words text-xs">{node.name}</span>
+            <span className="text-muted-foreground/40 shrink-0">·</span>
+            <span className="text-xs truncate">{node.name}</span>
           </span>
         </button>
 
@@ -123,12 +138,12 @@ function NodeRow({
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+            className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
             aria-label={`Editar Conjunto ${node.codigo}`}
             title="Editar"
             onClick={(e) => { e.stopPropagation(); onEdit(node.id); }}
           >
-            <Pencil className="h-3.5 w-3.5" />
+            <Pencil className="h-3 w-3" />
           </Button>
         )}
 
@@ -136,15 +151,15 @@ function NodeRow({
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+            className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
             aria-label={`Excluir Conjunto ${node.codigo}`}
             title="Excluir"
             onClick={(e) => {
               e.stopPropagation();
-              onDelete({ rootId: node.id, codigo: node.codigo, hasChildren: hasChildren });
+              onDelete({ rootId: node.id, codigo: node.codigo, hasChildren });
             }}
           >
-            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+            <Trash2 className="h-3 w-3 text-destructive" />
           </Button>
         )}
       </li>
