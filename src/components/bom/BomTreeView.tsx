@@ -31,6 +31,7 @@ import type { BomTreeNode } from '@/types/bom';
 import { BomNodeIcon, bomNodeTypeLabel } from './BomNodeIcon';
 import { CreateConjuntoDialog } from './CreateConjuntoDialog';
 import { EditNodeDialog } from './EditNodeDialog';
+import { SelectCategoryDialog } from './SelectCategoryDialog';
 import { SEM_CATEGORIA_LABEL } from '@/lib/categorias';
 import { useCategorias } from '@/hooks/useCategorias';
 
@@ -75,6 +76,7 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
 
   const [showCumulative, setShowCumulative] = useState(false);
   const [openChildConjunto, setOpenChildConjunto] = useState(false);
+  const [selectCategoryOpen, setSelectCategoryOpen] = useState(false);
   const [editNode, setEditNode] = useState<BomTreeNode | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<BomTreeNode | null>(null);
   const [editingItems, setEditingItems] = useState<Set<string>>(new Set());
@@ -116,6 +118,18 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
   }, [materials]);
 
   const categoriaOrder = useMemo(() => categorias as string[], [categorias]);
+
+  const rootCategoryList = useMemo(() => {
+    const set = new Set<string>(categoriaOrder);
+    if (tree) {
+      for (const item of tree.children.filter((c) => c.node_type === 'ITEM')) {
+        const mat = item.material_id ? matById.get(item.material_id) : null;
+        const cat = (mat?.categoria || '').trim();
+        if (cat && cat !== SEM_CATEGORIA_LABEL) set.add(cat);
+      }
+    }
+    return [...set];
+  }, [categoriaOrder, tree, matById]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
@@ -184,7 +198,7 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => addDraft(tree.id, SEM_CATEGORIA_LABEL)}
+                onClick={() => setSelectCategoryOpen(true)}
                 title="Adicionar item"
               >
                 <Package className="h-3.5 w-3.5 mr-1" /> Adicionar item
@@ -273,6 +287,15 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
         onOpenChange={setOpenChildConjunto}
         projectId={projectId}
         defaultParentId={rootId}
+      />
+      <SelectCategoryDialog
+        open={selectCategoryOpen}
+        categories={rootCategoryList}
+        onCancel={() => setSelectCategoryOpen(false)}
+        onConfirm={(category) => {
+          setSelectCategoryOpen(false);
+          addDraft(tree.id, category);
+        }}
       />
       <EditNodeDialog open={!!editNode} onOpenChange={(o) => { if (!o) setEditNode(null); }} node={editNode} />
       <DeleteConfirm node={confirmDelete} versionId={versionId} onClose={() => setConfirmDelete(null)} />
