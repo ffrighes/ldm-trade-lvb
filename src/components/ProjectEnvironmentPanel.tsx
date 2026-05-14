@@ -116,10 +116,10 @@ export default function ProjectEnvironmentPanel({ projetoId }: { projetoId: stri
       >
         <span
           className={cn(
-            'block h-full w-px transition-colors',
+            'block h-full transition-all',
             isResizing
-              ? 'bg-primary w-0.5'
-              : 'bg-transparent group-hover:bg-primary/60 group-hover:w-0.5',
+              ? 'w-0.5 bg-primary'
+              : 'w-px bg-border group-hover:w-0.5 group-hover:bg-primary/60',
           )}
         />
       </div>
