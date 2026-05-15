@@ -10,13 +10,14 @@ import { useBomRoots, useBomVersions, useBomNodes, buildBomTree } from '@/hooks/
 import { usePermissions } from '@/hooks/usePermissions';
 import { CreateConjuntoDialog } from '@/components/bom/CreateConjuntoDialog';
 import { CloneFromProjectDialog } from '@/components/bom/CloneFromProjectDialog';
+import { ExportXlsxDialog } from '@/components/bom/ExportXlsxDialog';
 import { BomTreeView } from '@/components/bom/BomTreeView';
 import { VersionPanel } from '@/components/bom/VersionPanel';
 import { BomNodeIcon } from '@/components/bom/BomNodeIcon';
 import { exportConjuntoPdf, type ExportChildData } from '@/lib/exportConjuntoPdf';
 import { exportConjuntoXlsx } from '@/lib/exportConjuntoXlsx';
 import { supabase } from '@/integrations/supabase/client';
-import type { BomNode, BomRoot, BomVersion } from '@/types/bom';
+import type { BomNode, BomRoot, BomTreeNode, BomVersion } from '@/types/bom';
 
 export default function BomTreePage() {
   const { projetoId } = useParams<{ projetoId: string }>();
@@ -34,6 +35,12 @@ export default function BomTreePage() {
   const [search, setSearch] = useState('');
   const [openCreate, setOpenCreate] = useState(false);
   const [openClone, setOpenClone] = useState(false);
+  const [xlsxDialogOpen, setXlsxDialogOpen] = useState(false);
+  const [xlsxDialogData, setXlsxDialogData] = useState<{
+    tree: BomTreeNode;
+    childConjuntos: ExportChildData[];
+    availableCategories: string[];
+  } | null>(null);
 
   const { data: versions = [] } = useBomVersions(selectedRootId);
   const { data: nodes = [] } = useBomNodes(selectedVersionId);
@@ -77,6 +84,51 @@ export default function BomTreePage() {
   }, [versions, selectedVersionId, searchParams, setSearchParams]);
 
   if (!projetoId) return <Navigate to="/projetos" replace />;
+
+  function collectAllRootIds(children: ExportChildData[]): string[] {
+    const ids: string[] = [];
+    for (const c of children) {
+      ids.push(c.root.id);
+      ids.push(...collectAllRootIds(c.children));
+    }
+    return ids;
+  }
+
+  function collectAvailableCategories(
+    tree: BomTreeNode,
+    childConjuntos: ExportChildData[],
+    matMap: Map<string, { id: string; categoria?: string | null }>,
+  ): string[] {
+    const CANONICAL = ['Tubulação', 'Conexões', 'Válvulas', 'Fixadores', 'Instrumentos'];
+    const SEM_CAT = '(Sem categoria)';
+    const found = new Set<string>();
+
+    function walk(node: BomTreeNode) {
+      if (node.node_type === 'ITEM' && node.material_id) {
+        const mat = matMap.get(node.material_id);
+        found.add(mat?.categoria ?? SEM_CAT);
+      } else if (node.node_type === 'ITEM') {
+        found.add(SEM_CAT);
+      }
+      node.children.forEach(walk);
+    }
+
+    walk(tree);
+    for (const child of childConjuntos) {
+      walk(child.tree);
+      collectAvailableCategories(child.tree, child.children, matMap)
+        .forEach((c) => found.add(c));
+    }
+
+    const ordered: string[] = [];
+    for (const c of CANONICAL) if (found.has(c)) ordered.push(c);
+    const unknown = [...found]
+      .filter((c) => !CANONICAL.includes(c) && c !== SEM_CAT)
+      .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    ordered.push(...unknown);
+    if (found.has(SEM_CAT)) ordered.push(SEM_CAT);
+    return ordered;
+  }
 
   async function fetchDescendantConjuntos(
     parentRoot: BomRoot,
@@ -157,13 +209,45 @@ export default function BomTreePage() {
     try {
       const rootLabel = `${currentRoot.codigo} — ${currentRoot.name}`;
       const childConjuntos = await fetchDescendantConjuntos(currentRoot, roots, [rootLabel]);
+      const availableCategories = collectAvailableCategories(tree, childConjuntos, matMap);
+      setXlsxDialogData({ tree, childConjuntos, availableCategories });
+      setXlsxDialogOpen(true);
+    } catch (err) {
+      toast.error('Erro ao preparar exportação: ' + (err instanceof Error ? err.message : String(err)));
+    }
+  };
+
+  const handleConfirmXlsxExport = (selection: {
+    selectedRootIds: Set<string>;
+    selectedCategories: Set<string>;
+  }) => {
+    if (!currentRoot || !currentVersion || !xlsxDialogData) return;
+    const matMap = new Map((materials ?? []).map((m) => [m.id, m]));
+
+    const allRootIds = new Set<string>([
+      currentRoot.id,
+      ...collectAllRootIds(xlsxDialogData.childConjuntos),
+    ]);
+    const allCategoriesSet = new Set(xlsxDialogData.availableCategories);
+
+    const isPartial =
+      selection.selectedRootIds.size !== allRootIds.size ||
+      selection.selectedCategories.size !== allCategoriesSet.size;
+
+    try {
       exportConjuntoXlsx(
         currentRoot,
         currentVersion,
-        tree,
+        xlsxDialogData.tree,
         matMap,
-        childConjuntos,
+        xlsxDialogData.childConjuntos,
         projeto ? { numero: projeto.numero, descricao: projeto.descricao } : undefined,
+        {
+          selectedRootIds: selection.selectedRootIds,
+          selectedCategories: selection.selectedCategories,
+          isPartial,
+          totalAvailableCategories: allCategoriesSet.size,
+        },
       );
     } catch (err) {
       toast.error('Erro ao gerar XLSX: ' + (err instanceof Error ? err.message : String(err)));
@@ -280,6 +364,17 @@ export default function BomTreePage() {
         targetProjectId={projetoId}
         onCloned={(rootId, versionId) => setSelection(rootId, versionId)}
       />
+      {currentRoot && currentVersion && xlsxDialogData && (
+        <ExportXlsxDialog
+          open={xlsxDialogOpen}
+          onOpenChange={setXlsxDialogOpen}
+          root={currentRoot}
+          version={currentVersion}
+          descendants={xlsxDialogData.childConjuntos}
+          availableCategories={xlsxDialogData.availableCategories}
+          onConfirm={handleConfirmXlsxExport}
+        />
+      )}
     </div>
   );
 }
