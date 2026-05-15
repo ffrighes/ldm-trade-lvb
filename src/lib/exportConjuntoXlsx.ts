@@ -65,6 +65,51 @@ function categoriaKey(cat: string | null): string {
   return idx >= 0 ? `${String(idx).padStart(2, '0')}_${cat}` : `y_${cat}`;
 }
 
+// ---- Available categories derivation ----
+
+const CANONICAL_CATEGORIES = ['Tubulação', 'Conexões', 'Válvulas', 'Fixadores', 'Instrumentos'];
+const SEM_CATEGORIA = '(Sem categoria)';
+
+function deriveAvailableCategories(
+  tree: BomTreeNode,
+  childConjuntos: ExportChildData[],
+  matMap: Map<string, MaterialLite>,
+): string[] {
+  const found = new Set<string>();
+  function walk(node: BomTreeNode) {
+    if (node.node_type === 'ITEM') {
+      const cat = node.material_id ? matMap.get(node.material_id)?.categoria : null;
+      found.add(cat ?? SEM_CATEGORIA);
+    }
+    node.children.forEach(walk);
+  }
+  walk(tree);
+  for (const child of childConjuntos) {
+    walk(child.tree);
+    deriveAvailableCategories(child.tree, child.children, matMap).forEach((c) => found.add(c));
+  }
+  const ordered: string[] = [];
+  for (const c of CANONICAL_CATEGORIES) if (found.has(c)) ordered.push(c);
+  const unknown = [...found]
+    .filter((c) => !CANONICAL_CATEGORIES.includes(c) && c !== SEM_CATEGORIA)
+    .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  ordered.push(...unknown);
+  if (found.has(SEM_CATEGORIA)) ordered.push(SEM_CATEGORIA);
+  return ordered;
+}
+
+function formatCategoriesCell(
+  selectedCategories: Set<string> | undefined,
+  availableCategories: string[],
+): string {
+  const effective =
+    !selectedCategories || selectedCategories.size === 0
+      ? availableCategories
+      : availableCategories.filter((c) => selectedCategories.has(c));
+  if (effective.length === 0) return '—';
+  return effective.join(', ');
+}
+
 // ---- Child flattening for cover sheet ----
 
 function flattenChildrenForXlsx(
@@ -130,6 +175,8 @@ interface FilterInfo {
 function buildCoverSheet(
   root: BomRoot,
   version: BomVersion,
+  tree: BomTreeNode,
+  matMap: Map<string, MaterialLite>,
   childConjuntos: ExportChildData[],
   projeto?: { numero: string; descricao: string },
   filters?: FilterInfo,
@@ -154,6 +201,10 @@ function buildCoverSheet(
     ['Status', version.status],
     ['Data de Criação', createdAt],
     ['Data de Liberação', releasedAt],
+    ['Categorias', formatCategoriesCell(
+      filters?.selectedCategories,
+      deriveAvailableCategories(tree, childConjuntos, matMap),
+    )],
   ];
 
   if (filters?.isPartial) {
@@ -300,7 +351,7 @@ export function exportConjuntoXlsx(
   const totalRoots = 1 + countAllRoots(childConjuntos);
   const totalCategories = filters?.totalAvailableCategories ?? 0;
 
-  const coverSheet = buildCoverSheet(root, version, childConjuntos, projeto, filters, totalRoots, totalCategories);
+  const coverSheet = buildCoverSheet(root, version, tree, matMap, childConjuntos, projeto, filters, totalRoots, totalCategories);
   XLSX.utils.book_append_sheet(wb, coverSheet, 'Folha de Rosto');
 
   const consolidatedSheet = buildConsolidatedSheet(root, tree, matMap, childConjuntos, filters);
