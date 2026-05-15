@@ -98,16 +98,16 @@ function deriveAvailableCategories(
   return ordered;
 }
 
-function formatCategoriesCell(
+function buildCategoryRows(
   selectedCategories: Set<string> | undefined,
   availableCategories: string[],
-): string {
+): unknown[][] {
   const effective =
     !selectedCategories || selectedCategories.size === 0
       ? availableCategories
       : availableCategories.filter((c) => selectedCategories.has(c));
-  if (effective.length === 0) return '—';
-  return effective.join(', ');
+  if (effective.length === 0) return [['Categorias', '—']];
+  return effective.map((cat, i) => (i === 0 ? ['Categorias', cat] : ['', cat]));
 }
 
 // ---- Child flattening for cover sheet ----
@@ -201,11 +201,12 @@ function buildCoverSheet(
     ['Status', version.status],
     ['Data de Criação', createdAt],
     ['Data de Liberação', releasedAt],
-    ['Categorias', formatCategoriesCell(
-      filters?.selectedCategories,
-      deriveAvailableCategories(tree, childConjuntos, matMap),
-    )],
   ];
+
+  aoa.push(...buildCategoryRows(
+    filters?.selectedCategories,
+    deriveAvailableCategories(tree, childConjuntos, matMap),
+  ));
 
   if (filters?.isPartial) {
     const nRoots = filters.selectedRootIds?.size ?? 0;
