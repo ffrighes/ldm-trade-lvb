@@ -1,7 +1,7 @@
 import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
 import type { BomRoot, BomTreeNode, BomVersion } from '@/types/bom';
-import { type ExportChildData, type ItemRow, collectAllItems } from '@/lib/exportConjuntoPdf';
+import { type ExportChildData, type ItemRow, collectItems } from '@/lib/exportConjuntoPdf';
 
 interface MaterialLite {
   id: string;
@@ -70,26 +70,71 @@ function categoriaKey(cat: string | null): string {
 function flattenChildrenForXlsx(
   children: ExportChildData[],
   depth: number,
+  selectedRootIds?: Set<string>,
 ): Array<{ indent: number; label: string }> {
   const out: Array<{ indent: number; label: string }> = [];
   for (const c of children) {
-    const versionLbl = `v${c.version.version_number}, ${c.version.status}`;
-    out.push({
-      indent: depth,
-      label: `${c.root.codigo} — ${c.root.name}  (${versionLbl})`,
-    });
-    out.push(...flattenChildrenForXlsx(c.children, depth + 1));
+    if (!selectedRootIds || selectedRootIds.size === 0 || selectedRootIds.has(c.root.id)) {
+      const versionLbl = `v${c.version.version_number}, ${c.version.status}`;
+      out.push({
+        indent: depth,
+        label: `${c.root.codigo} — ${c.root.name}  (${versionLbl})`,
+      });
+    }
+    out.push(...flattenChildrenForXlsx(c.children, depth + 1, selectedRootIds));
   }
   return out;
 }
 
+// ---- Filtered item collection ----
+
+function collectFilteredItems(
+  rootId: string,
+  tree: BomTreeNode,
+  matMap: Map<string, MaterialLite>,
+  childRoots: ExportChildData[],
+  selectedRootIds: Set<string> | undefined,
+  multiplier: number = 1,
+): ItemRow[] {
+  const items: ItemRow[] = [];
+  if (!selectedRootIds || selectedRootIds.size === 0 || selectedRootIds.has(rootId)) {
+    items.push(...collectItems(tree, 1, matMap).map((r) => ({
+      ...r,
+      quantidade: r.quantidade * multiplier,
+    })));
+  }
+  for (const child of childRoots) {
+    const childQty = child.root.quantity_in_parent ?? 1;
+    items.push(
+      ...collectFilteredItems(
+        child.root.id,
+        child.tree,
+        matMap,
+        child.children,
+        selectedRootIds,
+        multiplier * childQty,
+      ),
+    );
+  }
+  return items;
+}
+
 // ---- Sheet builders ----
+
+interface FilterInfo {
+  selectedRootIds?: Set<string>;
+  selectedCategories?: Set<string>;
+  isPartial?: boolean;
+}
 
 function buildCoverSheet(
   root: BomRoot,
   version: BomVersion,
   childConjuntos: ExportChildData[],
   projeto?: { numero: string; descricao: string },
+  filters?: FilterInfo,
+  totalRoots?: number,
+  totalCategories?: number,
 ): XLSX.WorkSheet {
   const projetoLabel = projeto ? `${projeto.numero} - ${projeto.descricao}` : '—';
   const versionLabel = version.label
@@ -101,19 +146,29 @@ function buildCoverSheet(
     : '—';
 
   const aoa: unknown[][] = [
-    ['LISTA DE MATERIAIS', ''],       // row 1 — merged A1:B1
-    ['', ''],                         // row 2 — blank
+    ['LISTA DE MATERIAIS', ''],
+    ['', ''],
     ['Lista', `${root.codigo} — ${root.name}`],
     ['Projeto', projetoLabel],
     ['Revisão', versionLabel],
     ['Status', version.status],
     ['Data de Criação', createdAt],
     ['Data de Liberação', releasedAt],
-    ['', ''],                         // row 9 — blank
-    ['Conjuntos Filhos', ''],         // row 10
   ];
 
-  const flat = flattenChildrenForXlsx(childConjuntos, 0);
+  if (filters?.isPartial) {
+    const nRoots = filters.selectedRootIds?.size ?? 0;
+    const nCats = filters.selectedCategories?.size ?? 0;
+    aoa.push([
+      'Filtros aplicados',
+      `Conjuntos: ${nRoots} de ${totalRoots ?? '?'} | Categorias: ${nCats} de ${totalCategories ?? '?'}`,
+    ]);
+  }
+
+  aoa.push(['', '']);
+  aoa.push(['Conjuntos Filhos', '']);
+
+  const flat = flattenChildrenForXlsx(childConjuntos, 0, filters?.isPartial ? filters.selectedRootIds : undefined);
   if (flat.length === 0) {
     aoa.push(['(nenhum conjunto filho)', '']);
   } else {
@@ -137,12 +192,35 @@ function buildCoverSheet(
 }
 
 function buildConsolidatedSheet(
+  root: BomRoot,
   tree: BomTreeNode,
   matMap: Map<string, MaterialLite>,
   childConjuntos: ExportChildData[],
+  filters?: FilterInfo,
 ): XLSX.WorkSheet {
-  const allItems = collectAllItems(tree, matMap, childConjuntos);
-  const consolidated = consolidateItemsForXlsx(allItems);
+  const rawItems = collectFilteredItems(root.id, tree, matMap, childConjuntos, filters?.isPartial ? filters.selectedRootIds : undefined);
+
+  const categoriaFilter = filters?.isPartial ? filters.selectedCategories : undefined;
+  const filteredItems = (!categoriaFilter || categoriaFilter.size === 0)
+    ? rawItems
+    : rawItems.filter((r) => {
+        const cat = r.categoria ?? '(Sem categoria)';
+        return categoriaFilter.has(cat);
+      });
+
+  if (filteredItems.length === 0) {
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['#', 'Descrição', 'Bitola', 'Qtd', 'Un.', 'ERP', 'Notas'],
+      ['Nenhum item corresponde aos filtros selecionados.', '', '', '', '', '', ''],
+    ]);
+    ws['!cols'] = [
+      { wch: 5 }, { wch: 55 }, { wch: 14 }, { wch: 10 }, { wch: 6 }, { wch: 14 }, { wch: 40 },
+    ];
+    ws['!merges'] = [{ s: { r: 1, c: 0 }, e: { r: 1, c: 6 } }];
+    return ws;
+  }
+
+  const consolidated = consolidateItemsForXlsx(filteredItems);
 
   consolidated.sort((a, b) => {
     const catCmp = categoriaKey(a.categoria).localeCompare(
@@ -207,17 +285,30 @@ export function exportConjuntoXlsx(
   matMap: Map<string, MaterialLite>,
   childConjuntos: ExportChildData[] = [],
   projeto?: { numero: string; descricao: string },
+  filters?: {
+    selectedRootIds?: Set<string>;
+    selectedCategories?: Set<string>;
+    isPartial?: boolean;
+    totalAvailableCategories?: number;
+  },
 ): void {
   const wb = XLSX.utils.book_new();
 
-  const coverSheet = buildCoverSheet(root, version, childConjuntos, projeto);
+  function countAllRoots(children: ExportChildData[]): number {
+    return children.reduce((acc, c) => acc + 1 + countAllRoots(c.children), 0);
+  }
+  const totalRoots = 1 + countAllRoots(childConjuntos);
+  const totalCategories = filters?.totalAvailableCategories ?? 0;
+
+  const coverSheet = buildCoverSheet(root, version, childConjuntos, projeto, filters, totalRoots, totalCategories);
   XLSX.utils.book_append_sheet(wb, coverSheet, 'Folha de Rosto');
 
-  const consolidatedSheet = buildConsolidatedSheet(tree, matMap, childConjuntos);
+  const consolidatedSheet = buildConsolidatedSheet(root, tree, matMap, childConjuntos, filters);
   XLSX.utils.book_append_sheet(wb, consolidatedSheet, 'Lista Consolidada');
 
   const safe = (s: string) => s.replace(/[\\/:*?"<>|]/g, '_');
-  const filename = `${safe(root.codigo)}_${safe(root.name)}_v${version.version_number}.xlsx`;
+  const suffix = filters?.isPartial ? '_filtrado' : '';
+  const filename = `${safe(root.codigo)}_${safe(root.name)}_v${version.version_number}${suffix}.xlsx`;
 
   XLSX.writeFile(wb, filename);
 }
