@@ -86,3 +86,132 @@ VITE_SUPABASE_PROJECT_ID
 ```
 
 The client has hardcoded fallback values for the production project so the app works even if env vars fail to inline at build time.
+
+---
+
+# Workflow de Planejamento e Implementação
+
+## Regra Fundamental de Modelos
+
+**NUNCA execute implementações diretamente sem planejamento aprovado.**
+
+| Etapa        | Modelo              | Propósito                            |
+|--------------|---------------------|--------------------------------------|
+| Planejamento | `claude-opus-4-7`   | Análise profunda, melhoria de prompt |
+| Implementação| `claude-sonnet-4-6` | Execução rápida e eficiente          |
+
+---
+
+## PROTOCOLO OBRIGATÓRIO — Toda Solicitação de Alteração
+
+Antes de qualquer implementação, YOU MUST executar as 3 etapas abaixo na ordem.
+
+---
+
+### ETAPA 1 — Melhoria do Prompt (Opus 4.7 · Plan Mode)
+
+Ao receber uma solicitação de alteração:
+1. **Reescreva o prompt** para torná-lo mais preciso, sem ambiguidades e acionável
+2. **Identifique o que está implícito** mas não foi dito pelo usuário
+3. **Aponte lacunas** de informação que bloqueiam a implementação
+4. **Classifique a complexidade:** Simples / Média / Alta / Crítica
+
+Formato de saída obrigatório:
+```
+## PROMPT MELHORADO
+[versão reescrita e melhorada do pedido original]
+## O QUE FOI ADICIONADO
+- [item implícito identificado]
+- [ambiguidade resolvida]
+## DADOS INSUFICIENTES (se houver)
+- [informação necessária que falta]
+## COMPLEXIDADE
+[Simples | Média | Alta | Crítica] — [justificativa em 1 linha]
+```
+
+---
+
+### ETAPA 2 — Plano de Implementação (Opus 4.7 · Plan Mode)
+
+Com o prompt melhorado, produza o plano antes de qualquer execução:
+```
+## DIAGNÓSTICO
+[estado atual relevante do código/sistema]
+## ARQUIVOS AFETADOS
+- path/arquivo.ext — [o que muda e por quê]
+## SEQUÊNCIA DE OPERAÇÕES
+1. [operação] → [arquivo] → [resultado esperado]
+2. ...
+## DEPENDÊNCIAS E ORDEM
+[o que deve ser feito antes do quê]
+## RISCOS
+- [risco] → [mitigação]
+## CRITÉRIOS DE SUCESSO
+- [ ] [verificação objetiva 1]
+- [ ] [verificação objetiva 2]
+## SKILLS A CONSULTAR
+- [path/SKILL.md se aplicável]
+```
+
+**NÃO EXECUTE nada nesta etapa. Aguarde aprovação explícita.**
+
+---
+
+### ETAPA 3 — Implementação (Sonnet 4.6)
+
+Somente após aprovação do plano:
+- Seguir o plano aprovado sem desvios
+- Reportar cada arquivo modificado ao concluir
+- Se encontrar bloqueio inesperado: PARAR e reportar antes de improvisar
+
+---
+
+## Skills Obrigatórias por Contexto
+
+Consulte SEMPRE antes de agir na área correspondente:
+
+| Contexto                             | Skill a consultar                                       |
+|--------------------------------------|---------------------------------------------------------|
+| Banco de dados / Backend             | `/mnt/skills/user/supabase/SKILL.md`                   |
+| Frontend / UI                        | `/mnt/skills/user/frontend-design/SKILL.md`             |
+| Documentos Word                      | `/mnt/skills/public/docx/SKILL.md`                     |
+| Apresentações                        | `/mnt/skills/public/pptx/SKILL.md`                     |
+| PDFs                                 | `/mnt/skills/public/pdf/SKILL.md`                      |
+| Leitura de arquivos                  | `/mnt/skills/public/file-reading/SKILL.md`             |
+| Informações sobre produtos Anthropic | `/mnt/skills/public/product-self-knowledge/SKILL.md`   |
+
+---
+
+## Convenções do Projeto
+
+### Unidades de Medida (SEMPRE usar)
+- Pressão: `Bar`
+- Vazão: `m³/h`
+- Comprimento: `mm`
+- Temperatura: `°C`
+
+### Cálculos
+- SEMPRE mostrar a fórmula antes do resultado
+- SEMPRE incluir unidades no resultado
+
+### Dados e Fontes
+- NUNCA inventar dados ou informações
+- Quando faltar dado: marcar como `[Dados Insuficientes]`
+- Pesquisa web: SEMPRE fornecer o link da fonte
+
+### Tom e Comunicação
+- Profissional, direto, objetivo e seguro
+- Recomendações pragmáticas e acionáveis
+- Sem rodeios ou disclaimers desnecessários
+
+---
+
+## Auto-Memória
+
+Ao aprender algo relevante sobre este projeto (padrão de código, convenção, decisão arquitetural, bug recorrente), salvar automaticamente em memória com `/memory`.
+
+Categorias de memória a manter atualizadas:
+- `arquitetura` — decisões estruturais do projeto
+- `padroes` — convenções de código adotadas
+- `bugs-conhecidos` — problemas identificados e suas causas
+- `dependencias` — bibliotecas críticas e versões fixadas
