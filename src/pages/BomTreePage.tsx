@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Plus, Copy, FileText } from 'lucide-react';
+import { ArrowLeft, Plus, Copy, FileText, FileSpreadsheet } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,6 +14,7 @@ import { BomTreeView } from '@/components/bom/BomTreeView';
 import { VersionPanel } from '@/components/bom/VersionPanel';
 import { BomNodeIcon } from '@/components/bom/BomNodeIcon';
 import { exportConjuntoPdf, type ExportChildData } from '@/lib/exportConjuntoPdf';
+import { exportConjuntoXlsx } from '@/lib/exportConjuntoXlsx';
 import { supabase } from '@/integrations/supabase/client';
 import type { BomNode, BomRoot, BomVersion } from '@/types/bom';
 
@@ -148,6 +149,27 @@ export default function BomTreePage() {
     }
   };
 
+  const handleExportXlsx = async () => {
+    if (!currentRoot || !currentVersion || nodes.length === 0) return;
+    const tree = buildBomTree(nodes);
+    if (!tree) return;
+    const matMap = new Map((materials ?? []).map((m) => [m.id, m]));
+    try {
+      const rootLabel = `${currentRoot.codigo} — ${currentRoot.name}`;
+      const childConjuntos = await fetchDescendantConjuntos(currentRoot, roots, [rootLabel]);
+      exportConjuntoXlsx(
+        currentRoot,
+        currentVersion,
+        tree,
+        matMap,
+        childConjuntos,
+        projeto ? { numero: projeto.numero, descricao: projeto.descricao } : undefined,
+      );
+    } catch (err) {
+      toast.error('Erro ao gerar XLSX: ' + (err instanceof Error ? err.message : String(err)));
+    }
+  };
+
   const handleSelectVersion = (versionId: string) => setSelection(selectedRootId, versionId);
 
   return (
@@ -187,16 +209,28 @@ export default function BomTreePage() {
                   <span className="font-mono text-sm text-muted-foreground">{currentRoot.codigo}</span>
                   <span>{currentRoot.name}</span>
                 </CardTitle>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleExportPdf}
-                  disabled={!currentVersion || nodes.length === 0 || !projeto}
-                  title="Exportar PDF"
-                >
-                  <FileText className="h-4 w-4 mr-1" />
-                  PDF
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExportPdf}
+                    disabled={!currentVersion || nodes.length === 0 || !projeto}
+                    title="Exportar PDF"
+                  >
+                    <FileText className="h-4 w-4 mr-1" />
+                    PDF
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExportXlsx}
+                    disabled={!currentVersion || nodes.length === 0}
+                    title="Exportar XLSX"
+                  >
+                    <FileSpreadsheet className="h-4 w-4 mr-1" />
+                    XLSX
+                  </Button>
+                </div>
               </div>
               <VersionPanel
                 rootId={currentRoot.id}

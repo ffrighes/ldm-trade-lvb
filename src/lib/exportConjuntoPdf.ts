@@ -67,7 +67,7 @@ function formatQty(n: number): string {
 
 // ---- Item row types ----
 
-interface ItemRow {
+export interface ItemRow {
   materialId: string | null;
   /** node.name — the TAG shown in the BOM view */
   tag: string;
@@ -81,7 +81,7 @@ interface ItemRow {
 }
 
 /** Collect all ITEM nodes from a subtree. baseCumulative normalises quantities (e.g. qty per subconjunto unit). */
-function collectItems(
+export function collectItems(
   node: BomTreeNode,
   baseCumulative: number,
   matMap: Map<string, MaterialLite>,
@@ -134,7 +134,7 @@ function collectDirectItems(
  * Collect ALL items from a BOM tree AND from all nested child BomRoots (recursively).
  * Each child BomRoot multiplies the items below it by its `quantity_in_parent`.
  */
-function collectAllItems(
+export function collectAllItems(
   tree: BomTreeNode,
   matMap: Map<string, MaterialLite>,
   childRoots: ExportChildData[],
