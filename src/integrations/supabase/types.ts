@@ -14,6 +14,21 @@ export type Database = {
   }
   public: {
     Tables: {
+      _migration_state: {
+        Row: {
+          applied_at: string
+          key: string
+        }
+        Insert: {
+          applied_at?: string
+          key: string
+        }
+        Update: {
+          applied_at?: string
+          key?: string
+        }
+        Relationships: []
+      }
       bom_audit: {
         Row: {
           action: string
@@ -319,61 +334,61 @@ export type Database = {
       }
       fornecedor_precos: {
         Row: {
-          id: string
-          fornecedor_id: string
-          material_id: string
           codigo_fornecedor: string
-          valor_unitario: number
-          moeda: string
-          moq: number
-          lead_time_dias: number
-          desconto_pct: number
-          ipi_pct: number
-          icms_pct: number
-          pis_pct: number
           cofins_pct: number
-          data_cotacao: string
-          notas: string
           created_at: string
           created_by: string | null
+          data_cotacao: string
+          desconto_pct: number
+          fornecedor_id: string
+          icms_pct: number
+          id: string
+          ipi_pct: number
+          lead_time_dias: number
+          material_id: string
+          moeda: string
+          moq: number
+          notas: string
+          pis_pct: number
+          valor_unitario: number
         }
         Insert: {
-          id?: string
-          fornecedor_id: string
-          material_id: string
           codigo_fornecedor?: string
-          valor_unitario: number
-          moeda?: string
-          moq?: number
-          lead_time_dias?: number
-          desconto_pct?: number
-          ipi_pct?: number
-          icms_pct?: number
-          pis_pct?: number
           cofins_pct?: number
-          data_cotacao?: string
-          notas?: string
           created_at?: string
           created_by?: string | null
+          data_cotacao?: string
+          desconto_pct?: number
+          fornecedor_id: string
+          icms_pct?: number
+          id?: string
+          ipi_pct?: number
+          lead_time_dias?: number
+          material_id: string
+          moeda?: string
+          moq?: number
+          notas?: string
+          pis_pct?: number
+          valor_unitario: number
         }
         Update: {
-          id?: string
-          fornecedor_id?: string
-          material_id?: string
           codigo_fornecedor?: string
-          valor_unitario?: number
-          moeda?: string
-          moq?: number
-          lead_time_dias?: number
-          desconto_pct?: number
-          ipi_pct?: number
-          icms_pct?: number
-          pis_pct?: number
           cofins_pct?: number
-          data_cotacao?: string
-          notas?: string
           created_at?: string
           created_by?: string | null
+          data_cotacao?: string
+          desconto_pct?: number
+          fornecedor_id?: string
+          icms_pct?: number
+          id?: string
+          ipi_pct?: number
+          lead_time_dias?: number
+          material_id?: string
+          moeda?: string
+          moq?: number
+          notas?: string
+          pis_pct?: number
+          valor_unitario?: number
         }
         Relationships: [
           {
@@ -394,242 +409,30 @@ export type Database = {
       }
       fornecedores: {
         Row: {
+          created_at: string
+          created_by: string | null
           id: string
           nome: string
           observacoes: string
           regime_tributario: string
-          created_at: string
-          created_by: string | null
         }
         Insert: {
+          created_at?: string
+          created_by?: string | null
           id?: string
           nome: string
           observacoes?: string
           regime_tributario?: string
-          created_at?: string
-          created_by?: string | null
         }
         Update: {
+          created_at?: string
+          created_by?: string | null
           id?: string
           nome?: string
           observacoes?: string
           regime_tributario?: string
-          created_at?: string
-          created_by?: string | null
         }
         Relationships: []
-      }
-      orcamento_fornecedores: {
-        Row: {
-          id: string
-          orcamento_id: string
-          fornecedor_id: string
-          posicao: number
-        }
-        Insert: {
-          id?: string
-          orcamento_id: string
-          fornecedor_id: string
-          posicao?: number
-        }
-        Update: {
-          id?: string
-          orcamento_id?: string
-          fornecedor_id?: string
-          posicao?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "orcamento_fornecedores_orcamento_id_fkey"
-            columns: ["orcamento_id"]
-            isOneToOne: false
-            referencedRelation: "orcamentos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "orcamento_fornecedores_fornecedor_id_fkey"
-            columns: ["fornecedor_id"]
-            isOneToOne: false
-            referencedRelation: "fornecedores"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      orcamento_item_cotacoes: {
-        Row: {
-          id: string
-          item_id: string
-          fornecedor_id: string
-          cotacao_origem_id: string | null
-          codigo_fornecedor: string
-          valor_unitario: number
-          desconto_pct: number
-          ipi_pct: number
-          icms_pct: number
-          pis_pct: number
-          cofins_pct: number
-          moq: number | null
-          lead_time_dias: number | null
-          sem_cotacao_vigente: boolean
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          item_id: string
-          fornecedor_id: string
-          cotacao_origem_id?: string | null
-          codigo_fornecedor?: string
-          valor_unitario?: number
-          desconto_pct?: number
-          ipi_pct?: number
-          icms_pct?: number
-          pis_pct?: number
-          cofins_pct?: number
-          moq?: number | null
-          lead_time_dias?: number | null
-          sem_cotacao_vigente?: boolean
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          item_id?: string
-          fornecedor_id?: string
-          cotacao_origem_id?: string | null
-          codigo_fornecedor?: string
-          valor_unitario?: number
-          desconto_pct?: number
-          ipi_pct?: number
-          icms_pct?: number
-          pis_pct?: number
-          cofins_pct?: number
-          moq?: number | null
-          lead_time_dias?: number | null
-          sem_cotacao_vigente?: boolean
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "orcamento_item_cotacoes_item_id_fkey"
-            columns: ["item_id"]
-            isOneToOne: false
-            referencedRelation: "orcamento_itens"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "orcamento_item_cotacoes_fornecedor_id_fkey"
-            columns: ["fornecedor_id"]
-            isOneToOne: false
-            referencedRelation: "fornecedores"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      orcamento_itens: {
-        Row: {
-          id: string
-          orcamento_id: string
-          descricao: string
-          bitola: string
-          erp: string
-          unidade: string
-          quantidade: number
-          notas: string
-          material_id: string | null
-          posicao: number
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          orcamento_id: string
-          descricao: string
-          bitola?: string
-          erp?: string
-          unidade?: string
-          quantidade?: number
-          notas?: string
-          material_id?: string | null
-          posicao?: number
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          orcamento_id?: string
-          descricao?: string
-          bitola?: string
-          erp?: string
-          unidade?: string
-          quantidade?: number
-          notas?: string
-          material_id?: string | null
-          posicao?: number
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "orcamento_itens_orcamento_id_fkey"
-            columns: ["orcamento_id"]
-            isOneToOne: false
-            referencedRelation: "orcamentos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "orcamento_itens_material_id_fkey"
-            columns: ["material_id"]
-            isOneToOne: false
-            referencedRelation: "materials"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      orcamentos: {
-        Row: {
-          id: string
-          projeto_id: string
-          numero: string
-          nome: string
-          notas: string
-          origem_bom_root_codigo: string | null
-          origem_bom_version_label: string | null
-          origem_data_copia: string | null
-          created_by: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          projeto_id: string
-          numero?: string
-          nome: string
-          notas?: string
-          origem_bom_root_codigo?: string | null
-          origem_bom_version_label?: string | null
-          origem_data_copia?: string | null
-          created_by?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          projeto_id?: string
-          numero?: string
-          nome?: string
-          notas?: string
-          origem_bom_root_codigo?: string | null
-          origem_bom_version_label?: string | null
-          origem_data_copia?: string | null
-          created_by?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "orcamentos_projeto_id_fkey"
-            columns: ["projeto_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       material_categorias: {
         Row: {
@@ -684,6 +487,218 @@ export type Database = {
           unidade?: string
         }
         Relationships: []
+      }
+      orcamento_fornecedores: {
+        Row: {
+          fornecedor_id: string
+          id: string
+          orcamento_id: string
+          posicao: number
+        }
+        Insert: {
+          fornecedor_id: string
+          id?: string
+          orcamento_id: string
+          posicao?: number
+        }
+        Update: {
+          fornecedor_id?: string
+          id?: string
+          orcamento_id?: string
+          posicao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orcamento_fornecedores_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_fornecedores_orcamento_id_fkey"
+            columns: ["orcamento_id"]
+            isOneToOne: false
+            referencedRelation: "orcamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orcamento_item_cotacoes: {
+        Row: {
+          codigo_fornecedor: string
+          cofins_pct: number
+          cotacao_origem_id: string | null
+          created_at: string
+          desconto_pct: number
+          fornecedor_id: string
+          icms_pct: number
+          id: string
+          ipi_pct: number
+          item_id: string
+          lead_time_dias: number | null
+          moq: number | null
+          pis_pct: number
+          sem_cotacao_vigente: boolean
+          valor_unitario: number
+        }
+        Insert: {
+          codigo_fornecedor?: string
+          cofins_pct?: number
+          cotacao_origem_id?: string | null
+          created_at?: string
+          desconto_pct?: number
+          fornecedor_id: string
+          icms_pct?: number
+          id?: string
+          ipi_pct?: number
+          item_id: string
+          lead_time_dias?: number | null
+          moq?: number | null
+          pis_pct?: number
+          sem_cotacao_vigente?: boolean
+          valor_unitario?: number
+        }
+        Update: {
+          codigo_fornecedor?: string
+          cofins_pct?: number
+          cotacao_origem_id?: string | null
+          created_at?: string
+          desconto_pct?: number
+          fornecedor_id?: string
+          icms_pct?: number
+          id?: string
+          ipi_pct?: number
+          item_id?: string
+          lead_time_dias?: number | null
+          moq?: number | null
+          pis_pct?: number
+          sem_cotacao_vigente?: boolean
+          valor_unitario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orcamento_item_cotacoes_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_item_cotacoes_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "orcamento_itens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orcamento_itens: {
+        Row: {
+          bitola: string
+          created_at: string
+          descricao: string
+          erp: string
+          id: string
+          material_id: string | null
+          notas: string
+          orcamento_id: string
+          posicao: number
+          quantidade: number
+          unidade: string
+        }
+        Insert: {
+          bitola?: string
+          created_at?: string
+          descricao: string
+          erp?: string
+          id?: string
+          material_id?: string | null
+          notas?: string
+          orcamento_id: string
+          posicao?: number
+          quantidade?: number
+          unidade?: string
+        }
+        Update: {
+          bitola?: string
+          created_at?: string
+          descricao?: string
+          erp?: string
+          id?: string
+          material_id?: string | null
+          notas?: string
+          orcamento_id?: string
+          posicao?: number
+          quantidade?: number
+          unidade?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orcamento_itens_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_itens_orcamento_id_fkey"
+            columns: ["orcamento_id"]
+            isOneToOne: false
+            referencedRelation: "orcamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orcamentos: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          nome: string
+          notas: string
+          numero: string
+          origem_bom_root_codigo: string | null
+          origem_bom_version_label: string | null
+          origem_data_copia: string | null
+          projeto_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nome: string
+          notas?: string
+          numero: string
+          origem_bom_root_codigo?: string | null
+          origem_bom_version_label?: string | null
+          origem_data_copia?: string | null
+          projeto_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nome?: string
+          notas?: string
+          numero?: string
+          origem_bom_root_codigo?: string | null
+          origem_bom_version_label?: string | null
+          origem_data_copia?: string | null
+          projeto_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orcamentos_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -1116,7 +1131,7 @@ export type Database = {
         Returns: Json
       }
       bom_root_set_parent: {
-        Args: { p_parent_id: string; p_root_id: string; p_quantity?: number }
+        Args: { p_parent_id: string; p_quantity?: number; p_root_id: string }
         Returns: undefined
       }
       bom_root_set_quantity_in_parent: {
