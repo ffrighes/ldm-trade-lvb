@@ -32,7 +32,7 @@ export function useFornecedores() {
 export function useAddFornecedor() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (f: { nome: string; observacoes?: string }) => {
+    mutationFn: async (f: { nome: string; observacoes?: string; regime_tributario?: string }) => {
       const { data, error } = await supabase.from('fornecedores').insert(f).select().single();
       if (error) throw error;
       return data as Fornecedor;
@@ -44,7 +44,7 @@ export function useAddFornecedor() {
 export function useUpdateFornecedor() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...data }: { id: string; nome?: string; observacoes?: string }) => {
+    mutationFn: async ({ id, ...data }: { id: string; nome?: string; observacoes?: string; regime_tributario?: string }) => {
       const { error } = await supabase.from('fornecedores').update(data).eq('id', id);
       if (error) throw error;
     },

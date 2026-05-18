@@ -94,7 +94,7 @@ export default function FornecedoresPage() {
     setBuscaPreco('');
   };
 
-  const handleSaveFornecedor = async (data: { nome: string; observacoes: string }) => {
+  const handleSaveFornecedor = async (data: { nome: string; observacoes: string; regime_tributario: string }) => {
     try {
       if (editingFornecedor) {
         await updateFornecedor.mutateAsync({ id: editingFornecedor.id, ...data });

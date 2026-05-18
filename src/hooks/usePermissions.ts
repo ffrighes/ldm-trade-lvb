@@ -23,6 +23,11 @@ export interface Permissions {
   canDeleteObsoleteVersion: boolean;
   canRevertObsoleteToDraft: boolean;
 
+  // Orçamentos
+  canCreateOrcamento: boolean;
+  canEditOrcamento: boolean;
+  canDeleteOrcamento: boolean;
+
   // Admin
   canAccessAdmin: boolean;
 
@@ -57,6 +62,10 @@ export function usePermissions(): Permissions {
 
   const canAccessAdmin = isAdmin;
 
+  const canCreateOrcamento = isAdmin || isGerente || isComprador;
+  const canEditOrcamento   = isAdmin || isGerente || isComprador;
+  const canDeleteOrcamento = isAdmin || isGerente;
+
   return {
     canCreateProject,
     canEditProject,
@@ -69,6 +78,9 @@ export function usePermissions(): Permissions {
     canDeleteBomRoot,
     canDeleteObsoleteVersion,
     canRevertObsoleteToDraft,
+    canCreateOrcamento,
+    canEditOrcamento,
+    canDeleteOrcamento,
     canAccessAdmin,
     isLoading,
     role,
