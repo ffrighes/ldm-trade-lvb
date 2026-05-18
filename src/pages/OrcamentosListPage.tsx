@@ -71,12 +71,15 @@ export default function OrcamentosListPage() {
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-xs"
         />
-        <Select value={projetoFilter} onValueChange={setProjetoFilter}>
+        <Select
+          value={projetoFilter || '__all__'}
+          onValueChange={(v) => setProjetoFilter(v === '__all__' ? '' : v)}
+        >
           <SelectTrigger className="w-48">
             <SelectValue placeholder="Todos os projetos" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todos os projetos</SelectItem>
+            <SelectItem value="__all__">Todos os projetos</SelectItem>
             {projects.map((p) => (
               <SelectItem key={p.id} value={p.id}>
                 {p.numero} — {p.descricao}
