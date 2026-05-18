@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { FolderKanban, Database, LayoutDashboard, Sun, Moon, Users, LogOut, ChevronDown, Settings, PanelLeft, PanelLeftClose } from 'lucide-react';
+import { FolderKanban, Database, LayoutDashboard, Sun, Moon, Users, LogOut, ChevronDown, Settings, PanelLeft, PanelLeftClose, Truck } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -32,6 +32,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const STATIC_NAV_ITEMS = [
     { to: '/', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/base-dados', label: 'Base de Dados', icon: Database },
+    { to: '/fornecedores', label: 'Fornecedores', icon: Truck },
     ...(canAccessAdmin ? [{ to: '/admin/usuarios', label: 'Usuários', icon: Users }] : []),
   ];
 
@@ -330,6 +331,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         >
           <Database className="h-5 w-5 mb-0.5" />
           Base
+        </Link>
+        <Link
+          to="/fornecedores"
+          className={cn(
+            'flex-1 flex flex-col items-center py-2 text-xs transition-colors',
+            pathname.startsWith('/fornecedores') ? 'text-primary' : 'text-muted-foreground',
+          )}
+        >
+          <Truck className="h-5 w-5 mb-0.5" />
+          Forn.
         </Link>
         {canAccessAdmin && (
           <Link
