@@ -330,6 +330,8 @@ export type Database = {
           desconto_pct: number
           ipi_pct: number
           icms_pct: number
+          pis_pct: number
+          cofins_pct: number
           data_cotacao: string
           notas: string
           created_at: string
@@ -347,6 +349,8 @@ export type Database = {
           desconto_pct?: number
           ipi_pct?: number
           icms_pct?: number
+          pis_pct?: number
+          cofins_pct?: number
           data_cotacao?: string
           notas?: string
           created_at?: string
@@ -364,6 +368,8 @@ export type Database = {
           desconto_pct?: number
           ipi_pct?: number
           icms_pct?: number
+          pis_pct?: number
+          cofins_pct?: number
           data_cotacao?: string
           notas?: string
           created_at?: string
@@ -391,6 +397,7 @@ export type Database = {
           id: string
           nome: string
           observacoes: string
+          regime_tributario: string
           created_at: string
           created_by: string | null
         }
@@ -398,6 +405,7 @@ export type Database = {
           id?: string
           nome: string
           observacoes?: string
+          regime_tributario?: string
           created_at?: string
           created_by?: string | null
         }
@@ -405,10 +413,223 @@ export type Database = {
           id?: string
           nome?: string
           observacoes?: string
+          regime_tributario?: string
           created_at?: string
           created_by?: string | null
         }
         Relationships: []
+      }
+      orcamento_fornecedores: {
+        Row: {
+          id: string
+          orcamento_id: string
+          fornecedor_id: string
+          posicao: number
+        }
+        Insert: {
+          id?: string
+          orcamento_id: string
+          fornecedor_id: string
+          posicao?: number
+        }
+        Update: {
+          id?: string
+          orcamento_id?: string
+          fornecedor_id?: string
+          posicao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orcamento_fornecedores_orcamento_id_fkey"
+            columns: ["orcamento_id"]
+            isOneToOne: false
+            referencedRelation: "orcamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_fornecedores_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orcamento_item_cotacoes: {
+        Row: {
+          id: string
+          item_id: string
+          fornecedor_id: string
+          cotacao_origem_id: string | null
+          codigo_fornecedor: string
+          valor_unitario: number
+          desconto_pct: number
+          ipi_pct: number
+          icms_pct: number
+          pis_pct: number
+          cofins_pct: number
+          moq: number | null
+          lead_time_dias: number | null
+          sem_cotacao_vigente: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          item_id: string
+          fornecedor_id: string
+          cotacao_origem_id?: string | null
+          codigo_fornecedor?: string
+          valor_unitario?: number
+          desconto_pct?: number
+          ipi_pct?: number
+          icms_pct?: number
+          pis_pct?: number
+          cofins_pct?: number
+          moq?: number | null
+          lead_time_dias?: number | null
+          sem_cotacao_vigente?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          item_id?: string
+          fornecedor_id?: string
+          cotacao_origem_id?: string | null
+          codigo_fornecedor?: string
+          valor_unitario?: number
+          desconto_pct?: number
+          ipi_pct?: number
+          icms_pct?: number
+          pis_pct?: number
+          cofins_pct?: number
+          moq?: number | null
+          lead_time_dias?: number | null
+          sem_cotacao_vigente?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orcamento_item_cotacoes_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "orcamento_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_item_cotacoes_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orcamento_itens: {
+        Row: {
+          id: string
+          orcamento_id: string
+          descricao: string
+          bitola: string
+          erp: string
+          unidade: string
+          quantidade: number
+          notas: string
+          material_id: string | null
+          posicao: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          orcamento_id: string
+          descricao: string
+          bitola?: string
+          erp?: string
+          unidade?: string
+          quantidade?: number
+          notas?: string
+          material_id?: string | null
+          posicao?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          orcamento_id?: string
+          descricao?: string
+          bitola?: string
+          erp?: string
+          unidade?: string
+          quantidade?: number
+          notas?: string
+          material_id?: string | null
+          posicao?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orcamento_itens_orcamento_id_fkey"
+            columns: ["orcamento_id"]
+            isOneToOne: false
+            referencedRelation: "orcamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_itens_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orcamentos: {
+        Row: {
+          id: string
+          projeto_id: string
+          numero: string
+          nome: string
+          notas: string
+          origem_bom_root_codigo: string | null
+          origem_bom_version_label: string | null
+          origem_data_copia: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          projeto_id: string
+          numero?: string
+          nome: string
+          notas?: string
+          origem_bom_root_codigo?: string | null
+          origem_bom_version_label?: string | null
+          origem_data_copia?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          projeto_id?: string
+          numero?: string
+          nome?: string
+          notas?: string
+          origem_bom_root_codigo?: string | null
+          origem_bom_version_label?: string | null
+          origem_data_copia?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orcamentos_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       material_categorias: {
         Row: {
@@ -931,6 +1152,10 @@ export type Database = {
             }
             Returns: undefined
           }
+      copy_bom_to_orcamento: {
+        Args: { p_bom_version_id: string; p_orcamento_id: string }
+        Returns: number
+      }
       get_solicitacoes_kpis: {
         Args: {
           p_from?: string

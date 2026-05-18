@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { FolderKanban, Database, LayoutDashboard, Sun, Moon, Users, LogOut, ChevronDown, Settings, PanelLeft, PanelLeftClose, Truck } from 'lucide-react';
+import { FolderKanban, Database, LayoutDashboard, Sun, Moon, Users, LogOut, ChevronDown, Settings, PanelLeft, PanelLeftClose, Truck, FileSpreadsheet } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -33,6 +33,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     { to: '/', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/base-dados', label: 'Base de Dados', icon: Database },
     { to: '/fornecedores', label: 'Fornecedores', icon: Truck },
+    { to: '/orcamentos', label: 'Orçamentos', icon: FileSpreadsheet },
     ...(canAccessAdmin ? [{ to: '/admin/usuarios', label: 'Usuários', icon: Users }] : []),
   ];
 
@@ -341,6 +342,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         >
           <Truck className="h-5 w-5 mb-0.5" />
           Forn.
+        </Link>
+        <Link
+          to="/orcamentos"
+          className={cn(
+            'flex-1 flex flex-col items-center py-2 text-xs transition-colors',
+            pathname.startsWith('/orcamentos') ? 'text-primary' : 'text-muted-foreground',
+          )}
+        >
+          <FileSpreadsheet className="h-5 w-5 mb-0.5" />
+          Orç.
         </Link>
         {canAccessAdmin && (
           <Link

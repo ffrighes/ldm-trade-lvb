@@ -11,6 +11,9 @@ import ProjectsPage from "@/pages/ProjectsPage";
 import BomTreePage from "@/pages/BomTreePage";
 import BaseDadosPage from "@/pages/BaseDadosPage";
 import FornecedoresPage from "@/pages/FornecedoresPage";
+import OrcamentosListPage from "@/pages/OrcamentosListPage";
+import OrcamentoNovoPage from "@/pages/OrcamentoNovoPage";
+import OrcamentoDetalhePage from "@/pages/OrcamentoDetalhePage";
 import AdminUsersPage from "@/pages/AdminUsersPage";
 import LoginPage from "@/pages/LoginPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
@@ -45,6 +48,9 @@ const App = () => (
                       <Route path="/projetos/:projetoId/boms" element={<BomTreePage />} />
                       <Route path="/base-dados" element={<BaseDadosPage />} />
                       <Route path="/fornecedores" element={<FornecedoresPage />} />
+                      <Route path="/orcamentos" element={<OrcamentosListPage />} />
+                      <Route path="/orcamentos/novo" element={<OrcamentoNovoPage />} />
+                      <Route path="/orcamentos/:id" element={<OrcamentoDetalhePage />} />
                       <Route path="/admin/usuarios" element={<AdminUsersPage />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
