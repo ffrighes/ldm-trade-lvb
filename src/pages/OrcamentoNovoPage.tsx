@@ -129,12 +129,18 @@ export default function OrcamentoNovoPage() {
           </p>
           <div className="space-y-2">
             <Label>BOM root</Label>
-            <Select value={bomRootId} onValueChange={(v) => { setBomRootId(v); setBomVersionId(''); }}>
+            <Select
+              value={bomRootId || '__none__'}
+              onValueChange={(v) => {
+                setBomRootId(v === '__none__' ? '' : v);
+                setBomVersionId('');
+              }}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Nenhuma (criar vazio)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Nenhuma (criar vazio)</SelectItem>
+                <SelectItem value="__none__">Nenhuma (criar vazio)</SelectItem>
                 {bomRoots.map((r) => (
                   <SelectItem key={r.id} value={r.id}>
                     {r.codigo} — {r.name}
