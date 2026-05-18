@@ -74,16 +74,34 @@ export default function OrcamentoDetalhePage() {
     setEditingNome(false);
   };
 
+  const fetchVigentesNow = async (matIds: string[], fornIds: string[]) => {
+    if (matIds.length === 0 || fornIds.length === 0) return [];
+    const { data, error } = await supabase
+      .from('fornecedor_precos')
+      .select('*')
+      .in('material_id', matIds)
+      .in('fornecedor_id', fornIds)
+      .eq('moeda', 'BRL')
+      .order('data_cotacao', { ascending: false });
+    if (error) throw error;
+    const map = new Map<string, (typeof data)[number]>();
+    for (const row of data ?? []) {
+      const key = `${row.fornecedor_id}|${row.material_id}`;
+      if (!map.has(key)) map.set(key, row);
+    }
+    return [...map.values()];
+  };
+
   const handleSetFornecedores = async (ids: string[]) => {
     try {
       await setFornecedores.mutateAsync({ orcamentoId: orc.id, fornecedorIds: ids });
-      // Auto-aplicar cotações vigentes após adicionar fornecedores
       if (orc.itens.length > 0 && ids.length > 0) {
+        const vigentes = await fetchVigentesNow(materialIds, ids);
         await applyCotacoes.mutateAsync({
           orcamentoId: orc.id,
           itens: orc.itens,
           fornecedorIds: ids,
-          cotacoesVigentes,
+          cotacoesVigentes: vigentes,
         });
       }
       toast({ title: 'Fornecedores atualizados' });
@@ -107,14 +125,13 @@ export default function OrcamentoDetalhePage() {
         posicao: orc.itens.length,
         ...item,
       });
-      // Buscar cotações vigentes para o novo item
       if (newItem.material_id && fornecedorIds.length > 0) {
-        const cots = cotacoesVigentes.filter((c) => c.material_id === newItem.material_id);
+        const vigentes = await fetchVigentesNow([newItem.material_id], fornecedorIds);
         await applyCotacoes.mutateAsync({
           orcamentoId: orc.id,
           itens: [newItem],
           fornecedorIds,
-          cotacoesVigentes: cots,
+          cotacoesVigentes: vigentes,
         });
       }
       toast({ title: 'Item adicionado' });
