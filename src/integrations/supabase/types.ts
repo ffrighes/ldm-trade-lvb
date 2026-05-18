@@ -317,6 +317,99 @@ export type Database = {
           },
         ]
       }
+      fornecedor_precos: {
+        Row: {
+          id: string
+          fornecedor_id: string
+          material_id: string
+          codigo_fornecedor: string
+          valor_unitario: number
+          moeda: string
+          moq: number
+          lead_time_dias: number
+          desconto_pct: number
+          ipi_pct: number
+          icms_pct: number
+          data_cotacao: string
+          notas: string
+          created_at: string
+          created_by: string | null
+        }
+        Insert: {
+          id?: string
+          fornecedor_id: string
+          material_id: string
+          codigo_fornecedor?: string
+          valor_unitario: number
+          moeda?: string
+          moq?: number
+          lead_time_dias?: number
+          desconto_pct?: number
+          ipi_pct?: number
+          icms_pct?: number
+          data_cotacao?: string
+          notas?: string
+          created_at?: string
+          created_by?: string | null
+        }
+        Update: {
+          id?: string
+          fornecedor_id?: string
+          material_id?: string
+          codigo_fornecedor?: string
+          valor_unitario?: number
+          moeda?: string
+          moq?: number
+          lead_time_dias?: number
+          desconto_pct?: number
+          ipi_pct?: number
+          icms_pct?: number
+          data_cotacao?: string
+          notas?: string
+          created_at?: string
+          created_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fornecedor_precos_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fornecedor_precos_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fornecedores: {
+        Row: {
+          id: string
+          nome: string
+          observacoes: string
+          created_at: string
+          created_by: string | null
+        }
+        Insert: {
+          id?: string
+          nome: string
+          observacoes?: string
+          created_at?: string
+          created_by?: string | null
+        }
+        Update: {
+          id?: string
+          nome?: string
+          observacoes?: string
+          created_at?: string
+          created_by?: string | null
+        }
+        Relationships: []
+      }
       material_categorias: {
         Row: {
           created_at: string

@@ -12,6 +12,9 @@ export interface Permissions {
   // Base de Dados
   canModifyBaseDados: boolean;
 
+  // Fornecedores
+  canModifyFornecedores: boolean;
+
   // BOM hierárquica (PLM)
   canEditBomDraft: boolean;
   canReleaseBomVersion: boolean;
@@ -41,6 +44,9 @@ export function usePermissions(): Permissions {
 
   const canModifyBaseDados = isAdmin || isGerente || isProjetista;
 
+  const isComprador = role === 'comprador';
+  const canModifyFornecedores = isAdmin || isGerente || isComprador;
+
   // BOM hierárquica: editores são admin/gerente/projetista
   const canEditBomDraft = isAdmin || isGerente || isProjetista;
   const canReleaseBomVersion = isAdmin || isGerente;
@@ -56,6 +62,7 @@ export function usePermissions(): Permissions {
     canEditProject,
     canDeleteProject,
     canModifyBaseDados,
+    canModifyFornecedores,
     canEditBomDraft,
     canReleaseBomVersion,
     canCloneBom,

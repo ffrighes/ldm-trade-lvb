@@ -10,6 +10,7 @@ import DashboardPage from "@/pages/DashboardPage";
 import ProjectsPage from "@/pages/ProjectsPage";
 import BomTreePage from "@/pages/BomTreePage";
 import BaseDadosPage from "@/pages/BaseDadosPage";
+import FornecedoresPage from "@/pages/FornecedoresPage";
 import AdminUsersPage from "@/pages/AdminUsersPage";
 import LoginPage from "@/pages/LoginPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
@@ -43,6 +44,7 @@ const App = () => (
                       <Route path="/projetos/:projetoId" element={<Navigate to="boms" replace />} />
                       <Route path="/projetos/:projetoId/boms" element={<BomTreePage />} />
                       <Route path="/base-dados" element={<BaseDadosPage />} />
+                      <Route path="/fornecedores" element={<FornecedoresPage />} />
                       <Route path="/admin/usuarios" element={<AdminUsersPage />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
