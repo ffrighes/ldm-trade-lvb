@@ -425,7 +425,7 @@ function NodeRow(props: RowProps) {
         {!isConjunto && qty != null && (
           <Badge variant="outline" className="ml-2 font-mono text-xs"
                  title={showCumulative ? 'Quantidade acumulada' : 'Quantidade unitária'}>
-            {showCumulative ? cumQty : qty}{unit ? ` ${unit}` : ''}
+            {showCumulative ? (cumQty ?? qty) : qty}{unit ? ` ${unit}` : ''}
           </Badge>
         )}
 
