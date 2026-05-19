@@ -279,6 +279,11 @@ export default function BomTreePage() {
             </Button>
           )}
           {canEditBomDraft && (
+            <Button variant="outline" onClick={() => setOpenCopy(true)} disabled={roots.length === 0}>
+              <CopyPlus className="h-4 w-4 mr-2" /> Copiar Conjunto
+            </Button>
+          )}
+          {canEditBomDraft && (
             <Button onClick={() => setOpenCreate(true)}>
               <Plus className="h-4 w-4 mr-2" /> Novo Conjunto
             </Button>
