@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Plus, Copy, FileText, FileSpreadsheet } from 'lucide-react';
+import { ArrowLeft, Plus, Copy, CopyPlus, FileText, FileSpreadsheet } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +10,7 @@ import { useBomRoots, useBomVersions, useBomNodes, buildBomTree } from '@/hooks/
 import { usePermissions } from '@/hooks/usePermissions';
 import { CreateConjuntoDialog } from '@/components/bom/CreateConjuntoDialog';
 import { CloneFromProjectDialog } from '@/components/bom/CloneFromProjectDialog';
+import { CopyConjuntoDialog } from '@/components/bom/CopyConjuntoDialog';
 import { ExportXlsxDialog } from '@/components/bom/ExportXlsxDialog';
 import { BomTreeView } from '@/components/bom/BomTreeView';
 import { VersionPanel } from '@/components/bom/VersionPanel';
