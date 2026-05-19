@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Plus, Copy, FileText, FileSpreadsheet } from 'lucide-react';
+import { ArrowLeft, Plus, Copy, CopyPlus, FileText, FileSpreadsheet } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +10,7 @@ import { useBomRoots, useBomVersions, useBomNodes, buildBomTree } from '@/hooks/
 import { usePermissions } from '@/hooks/usePermissions';
 import { CreateConjuntoDialog } from '@/components/bom/CreateConjuntoDialog';
 import { CloneFromProjectDialog } from '@/components/bom/CloneFromProjectDialog';
+import { CopyConjuntoDialog } from '@/components/bom/CopyConjuntoDialog';
 import { ExportXlsxDialog } from '@/components/bom/ExportXlsxDialog';
 import { BomTreeView } from '@/components/bom/BomTreeView';
 import { VersionPanel } from '@/components/bom/VersionPanel';
@@ -36,6 +37,7 @@ export default function BomTreePage() {
   const [search, setSearch] = useState('');
   const [openCreate, setOpenCreate] = useState(false);
   const [openClone, setOpenClone] = useState(false);
+  const [openCopy, setOpenCopy] = useState(false);
   const [xlsxDialogOpen, setXlsxDialogOpen] = useState(false);
   const [xlsxDialogData, setXlsxDialogData] = useState<{
     tree: BomTreeNode;
@@ -277,6 +279,11 @@ export default function BomTreePage() {
             </Button>
           )}
           {canEditBomDraft && (
+            <Button variant="outline" onClick={() => setOpenCopy(true)} disabled={roots.length === 0}>
+              <CopyPlus className="h-4 w-4 mr-2" /> Copiar Conjunto
+            </Button>
+          )}
+          {canEditBomDraft && (
             <Button onClick={() => setOpenCreate(true)}>
               <Plus className="h-4 w-4 mr-2" /> Novo Conjunto
             </Button>
@@ -371,6 +378,13 @@ export default function BomTreePage() {
         onOpenChange={setOpenClone}
         targetProjectId={projetoId}
         onCloned={(rootId, versionId) => setSelection(rootId, versionId)}
+      />
+      <CopyConjuntoDialog
+        open={openCopy}
+        onOpenChange={setOpenCopy}
+        projectId={projetoId}
+        defaultSourceRootId={selectedRootId}
+        onCopied={(rootId, versionId) => setSelection(rootId, versionId)}
       />
       {currentRoot && currentVersion && xlsxDialogData && (
         <ExportXlsxDialog
