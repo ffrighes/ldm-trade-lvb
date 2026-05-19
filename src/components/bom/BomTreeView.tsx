@@ -66,12 +66,7 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
 
   useEffect(() => {
     if (!tree) return;
-    const ids = new Set<string>();
-    const collect = (n: BomTreeNode) => {
-      if (n.children.length > 0) { ids.add(n.id); n.children.forEach(collect); }
-    };
-    collect(tree);
-    setExpanded(ids);
+    setExpanded(new Set([tree.id]));
   }, [tree?.id]);
 
   const [showCumulative, setShowCumulative] = useState(false);
@@ -400,13 +395,14 @@ function NodeRow(props: RowProps) {
   return (
     <div ref={droppable.setNodeRef} className={droppable.isOver ? 'rounded bg-primary/10' : ''}>
       <div
-        className="group flex items-center gap-1 py-1.5 px-1 rounded hover:bg-muted/40"
+        className={`group flex items-center gap-1 py-1.5 px-1 rounded hover:bg-muted/40${!isItem && !isOpen ? ' opacity-60 hover:opacity-100 transition-opacity' : ''}`}
         style={{ paddingLeft: `${depth * 18 + 4}px` }}
         ref={draggable.setNodeRef}
         {...draggable.attributes}
+        onClick={hasChildren ? toggle : undefined}
       >
         {hasChildren ? (
-          <button onClick={toggle} className="p-0.5 hover:bg-muted rounded" aria-label="Expandir">
+          <button onClick={(e) => { e.stopPropagation(); toggle(); }} className="p-0.5 hover:bg-muted rounded" aria-label="Expandir">
             {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
           </button>
         ) : (
