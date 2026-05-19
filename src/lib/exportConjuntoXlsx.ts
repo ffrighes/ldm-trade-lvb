@@ -149,7 +149,7 @@ function collectFilteredItems(
     })));
   }
   for (const child of childRoots) {
-    const childQty = child.root.quantity_in_parent ?? 1;
+    const childQty = child.quantityInParent;
     items.push(
       ...collectFilteredItems(
         child.root.id,

@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   DndContext,
   PointerSensor,
@@ -8,7 +8,7 @@ import {
   useDroppable,
   type DragEndEvent,
 } from '@dnd-kit/core';
-import { ChevronDown, ChevronRight, MoreVertical, Package, FolderPlus, Edit3, Copy, Trash2, ArrowUp, ArrowDown, Check, Plus, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, MoreVertical, Package, FolderPlus, Edit3, Copy, Trash2, ArrowUp, ArrowDown, Check, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -346,7 +346,7 @@ interface RowProps {
   siblingIndex: number;
 }
 
-export function NodeRow(props: RowProps) {
+function NodeRow(props: RowProps) {
   const {
     node, depth, expanded, setExpanded, matById, materials, categoriaOrder,
     readOnly, showCumulative, editingItems, onToggleItemEdit, onOpenItemEdit,
@@ -356,10 +356,6 @@ export function NodeRow(props: RowProps) {
   const hasChildren = node.children.length > 0;
   const isItem = node.node_type === 'ITEM';
   const isConjunto = node.node_type === 'CONJUNTO';
-  const isSubconjunto = node.node_type === 'SUBCONJUNTO';
-  const [editingQty, setEditingQty] = useState(false);
-  const [qtyDraft, setQtyDraft] = useState('');
-  const qtyInputRef = useRef<HTMLInputElement>(null);
   const itemChildren = useMemo(
     () => node.children.filter((c) => c.node_type === 'ITEM'),
     [node.children],
@@ -382,32 +378,6 @@ export function NodeRow(props: RowProps) {
   const unit = isItem && material ? material.unidade : null;
   const qty = node.quantity ?? null;
   const cumQty = node.cumulativeQuantity;
-
-  useEffect(() => {
-    if (editingQty && qtyInputRef.current) {
-      qtyInputRef.current.focus();
-      qtyInputRef.current.select();
-    }
-  }, [editingQty]);
-
-  const confirmQtyEdit = async () => {
-    const num = parseFloat(qtyDraft);
-    if (isNaN(num) || num <= 0) {
-      toast.error('Quantidade deve ser maior que zero');
-      return;
-    }
-    if (num === node.quantity) {
-      setEditingQty(false);
-      return;
-    }
-    try {
-      await update.mutateAsync({ versionId: node.version_id, nodeId: node.id, quantity: num });
-      toast.success('Quantidade atualizada');
-      setEditingQty(false);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Erro ao atualizar quantidade');
-    }
-  };
 
   const toggle = () => setExpanded((p) => {
     const next = new Set(p);
@@ -452,81 +422,18 @@ export function NodeRow(props: RowProps) {
 
         <span className="font-medium truncate" title={displayName}>{displayName}</span>
 
-        {!isConjunto && (
-          isSubconjunto ? (
-            editingQty ? (
-              <>
-                <Input
-                  ref={qtyInputRef}
-                  type="number"
-                  min="0.000001"
-                  step="any"
-                  className="ml-2 h-7 w-24 font-mono text-xs"
-                  value={qtyDraft}
-                  aria-label="Nova quantidade"
-                  title="Quantidade unitária deste subconjunto"
-                  disabled={update.isPending}
-                  onChange={(e) => setQtyDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') { e.preventDefault(); confirmQtyEdit(); }
-                    if (e.key === 'Escape') { e.preventDefault(); setEditingQty(false); }
-                  }}
-                />
-                <Button
-                  variant="ghost" size="icon" className="h-7 w-7 text-green-600"
-                  aria-label="Confirmar quantidade" title="Confirmar"
-                  disabled={update.isPending}
-                  onClick={(e) => { e.stopPropagation(); confirmQtyEdit(); }}
-                >
-                  <Check className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  variant="ghost" size="icon" className="h-7 w-7"
-                  aria-label="Cancelar edição" title="Cancelar"
-                  disabled={update.isPending}
-                  onClick={(e) => { e.stopPropagation(); setEditingQty(false); }}
-                >
-                  <X className="h-3.5 w-3.5" />
-                </Button>
-              </>
-            ) : (
-              <>
-                {qty != null && (
-                  <Badge variant="outline" className="ml-2 font-mono text-xs"
-                         title={showCumulative ? 'Quantidade acumulada' : 'Quantidade unitária'}>
-                    {showCumulative ? cumQty : qty}{unit ? ` ${unit}` : ''}
-                  </Badge>
-                )}
-                {!readOnly && (
-                  <Button
-                    variant="ghost" size="icon" className="h-7 w-7"
-                    aria-label="Editar quantidade" title="Editar quantidade"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setQtyDraft(String(node.quantity ?? 1));
-                      setEditingQty(true);
-                    }}
-                  >
-                    <Edit3 className="h-3.5 w-3.5" />
-                  </Button>
-                )}
-              </>
-            )
-          ) : (
-            qty != null && (
-              <Badge variant="outline" className="ml-2 font-mono text-xs"
-                     title={showCumulative ? 'Quantidade acumulada' : 'Quantidade unitária'}>
-                {showCumulative ? cumQty : qty}{unit ? ` ${unit}` : ''}
-              </Badge>
-            )
-          )
+        {!isConjunto && qty != null && (
+          <Badge variant="outline" className="ml-2 font-mono text-xs"
+                 title={showCumulative ? 'Quantidade acumulada' : 'Quantidade unitária'}>
+            {showCumulative ? cumQty : qty}{unit ? ` ${unit}` : ''}
+          </Badge>
         )}
 
         <Badge variant="secondary" className="ml-1 text-[10px]">
           {bomNodeTypeLabel(node.node_type)}
         </Badge>
 
-        {!readOnly && !editingQty && (
+        {!readOnly && (
           <div className="ml-auto flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
             {!isItem && (
               <>

@@ -8,7 +8,7 @@ vi.mock('@/integrations/supabase/client', () => ({
   supabase: { rpc: (...args: unknown[]) => rpc(...args) },
 }));
 
-import { useCreateConjunto, useAddBomNode } from './useBomTree';
+import { useCreateConjunto, useAddBomNode, useSetBomRootQuantityInParent } from './useBomTree';
 
 const wrapper = ({ children }: { children: React.ReactNode }) => {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -171,5 +171,18 @@ describe('product structure creation', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect((result.current.error as { message: string }).message).toMatch(/Permission denied/);
+  });
+});
+
+describe('useSetBomRootQuantityInParent', () => {
+  it('calls bom_root_set_quantity_in_parent with correct args', async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: null });
+    const { result } = renderHook(() => useSetBomRootQuantityInParent(), { wrapper });
+    result.current.mutate({ rootId: 'r1', projectId: 'p1', quantity: 2 });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(rpc).toHaveBeenCalledWith('bom_root_set_quantity_in_parent', {
+      p_root_id: 'r1',
+      p_quantity: 2,
+    });
   });
 });
