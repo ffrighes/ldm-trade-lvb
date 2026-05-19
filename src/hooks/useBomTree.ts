@@ -455,6 +455,9 @@ export function useSetBomRootQuantity() {
   });
 }
 
+/** Alias of useSetBomRootQuantity with a more explicit name for use in RootQuantityField. */
+export const useSetBomRootQuantityInParent = useSetBomRootQuantity;
+
 export function useSetBomRootParent() {
   const qc = useQueryClient();
   return useMutation({

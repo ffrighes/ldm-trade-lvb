@@ -11,6 +11,8 @@ export interface ExportChildData {
   breadcrumb: string[];
   /** Nested child BomRoots of this root (used for recursive consolidated lists). */
   children: ExportChildData[];
+  /** How many times this child root appears in its parent (default 1). */
+  quantityInParent: number;
 }
 
 interface MaterialLite {
@@ -145,8 +147,7 @@ export function collectAllItems(
     quantidade: r.quantidade * multiplier,
   }));
   for (const child of childRoots) {
-    const childQty = child.root.quantity_in_parent ?? 1;
-    items.push(...collectAllItems(child.tree, matMap, child.children, multiplier * childQty));
+    items.push(...collectAllItems(child.tree, matMap, child.children, multiplier * child.quantityInParent));
   }
   return items;
 }
@@ -655,7 +656,7 @@ function renderChildSection(
   const childVersionLabel = child.version.label
     ? `v${child.version.version_number} — ${child.version.label}`
     : `v${child.version.version_number}`;
-  const qtyInParent = child.root.quantity_in_parent ?? 1;
+  const qtyInParent = child.quantityInParent;
   const versionInfo = qtyInParent !== 1
     ? `Versão: ${childVersionLabel}  |  Status: ${child.version.status}  |  Quantidade no pai: ${formatQty(qtyInParent)}`
     : `Versão: ${childVersionLabel}  |  Status: ${child.version.status}`;

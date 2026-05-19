@@ -14,6 +14,7 @@ import { ExportXlsxDialog } from '@/components/bom/ExportXlsxDialog';
 import { BomTreeView } from '@/components/bom/BomTreeView';
 import { VersionPanel } from '@/components/bom/VersionPanel';
 import { BomNodeIcon } from '@/components/bom/BomNodeIcon';
+import { RootQuantityField } from '@/components/bom/RootQuantityField';
 import { exportConjuntoPdf, type ExportChildData } from '@/lib/exportConjuntoPdf';
 import { exportConjuntoXlsx } from '@/lib/exportConjuntoXlsx';
 import { supabase } from '@/integrations/supabase/client';
@@ -176,7 +177,7 @@ export default function BomTreePage() {
         allRoots,
         [...breadcrumb, childLabel],
       );
-      result.push({ root: childRoot, version: bestVersion, tree: childTree, breadcrumb, children: grandchildren });
+      result.push({ root: childRoot, version: bestVersion, tree: childTree, breadcrumb, children: grandchildren, quantityInParent: childRoot.quantity_in_parent ?? 1 });
     }
 
     return result;
@@ -322,6 +323,13 @@ export default function BomTreePage() {
                 selectedId={selectedVersionId}
                 onSelect={handleSelectVersion}
               />
+              {currentRoot.parent_id != null && (
+                <RootQuantityField
+                  root={currentRoot}
+                  projectId={projetoId}
+                  canEdit={canEditBomDraft}
+                />
+              )}
               <div className="pt-1">
                 <Input
                   placeholder="Buscar nó por nome ou item…"
