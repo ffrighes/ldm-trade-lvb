@@ -37,6 +37,7 @@ export default function BomTreePage() {
   const [search, setSearch] = useState('');
   const [openCreate, setOpenCreate] = useState(false);
   const [openClone, setOpenClone] = useState(false);
+  const [openCopy, setOpenCopy] = useState(false);
   const [xlsxDialogOpen, setXlsxDialogOpen] = useState(false);
   const [xlsxDialogData, setXlsxDialogData] = useState<{
     tree: BomTreeNode;
