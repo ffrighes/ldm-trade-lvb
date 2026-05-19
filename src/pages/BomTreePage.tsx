@@ -189,6 +189,11 @@ export default function BomTreePage() {
   const currentVersion = versions.find((v) => v.id === selectedVersionId);
   const isReadOnly = !canEditBomDraft || !currentVersion || currentVersion.status !== 'DRAFT';
 
+  const childRoots = useMemo(
+    () => (currentRoot ? roots.filter((r) => r.parent_id === currentRoot.id) : []),
+    [roots, currentRoot],
+  );
+
   const handleExportPdf = async () => {
     if (!currentRoot || !currentVersion || nodes.length === 0 || !projeto) return;
     const tree = buildBomTree(nodes);
@@ -366,6 +371,37 @@ export default function BomTreePage() {
           ) : null}
         </CardContent>
       </Card>
+
+      {currentRoot && childRoots.length > 0 && (
+        <Card className="mt-4">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <BomNodeIcon type="CONJUNTO" />
+              Conjuntos filhos ({childRoots.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-1">
+              {childRoots.map((child) => (
+                <li key={child.id}>
+                  <button
+                    type="button"
+                    onClick={() => setSelection(child.id, undefined)}
+                    className="w-full text-left px-3 py-2 rounded-md border bg-card/40 opacity-70 hover:opacity-100 hover:bg-muted transition-all flex items-center gap-3"
+                    title={`Abrir ${child.codigo} — ${child.name}`}
+                  >
+                    <BomNodeIcon type="CONJUNTO" />
+                    <span className="font-mono text-xs text-muted-foreground shrink-0">
+                      {child.codigo}
+                    </span>
+                    <span className="text-sm flex-1 min-w-0 truncate">{child.name}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       <CreateConjuntoDialog
         open={openCreate}
