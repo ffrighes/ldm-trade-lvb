@@ -379,6 +379,13 @@ export default function BomTreePage() {
         targetProjectId={projetoId}
         onCloned={(rootId, versionId) => setSelection(rootId, versionId)}
       />
+      <CopyConjuntoDialog
+        open={openCopy}
+        onOpenChange={setOpenCopy}
+        projectId={projetoId}
+        defaultSourceRootId={selectedRootId}
+        onCopied={(rootId, versionId) => setSelection(rootId, versionId)}
+      />
       {currentRoot && currentVersion && xlsxDialogData && (
         <ExportXlsxDialog
           open={xlsxDialogOpen}
