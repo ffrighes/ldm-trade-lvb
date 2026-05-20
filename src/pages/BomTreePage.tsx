@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Plus, Copy, CopyPlus, FileText, FileSpreadsheet } from 'lucide-react';
+import { ArrowLeft, Plus, Copy, CopyPlus, FileText, FileSpreadsheet, Star, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useProjects, useMaterials } from '@/hooks/useSupabaseData';
-import { useBomRoots, useBomVersions, useBomNodes, buildBomTree } from '@/hooks/useBomTree';
+import {
+  useBomRoots, useBomVersions, useBomNodes, buildBomTree,
+  useBomRootUsages, useAddChildUsage, useRemoveChildUsage,
+  useStandardCatalog,
+} from '@/hooks/useBomTree';
 import { usePermissions } from '@/hooks/usePermissions';
 import { CreateConjuntoDialog } from '@/components/bom/CreateConjuntoDialog';
 import { CloneFromProjectDialog } from '@/components/bom/CloneFromProjectDialog';
@@ -16,10 +20,11 @@ import { BomTreeView } from '@/components/bom/BomTreeView';
 import { VersionPanel } from '@/components/bom/VersionPanel';
 import { BomNodeIcon } from '@/components/bom/BomNodeIcon';
 import { RootQuantityField } from '@/components/bom/RootQuantityField';
+import { CatalogPickerDialog } from '@/components/bom/CatalogPickerDialog';
 import { exportConjuntoPdf, type ExportChildData } from '@/lib/exportConjuntoPdf';
 import { exportConjuntoXlsx } from '@/lib/exportConjuntoXlsx';
 import { supabase } from '@/integrations/supabase/client';
-import type { BomNode, BomRoot, BomTreeNode, BomVersion } from '@/types/bom';
+import type { BomNode, BomRoot, BomRootUsage, BomTreeNode, BomVersion } from '@/types/bom';
 
 export default function BomTreePage() {
   const { projetoId } = useParams<{ projetoId: string }>();
@@ -38,6 +43,7 @@ export default function BomTreePage() {
   const [openCreate, setOpenCreate] = useState(false);
   const [openClone, setOpenClone] = useState(false);
   const [openCopy, setOpenCopy] = useState(false);
+  const [openCatalog, setOpenCatalog] = useState(false);
   const [xlsxDialogOpen, setXlsxDialogOpen] = useState(false);
   const [xlsxDialogData, setXlsxDialogData] = useState<{
     tree: BomTreeNode;
@@ -193,6 +199,18 @@ export default function BomTreePage() {
     () => (currentRoot ? roots.filter((r) => r.parent_id === currentRoot.id) : []),
     [roots, currentRoot],
   );
+
+  const { data: usageEdges = [] } = useBomRootUsages(currentRoot?.id);
+  const { data: catalogRoots = [] } = useStandardCatalog();
+  const addChildUsage = useAddChildUsage();
+  const removeChildUsage = useRemoveChildUsage();
+
+  const catalogMap = useMemo(
+    () => new Map(catalogRoots.map((r) => [r.id, r])),
+    [catalogRoots],
+  );
+
+  const usageChildIds = useMemo(() => new Set(usageEdges.map((u) => u.child_root_id)), [usageEdges]);
 
   const handleExportPdf = async () => {
     if (!currentRoot || !currentVersion || nodes.length === 0 || !projeto) return;
@@ -372,13 +390,26 @@ export default function BomTreePage() {
         </CardContent>
       </Card>
 
-      {currentRoot && childRoots.length > 0 && (
+      {currentRoot && (childRoots.length > 0 || usageEdges.length > 0 || canEditBomDraft) && (
         <Card className="mt-4">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <BomNodeIcon type="CONJUNTO" />
-              Conjuntos filhos ({childRoots.length})
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <BomNodeIcon type="CONJUNTO" />
+                Conjuntos filhos ({childRoots.length + usageEdges.length})
+              </CardTitle>
+              {canEditBomDraft && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setOpenCatalog(true)}
+                  title="Adicionar referência do catálogo global"
+                >
+                  <Star className="h-3.5 w-3.5 mr-1.5" />
+                  Catálogo
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             <ul className="space-y-1">
@@ -395,9 +426,58 @@ export default function BomTreePage() {
                       {child.codigo}
                     </span>
                     <span className="text-sm flex-1 min-w-0 truncate">{child.name}</span>
+                    {child.quantity_in_parent !== 1 && (
+                      <span className="text-xs text-muted-foreground shrink-0">
+                        × {child.quantity_in_parent}
+                      </span>
+                    )}
                   </button>
                 </li>
               ))}
+              {usageEdges.map((edge) => {
+                const child = catalogMap.get(edge.child_root_id);
+                if (!child) return null;
+                return (
+                  <li key={edge.id} className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="flex-1 text-left px-3 py-2 rounded-md border bg-card/40 opacity-70 hover:opacity-100 hover:bg-muted transition-all flex items-center gap-3"
+                      title={`Template de catálogo: ${child.codigo} — ${child.name}`}
+                      onClick={() => {}}
+                    >
+                      <Star className="h-4 w-4 text-amber-500 shrink-0" />
+                      <span className="font-mono text-xs text-muted-foreground shrink-0">
+                        {child.codigo}
+                      </span>
+                      <span className="text-sm flex-1 min-w-0 truncate">{child.name}</span>
+                      <span className="text-xs text-muted-foreground shrink-0">
+                        × {edge.quantity}
+                      </span>
+                      <span className="text-xs bg-amber-100 text-amber-700 rounded px-1 shrink-0">
+                        catálogo
+                      </span>
+                    </button>
+                    {canEditBomDraft && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                        title="Remover referência do catálogo"
+                        onClick={() =>
+                          removeChildUsage.mutate({ usageId: edge.id, parentRootId: currentRoot.id })
+                        }
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </li>
+                );
+              })}
+              {childRoots.length === 0 && usageEdges.length === 0 && (
+                <li className="text-sm text-muted-foreground px-2 py-1">
+                  Nenhum filho. Use &ldquo;Catálogo&rdquo; para adicionar um template padrão.
+                </li>
+              )}
             </ul>
           </CardContent>
         </Card>
@@ -431,6 +511,22 @@ export default function BomTreePage() {
           descendants={xlsxDialogData.childConjuntos}
           availableCategories={xlsxDialogData.availableCategories}
           onConfirm={handleConfirmXlsxExport}
+        />
+      )}
+      {currentRoot && (
+        <CatalogPickerDialog
+          open={openCatalog}
+          onOpenChange={setOpenCatalog}
+          existingChildIds={usageChildIds}
+          onSelect={(childRoot, quantity) => {
+            addChildUsage.mutate(
+              { parentRootId: currentRoot.id, childRootId: childRoot.id, quantity },
+              {
+                onError: (err) =>
+                  toast.error('Erro ao adicionar: ' + (err instanceof Error ? err.message : String(err))),
+              },
+            );
+          }}
         />
       )}
     </div>

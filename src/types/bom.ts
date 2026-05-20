@@ -13,6 +13,18 @@ export interface BomRoot {
   cloned_from_root_id: string | null;
   /** Quantidade do filho dentro de uma unidade do pai. 1 para raízes. */
   quantity_in_parent: number;
+  /** Quando true, pertence ao catálogo global de templates reutilizáveis. */
+  is_standard: boolean;
+}
+
+export interface BomRootUsage {
+  id: string;
+  parent_root_id: string;
+  child_root_id: string;
+  quantity: number;
+  position: number;
+  notes: string | null;
+  created_at: string;
 }
 
 export interface BomRootTreeNode extends BomRoot {

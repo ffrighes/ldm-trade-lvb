@@ -6,6 +6,7 @@ import type {
   BomNodeType,
   BomRoot,
   BomRootTreeNode,
+  BomRootUsage,
   BomTreeNode,
   BomVersion,
 } from '@/types/bom';
@@ -500,6 +501,102 @@ export function useDeleteBomRoot() {
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: ['bom-roots', vars.projectId] });
       qc.removeQueries({ queryKey: ['bom-versions', vars.rootId] });
+    },
+  });
+}
+
+// ------------------------------------------------------------------ catalog
+
+/** All standard catalog roots (is_standard = true). */
+export function useStandardCatalog() {
+  return useQuery({
+    queryKey: ['bom-standard-catalog'],
+    queryFn: async () => {
+      const client = supabase as unknown as {
+        from: (t: string) => QueryBuilderLike & {
+          is: (col: string, val: boolean) => QueryBuilderLike;
+        };
+      };
+      const { data, error } = await client
+        .from('bom_root')
+        .select('*')
+        .is('is_standard', true as unknown as boolean)
+        .order('codigo');
+      if (error) throw error;
+      return (data ?? []) as BomRoot[];
+    },
+  });
+}
+
+/** Usage edges (catalog children) for a given parent root. */
+export function useBomRootUsages(parentRootId: string | undefined) {
+  return useQuery({
+    queryKey: ['bom-root-usages', parentRootId],
+    enabled: !!parentRootId,
+    queryFn: async () => {
+      const { data, error } = await sb
+        .from('bom_root_usage')
+        .select('*')
+        .eq('parent_root_id', parentRootId)
+        .order('position');
+      if (error) throw error;
+      return (data ?? []) as BomRootUsage[];
+    },
+  });
+}
+
+export function useAddChildUsage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: {
+      parentRootId: string;
+      childRootId: string;
+      quantity?: number;
+      position?: number;
+      notes?: string | null;
+    }) => {
+      const { data, error } = await sb.rpc('bom_add_child_usage', {
+        p_parent_root_id: args.parentRootId,
+        p_child_root_id: args.childRootId,
+        p_quantity: args.quantity ?? 1,
+        p_position: args.position ?? 0,
+        p_notes: args.notes ?? null,
+      });
+      if (error) throw error;
+      return data as string;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['bom-root-usages', vars.parentRootId] });
+    },
+  });
+}
+
+export function useRemoveChildUsage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { usageId: string; parentRootId: string }) => {
+      const { error } = await sb.rpc('bom_remove_child_usage', { p_usage_id: args.usageId });
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['bom-root-usages', vars.parentRootId] });
+    },
+  });
+}
+
+export function useSetBomRootStandard() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { rootId: string; projectId: string; isStandard: boolean }) => {
+      const { error } = await sb.rpc('bom_set_standard', {
+        p_root_id: args.rootId,
+        p_is_standard: args.isStandard,
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['bom-roots', vars.projectId] });
+      qc.invalidateQueries({ queryKey: ['bom-standard-catalog'] });
     },
   });
 }
