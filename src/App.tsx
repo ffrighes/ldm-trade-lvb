@@ -15,6 +15,7 @@ import OrcamentosListPage from "@/pages/OrcamentosListPage";
 import OrcamentoNovoPage from "@/pages/OrcamentoNovoPage";
 import OrcamentoDetalhePage from "@/pages/OrcamentoDetalhePage";
 import AdminUsersPage from "@/pages/AdminUsersPage";
+import AssemblyBomPage from "@/pages/AssemblyBomPage";
 import LoginPage from "@/pages/LoginPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import UpdatePasswordPage from "@/pages/UpdatePasswordPage";
@@ -51,6 +52,7 @@ const App = () => (
                       <Route path="/orcamentos" element={<OrcamentosListPage />} />
                       <Route path="/orcamentos/novo" element={<OrcamentoNovoPage />} />
                       <Route path="/orcamentos/:id" element={<OrcamentoDetalhePage />} />
+                      <Route path="/assemblies" element={<AssemblyBomPage />} />
                       <Route path="/admin/usuarios" element={<AdminUsersPage />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
