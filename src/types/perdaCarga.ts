@@ -18,10 +18,19 @@ interface BaseElemento {
 export interface TrechoTubo extends BaseElemento {
   tipo: 'trecho';
   material: string;
-  diametro: number;    // mm (interno)
+  diametro: number;    // mm (interno) — ID derivado de norma ou entrada manual
   comprimento: number; // mm
   desnivel: number;    // mm (+ = subida)
   rugosidade: number;  // mm
+  // Campos normativos opcionais (ausentes em dados legados — backward-compat)
+  norma?: 'ASME_B36_10M' | 'ASME_B36_19M' | 'DIN_11850';
+  nps?: string;           // ex.: "1/2", "2", "5"  (ASME)
+  schedule?: string;      // ex.: "10S", "STD"      (ASME)
+  dn?: string;            // ex.: "50", "100"       (DIN 11850)
+  serie_din?: '1' | '2'; // série DIN 11850
+  od_mm?: number;         // diâmetro externo em mm
+  espessura_mm?: number;  // espessura de parede em mm
+  label_normativo?: string; // ex.: "ASME 5\" SCH 10S"
 }
 
 export interface CurvaFitting extends BaseElemento {
