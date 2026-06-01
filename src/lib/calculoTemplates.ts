@@ -47,6 +47,10 @@ export const CALCULO_TEMPLATES: CalculoTemplate[] = [
   },
 ];
 
+// Template especial — o editor de perda de carga usa sua própria página dedicada.
+// Este ID é usado apenas para identificar registros na tabela calculos.
+export const PERDA_CARGA_TEMPLATE_ID = 'perda-carga-circuito';
+
 export function getTemplateById(id: string): CalculoTemplate | undefined {
   return CALCULO_TEMPLATES.find((t) => t.id === id);
 }
