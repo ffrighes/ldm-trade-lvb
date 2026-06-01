@@ -5,6 +5,7 @@ import type {
   FluidoProps,
   TrechoTubo,
   FiltroFitting,
+  ReducaoFitting,
   ResultadoCircuito,
   ResultadoLinha,
   ResultadoElemento,
@@ -190,7 +191,46 @@ function calcElemento(
     };
   }
 
+  if (el.tipo === 'reducao') {
+    const r = el as ReducaoFitting;
+    const D_ent = r.diametro_entrada;
+    const D_sai = r.diametro_saida;
+    if (D_ent <= 0 || D_sai <= 0) return { ...base, erro: 'Diâmetro inválido na redução' };
+    if (D_ent === D_sai) {
+      return { ...base, velocidade: calcVelocidade(Q_m3h, D_ent), reynolds: 0, dpBar: 0, dpMca: 0 };
+    }
+
+    // Velocidade referenciada à seção menor (maior velocidade)
+    const D_min = Math.min(D_ent, D_sai);
+    const D_max = Math.max(D_ent, D_sai);
+    const beta  = D_min / D_max; // D_menor / D_maior (0 < beta < 1)
+    const v_ref = calcVelocidade(Q_m3h, D_min);
+    const Re    = calcReynolds(v_ref, D_min, viscCinematica(fluido));
+
+    let K: number;
+    if (D_ent < D_sai) {
+      // Expansão abrupta (Borda-Carnot): K = (1 − β²)², ref. à velocidade de entrada
+      // Fonte: Idelchik, Handbook of Hydraulic Resistance
+      K = Math.pow(1 - beta * beta, 2);
+    } else {
+      // Contração abrupta (Weisbach): K = 0,42 × (1 − β²), ref. à velocidade de saída
+      // Fonte: Idelchik / Crane TP-410 A-26
+      K = 0.42 * (1 - beta * beta);
+    }
+
+    const dpPa = K * (fluido.densidade * v_ref * v_ref / 2) * r.quantidade;
+    return {
+      ...base,
+      velocidade: v_ref,
+      reynolds:   Re,
+      dpBar: paToBare(dpPa),
+      dpMca: paToMca(dpPa, fluido.densidade),
+      aviso: v_ref > 3 ? `Velocidade ${v_ref.toFixed(2)} m/s acima de 3 m/s` : undefined,
+    };
+  }
+
   // curva | te | valvula | acessorio — método K
+  // K já armazenado no elemento: estático do catálogo ou nCrane × f_T calculado no dialog
   const elAny = el as { diametro: number; k: number };
   if (elAny.diametro <= 0) return { ...base, erro: 'Diâmetro = 0 — inválido' };
 
