@@ -15,6 +15,11 @@ import {
   CATALOG_FITTINGS, CATALOG_RUGOSIDADE, FLUIDO_AGUA_20C,
   type CatalogItemFitting,
 } from '@/lib/catalogo';
+import {
+  getNPSList, getSchedules, getDefaultSchedule,
+  getDimensaoASME, getDNList, getDimensaoDIN11850,
+  type DimensaoTubulacao,
+} from '@/lib/normasTubulacao';
 import type { ElementoHidraulico, TipoElemento } from '@/types/perdaCarga';
 
 interface Props {
@@ -24,6 +29,7 @@ interface Props {
 }
 
 type Categoria = TipoElemento | '';
+type NormaOpcao = 'ASME_B36_19M' | 'ASME_B36_10M' | 'DIN_11850';
 
 function parseNum(s: string, fallback = 0): number {
   const v = parseFloat(s.replace(',', '.'));
@@ -60,6 +66,9 @@ function SourceBadge({ item }: { item: CatalogItemFitting }) {
   );
 }
 
+const DEFAULT_NPS = '2';
+const DEFAULT_DN  = '50';
+
 export default function AddElementoDialog({ open, onClose, onConfirm }: Props) {
   const [categoria, setCategoria] = useState<Categoria>('');
   const [catalogoId, setCatalogoId] = useState('');
@@ -67,43 +76,89 @@ export default function AddElementoDialog({ open, onClose, onConfirm }: Props) {
   const [quantidade, setQuantidade] = useState('1');
   const [k, setK] = useState('');
 
-  // Trecho
-  const [material, setMaterial] = useState(CATALOG_RUGOSIDADE[0].material);
-  const [comprimento, setComprimento] = useState('10000');
-  const [desnivel, setDesnivel] = useState('0');
-  const [rugosidade, setRugosidade] = useState(String(CATALOG_RUGOSIDADE[0].eps_mm));
+  // ── Trecho — dimensionamento normativo ──────────────────────────────────────
+  const [trechoNorma, setTrechoNorma]       = useState<NormaOpcao>('ASME_B36_19M');
+  const [trechoNPS, setTrechoNPS]           = useState(DEFAULT_NPS);
+  const [trechoSchedule, setTrechoSchedule] = useState(getDefaultSchedule('ASME_B36_19M'));
+  const [trechoDN, setTrechoDN]             = useState(DEFAULT_DN);
+  const [trechoDINSerie, setTrechoDINSerie] = useState<'1' | '2'>('1');
 
-  // Filtro
+  // ── Trecho — outras propriedades ────────────────────────────────────────────
+  const [material, setMaterial]     = useState(CATALOG_RUGOSIDADE[1].material); // Aço inoxidável
+  const [comprimento, setComprimento] = useState('10000');
+  const [desnivel, setDesnivel]     = useState('0');
+  const [rugosidade, setRugosidade] = useState(String(CATALOG_RUGOSIDADE[1].eps_mm));
+
+  // ── Filtro ──────────────────────────────────────────────────────────────────
   const [filtroModo, setFiltroModo] = useState<'k_generico' | 'cv_fabricante'>('k_generico');
-  const [filtroK, setFiltroK] = useState('2');
-  const [filtroCv, setFiltroCv] = useState('');
+  const [filtroK, setFiltroK]       = useState('2');
+  const [filtroCv, setFiltroCv]     = useState('');
   const [filtroCvUnidade, setFiltroCvUnidade] = useState<'SI' | 'US'>('SI');
 
-  // Acessório
+  // ── Acessório ───────────────────────────────────────────────────────────────
   const [acessorioNome, setAcessorioNome] = useState('');
-  const [acessorioK, setAcessorioK] = useState('1');
+  const [acessorioK, setAcessorioK]       = useState('1');
+
+  // ── Dimensão derivada do trecho ─────────────────────────────────────────────
+  const dimensaoTrecho: DimensaoTubulacao | null = (() => {
+    if (trechoNorma === 'DIN_11850') {
+      return getDimensaoDIN11850(trechoDN, trechoDINSerie);
+    }
+    return getDimensaoASME(trechoNorma, trechoNPS, trechoSchedule);
+  })();
 
   const fittingOptions = CATALOG_FITTINGS.filter((c) => c.categoria === categoria);
   const selectedFitting = CATALOG_FITTINGS.find((c) => c.id === catalogoId);
 
-  // Update K when catalog item changes
+  // Atualiza K ao trocar item do catálogo
   useEffect(() => {
-    if (selectedFitting) {
-      setK(String(selectedFitting.k));
-    }
+    if (selectedFitting) setK(String(selectedFitting.k));
   }, [catalogoId, selectedFitting]);
 
-  // Reset subtype when category changes
+  // Reseta subtipo ao trocar categoria
   useEffect(() => {
     setCatalogoId('');
     setK('');
   }, [categoria]);
 
-  // Update rugosidade when material changes
+  // Atualiza rugosidade ao trocar material
   useEffect(() => {
     const r = CATALOG_RUGOSIDADE.find((r) => r.material === material);
     if (r) setRugosidade(String(r.eps_mm));
   }, [material]);
+
+  // Ajusta material sugerido ao trocar norma do trecho
+  useEffect(() => {
+    if (trechoNorma === 'ASME_B36_19M' || trechoNorma === 'DIN_11850') {
+      const inox = CATALOG_RUGOSIDADE.find((r) => r.material === 'Aço inoxidável');
+      if (inox) setMaterial(inox.material);
+    } else {
+      const aco = CATALOG_RUGOSIDADE.find((r) => r.material === 'Aço comercial novo');
+      if (aco) setMaterial(aco.material);
+    }
+  }, [trechoNorma]);
+
+  // ── Handlers ─────────────────────────────────────────────────────────────────
+
+  function handleNormaChange(norma: NormaOpcao) {
+    setTrechoNorma(norma);
+    if (norma !== 'DIN_11850') {
+      setTrechoNPS(DEFAULT_NPS);
+      setTrechoSchedule(getDefaultSchedule(norma));
+    } else {
+      setTrechoDN(DEFAULT_DN);
+      setTrechoDINSerie('1');
+    }
+  }
+
+  function handleNPSChange(nps: string) {
+    setTrechoNPS(nps);
+    // Se o schedule atual não existe para o novo NPS, volta ao default
+    const available = getSchedules(trechoNorma as 'ASME_B36_10M' | 'ASME_B36_19M', nps);
+    if (!available.includes(trechoSchedule)) {
+      setTrechoSchedule(getDefaultSchedule(trechoNorma as 'ASME_B36_10M' | 'ASME_B36_19M'));
+    }
+  }
 
   function handleConfirm() {
     const id = crypto.randomUUID();
@@ -111,14 +166,23 @@ export default function AddElementoDialog({ open, onClose, onConfirm }: Props) {
     const D = parseNum(diametro, 50);
 
     if (categoria === 'trecho') {
+      if (!dimensaoTrecho) return;
       onConfirm({
         id, tipo: 'trecho',
         material,
-        diametro: D,
+        diametro: dimensaoTrecho.id_mm, // ID = OD − 2×t
         comprimento: parseNum(comprimento, 10000),
         desnivel: parseNum(desnivel, 0),
         rugosidade: parseNum(rugosidade, 0.046),
         quantidade: qtd,
+        norma: trechoNorma,
+        nps: trechoNorma !== 'DIN_11850' ? trechoNPS : undefined,
+        schedule: trechoNorma !== 'DIN_11850' ? trechoSchedule : undefined,
+        dn: trechoNorma === 'DIN_11850' ? trechoDN : undefined,
+        serie_din: trechoNorma === 'DIN_11850' ? trechoDINSerie : undefined,
+        od_mm: dimensaoTrecho.od_mm,
+        espessura_mm: dimensaoTrecho.espessura_mm,
+        label_normativo: dimensaoTrecho.label,
       });
     } else if (categoria === 'curva') {
       if (!selectedFitting) return;
@@ -174,10 +238,12 @@ export default function AddElementoDialog({ open, onClose, onConfirm }: Props) {
   }
 
   const canConfirm =
-    categoria === 'trecho' ||
+    (categoria === 'trecho' && dimensaoTrecho !== null) ||
     categoria === 'filtro' ||
     (categoria === 'acessorio') ||
     (!!selectedFitting && !!catalogoId);
+
+  const isASME = trechoNorma !== 'DIN_11850';
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -187,7 +253,7 @@ export default function AddElementoDialog({ open, onClose, onConfirm }: Props) {
         </DialogHeader>
 
         <div className="space-y-4 py-1">
-          {/* Category */}
+          {/* Categoria */}
           <div className="space-y-1.5">
             <Label>Categoria</Label>
             <Select value={categoria} onValueChange={(v) => setCategoria(v as Categoria)}>
@@ -203,7 +269,7 @@ export default function AddElementoDialog({ open, onClose, onConfirm }: Props) {
             </Select>
           </div>
 
-          {/* Subtype for curva / te / valvula / acessorio */}
+          {/* Subtipo — curva / tê / válvula */}
           {(categoria === 'curva' || categoria === 'te' || categoria === 'valvula') && (
             <div className="space-y-1.5">
               <Label>Subtipo</Label>
@@ -219,6 +285,7 @@ export default function AddElementoDialog({ open, onClose, onConfirm }: Props) {
             </div>
           )}
 
+          {/* Subtipo — acessório */}
           {categoria === 'acessorio' && (
             <>
               <div className="space-y-1.5">
@@ -242,8 +309,8 @@ export default function AddElementoDialog({ open, onClose, onConfirm }: Props) {
             </>
           )}
 
-          {/* Common fields */}
-          {categoria !== '' && (
+          {/* Diâmetro + Quantidade — não-trecho */}
+          {categoria !== '' && categoria !== 'trecho' && (
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Diâmetro interno D <span className="text-muted-foreground font-normal">[mm]</span></Label>
@@ -256,9 +323,123 @@ export default function AddElementoDialog({ open, onClose, onConfirm }: Props) {
             </div>
           )}
 
-          {/* Trecho fields */}
+          {/* ── Trecho ── */}
           {categoria === 'trecho' && (
             <>
+              {/* Seletor normativo de diâmetro */}
+              <div className="rounded-md border bg-muted/30 p-3 space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Diâmetro — Norma
+                </p>
+
+                {/* Material / Norma */}
+                <div className="space-y-1.5">
+                  <Label>Material / Norma</Label>
+                  <Select value={trechoNorma} onValueChange={(v) => handleNormaChange(v as NormaOpcao)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ASME_B36_19M">Inox — ASME B36.19M</SelectItem>
+                      <SelectItem value="ASME_B36_10M">Aço Carbono — ASME B36.10M</SelectItem>
+                      <SelectItem value="DIN_11850">Sanitário — DIN 11850</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* ASME: NPS + Schedule */}
+                {isASME && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label>NPS</Label>
+                      <Select value={trechoNPS} onValueChange={handleNPSChange}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {getNPSList().map((nps) => (
+                            <SelectItem key={nps} value={nps}>{nps}"</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Schedule</Label>
+                      <Select
+                        value={trechoSchedule}
+                        onValueChange={setTrechoSchedule}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {getSchedules(trechoNorma as 'ASME_B36_10M' | 'ASME_B36_19M', trechoNPS).map((sch) => (
+                            <SelectItem key={sch} value={sch}>SCH {sch}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+
+                {/* DIN 11850: DN + Série */}
+                {!isASME && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label>DN</Label>
+                      <Select value={trechoDN} onValueChange={setTrechoDN}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {getDNList().map((dn) => (
+                            <SelectItem key={dn} value={dn}>DN {dn}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Série</Label>
+                      <Select
+                        value={trechoDINSerie}
+                        onValueChange={(v) => setTrechoDINSerie(v as '1' | '2')}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">Série 1 (alimentício)</SelectItem>
+                          <SelectItem value="2">Série 2 (farmacêutico)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+
+                {/* Dimensões derivadas — somente leitura */}
+                {dimensaoTrecho && (
+                  <>
+                    <div className="grid grid-cols-3 gap-2 pt-1">
+                      <div className="space-y-0.5">
+                        <p className="text-xs text-muted-foreground">OD</p>
+                        <p className="font-mono text-sm">{dimensaoTrecho.od_mm} mm</p>
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-xs text-muted-foreground">Esp.</p>
+                        <p className="font-mono text-sm">{dimensaoTrecho.espessura_mm} mm</p>
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-xs font-semibold text-muted-foreground">ID</p>
+                        <p className="font-mono text-sm font-semibold">{dimensaoTrecho.id_mm} mm</p>
+                      </div>
+                    </div>
+                    <p className="font-mono text-xs text-muted-foreground">{dimensaoTrecho.label}</p>
+                  </>
+                )}
+              </div>
+
+              {/* Quantidade */}
+              <div className="space-y-1.5">
+                <Label>Quantidade</Label>
+                <Input
+                  value={quantidade}
+                  onChange={(e) => setQuantidade(e.target.value)}
+                  type="number" min="1" step="1"
+                  className="w-24"
+                />
+              </div>
+
+              {/* Material (rugosidade) */}
               <div className="space-y-1.5">
                 <Label>Material (rugosidade)</Label>
                 <Select value={material} onValueChange={setMaterial}>
@@ -272,6 +453,8 @@ export default function AddElementoDialog({ open, onClose, onConfirm }: Props) {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Comprimento, desnível, rugosidade */}
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
                   <Label>Comprimento <span className="text-muted-foreground font-normal">[mm]</span></Label>
@@ -289,7 +472,7 @@ export default function AddElementoDialog({ open, onClose, onConfirm }: Props) {
             </>
           )}
 
-          {/* K field for fittings */}
+          {/* K — curva / tê / válvula */}
           {(categoria === 'curva' || categoria === 'te' || categoria === 'valvula') && selectedFitting && (
             <div className="space-y-1.5">
               <Label>K (editável)</Label>
@@ -303,13 +486,16 @@ export default function AddElementoDialog({ open, onClose, onConfirm }: Props) {
           {categoria === 'acessorio' && (
             <div className="space-y-1.5">
               <Label>K</Label>
-              <Input className="w-32" value={catalogoId ? k : acessorioK}
+              <Input
+                className="w-32"
+                value={catalogoId ? k : acessorioK}
                 onChange={(e) => catalogoId ? setK(e.target.value) : setAcessorioK(e.target.value)}
-                type="number" min="0" step="0.01" />
+                type="number" min="0" step="0.01"
+              />
             </div>
           )}
 
-          {/* Filtro fields */}
+          {/* Filtro */}
           {categoria === 'filtro' && (
             <>
               <div className="space-y-1.5">
