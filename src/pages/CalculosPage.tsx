@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Calculator, Plus, Pencil, Trash2, Eye } from 'lucide-react';
+import { Calculator, Plus, Pencil, Trash2, Eye, Droplets } from 'lucide-react';
 import 'katex/dist/katex.min.css';
 import { InlineMath } from 'react-katex';
 
@@ -45,7 +45,7 @@ import {
   type Calculo,
   type InsertCalculo,
 } from '@/hooks/useCalculos';
-import { CALCULO_TEMPLATES, getTemplateById } from '@/lib/calculoTemplates';
+import { CALCULO_TEMPLATES, getTemplateById, PERDA_CARGA_TEMPLATE_ID } from '@/lib/calculoTemplates';
 
 // ─── KaTeX safe renderer ─────────────────────────────────────────────────────
 
@@ -122,6 +122,7 @@ function formFromCalculo(c: Calculo): FormState {
 
 export default function CalculosPage() {
   const { projetoId } = useParams<{ projetoId: string }>();
+  const navigate = useNavigate();
   const { canCreateCalculo, canEditCalculo, canDeleteCalculo, canApproveCalculo } = usePermissions();
 
   const { data: calculos = [], isLoading } = useCalculos(projetoId);
@@ -261,10 +262,20 @@ export default function CalculosPage() {
           <h1 className="text-2xl font-bold tracking-tight">Cálculos</h1>
         </div>
         {canCreateCalculo && (
-          <Button onClick={openCreate} size="sm">
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Cálculo
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/projetos/${projetoId}/calculos/perda-carga/novo`)}
+            >
+              <Droplets className="h-4 w-4 mr-2" />
+              Perda de Carga
+            </Button>
+            <Button onClick={openCreate} size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Cálculo
+            </Button>
+          </div>
         )}
       </div>
 
@@ -321,13 +332,26 @@ export default function CalculosPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => openView(c)} title="Visualizar">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          {canEditCalculo && (
-                            <Button variant="ghost" size="icon" onClick={() => openEdit(c)} title="Editar">
-                              <Pencil className="h-4 w-4" />
+                          {c.template_id === PERDA_CARGA_TEMPLATE_ID ? (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => navigate(`/projetos/${projetoId}/calculos/perda-carga/${c.id}`)}
+                              title="Abrir editor de perda de carga"
+                            >
+                              <Droplets className="h-4 w-4" />
                             </Button>
+                          ) : (
+                            <>
+                              <Button variant="ghost" size="icon" onClick={() => openView(c)} title="Visualizar">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              {canEditCalculo && (
+                                <Button variant="ghost" size="icon" onClick={() => openEdit(c)} title="Editar">
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </>
                           )}
                           {canDeleteCalculo && (
                             <Button
