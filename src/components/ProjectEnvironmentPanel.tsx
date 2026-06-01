@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Boxes, ChevronDown } from 'lucide-react';
+import { Boxes, Calculator, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useProjects } from '@/hooks/useSupabaseData';
 import { useResizablePanel } from '@/hooks/useResizablePanel';
@@ -34,8 +34,10 @@ export default function ProjectEnvironmentPanel({ projetoId }: { projetoId: stri
     maxWidth: 480,
   });
 
-  const to = `${basePath}/boms`;
-  const active = pathname.startsWith(to);
+  const bomPath = `${basePath}/boms`;
+  const bomActive = pathname.startsWith(bomPath);
+  const calculosPath = `${basePath}/calculos`;
+  const calculosActive = pathname.startsWith(calculosPath);
 
   return (
     <aside
@@ -64,10 +66,10 @@ export default function ProjectEnvironmentPanel({ projetoId }: { projetoId: stri
 
         <div className="space-y-1">
           <NavLink
-            to={to}
+            to={bomPath}
             className={cn(
               'flex items-start gap-3 px-3 py-2.5 rounded-md text-sm transition-colors border',
-              active
+              bomActive
                 ? 'bg-primary text-primary-foreground border-primary'
                 : 'border-transparent hover:bg-accent hover:text-accent-foreground',
             )}
@@ -78,7 +80,7 @@ export default function ProjectEnvironmentPanel({ projetoId }: { projetoId: stri
             </div>
           </NavLink>
 
-          {active && (
+          {bomActive && (
             <Collapsible open={conjuntosOpen} onOpenChange={setConjuntosOpen}>
               <CollapsibleTrigger
                 className="flex w-full items-center justify-between px-3 py-1.5 rounded-md text-xs font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
@@ -96,6 +98,21 @@ export default function ProjectEnvironmentPanel({ projetoId }: { projetoId: stri
               </CollapsibleContent>
             </Collapsible>
           )}
+
+          <NavLink
+            to={calculosPath}
+            className={cn(
+              'flex items-start gap-3 px-3 py-2.5 rounded-md text-sm transition-colors border',
+              calculosActive
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'border-transparent hover:bg-accent hover:text-accent-foreground',
+            )}
+          >
+            <Calculator className="h-4 w-4 mt-0.5 shrink-0" />
+            <div className="min-w-0">
+              <div className="font-medium leading-tight">Cálculos</div>
+            </div>
+          </NavLink>
         </div>
       </nav>
 
