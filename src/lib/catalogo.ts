@@ -5,7 +5,8 @@ export interface CatalogItemFitting {
   categoria: 'curva' | 'te' | 'valvula' | 'acessorio';
   subtipo: string;
   label: string;
-  k: number;
+  k: number;        // K estático (fallback quando NPS não definido)
+  nCrane?: number;  // Multiplicador Crane TP-410: K_efetivo = nCrane × f_T(NPS)
   confianca: Confianca;
   fonte: string;
   fonteUrl: string;
@@ -34,21 +35,22 @@ const ANSYS_URL    = 'https://innovationspace.ansys.com/courses/wp-content/uploa
 
 export const CATALOG_FITTINGS: CatalogItemFitting[] = [
   // ── Curvas ──────────────────────────────────────────────────────────────────
-  { id: 'curva-45-padrao',   categoria: 'curva', subtipo: 'curva_45_padrao',   label: 'Curva 45° padrão (R/D=1)',        k: 0.35, confianca: 'alta',  fonte: 'Neutrium (Crane TP-410)', fonteUrl: NEUTRIUM_URL },
-  { id: 'curva-45-longo',    categoria: 'curva', subtipo: 'curva_45_longo',    label: 'Curva 45° raio longo (R/D=1,5)', k: 0.20, confianca: 'alta',  fonte: 'Neutrium (Crane TP-410)', fonteUrl: NEUTRIUM_URL },
-  { id: 'curva-90-padrao',   categoria: 'curva', subtipo: 'curva_90_padrao',   label: 'Curva 90° padrão (R/D=1)',        k: 0.75, confianca: 'alta',  fonte: 'Neutrium (Crane TP-410)', fonteUrl: NEUTRIUM_URL },
-  { id: 'curva-90-longo',    categoria: 'curva', subtipo: 'curva_90_longo',    label: 'Curva 90° raio longo (R/D=1,5)', k: 0.45, confianca: 'alta',  fonte: 'Neutrium (Crane TP-410)', fonteUrl: NEUTRIUM_URL },
-  { id: 'curva-90-mitra',    categoria: 'curva', subtipo: 'curva_90_mitra',    label: 'Curva 90° esquadro / mitra',      k: 1.30, confianca: 'media', fonte: 'Neutrium (Crane TP-410)', fonteUrl: NEUTRIUM_URL },
-  { id: 'curva-180',         categoria: 'curva', subtipo: 'curva_180',         label: 'Curva retorno 180°',              k: 1.50, confianca: 'media', fonte: 'Neutrium (Crane TP-410)', fonteUrl: NEUTRIUM_URL },
+  // nCrane: K = nCrane × f_T(NPS) — Crane TP-410, Tabela A-26
+  { id: 'curva-45-padrao',   categoria: 'curva', subtipo: 'curva_45_padrao',   label: 'Curva 45° padrão (R/D=1)',        k: 0.35, nCrane: 16, confianca: 'alta',  fonte: 'Neutrium (Crane TP-410)', fonteUrl: NEUTRIUM_URL },
+  { id: 'curva-45-longo',    categoria: 'curva', subtipo: 'curva_45_longo',    label: 'Curva 45° raio longo (R/D=1,5)', k: 0.20, nCrane:  8, confianca: 'alta',  fonte: 'Neutrium (Crane TP-410)', fonteUrl: NEUTRIUM_URL },
+  { id: 'curva-90-padrao',   categoria: 'curva', subtipo: 'curva_90_padrao',   label: 'Curva 90° padrão (R/D=1)',        k: 0.75, nCrane: 30, confianca: 'alta',  fonte: 'Neutrium (Crane TP-410)', fonteUrl: NEUTRIUM_URL },
+  { id: 'curva-90-longo',    categoria: 'curva', subtipo: 'curva_90_longo',    label: 'Curva 90° raio longo (R/D=1,5)', k: 0.45, nCrane: 16, confianca: 'alta',  fonte: 'Neutrium (Crane TP-410)', fonteUrl: NEUTRIUM_URL },
+  { id: 'curva-90-mitra',    categoria: 'curva', subtipo: 'curva_90_mitra',    label: 'Curva 90° esquadro / mitra',      k: 1.30,             confianca: 'media', fonte: 'Neutrium (Crane TP-410)', fonteUrl: NEUTRIUM_URL, nota: 'K varia com número de cortes — nCrane não definido; usar K estático' },
+  { id: 'curva-180',         categoria: 'curva', subtipo: 'curva_180',         label: 'Curva retorno 180°',              k: 1.50, nCrane: 50, confianca: 'media', fonte: 'Neutrium (Crane TP-410)', fonteUrl: NEUTRIUM_URL },
   // ── Tês ─────────────────────────────────────────────────────────────────────
-  { id: 'te-direta',  categoria: 'te', subtipo: 'direta',  label: 'Tê — passagem direta (run)',    k: 0.40, confianca: 'media', fonte: 'Neutrium (Crane TP-410)', fonteUrl: NEUTRIUM_URL },
-  { id: 'te-lateral', categoria: 'te', subtipo: 'lateral', label: 'Tê — saída lateral (branch)',  k: 1.00, confianca: 'media', fonte: 'Neutrium (Crane TP-410)', fonteUrl: NEUTRIUM_URL },
+  { id: 'te-direta',  categoria: 'te', subtipo: 'direta',  label: 'Tê — passagem direta (run)',   k: 0.40, nCrane: 20, confianca: 'media', fonte: 'Neutrium (Crane TP-410)', fonteUrl: NEUTRIUM_URL },
+  { id: 'te-lateral', categoria: 'te', subtipo: 'lateral', label: 'Tê — saída lateral (branch)', k: 1.00, nCrane: 60, confianca: 'media', fonte: 'Neutrium (Crane TP-410)', fonteUrl: NEUTRIUM_URL },
   // ── Válvulas ─────────────────────────────────────────────────────────────────
-  { id: 'valv-borboleta',        categoria: 'valvula', subtipo: 'borboleta',        label: 'Válvula borboleta — quase aberta (θ=5°)', k: 0.24, confianca: 'baixa', fonte: 'Neutrium (Crane TP-410)', fonteUrl: NEUTRIUM_URL },
-  { id: 'valv-esfera-aberta',    categoria: 'valvula', subtipo: 'esfera_aberta',    label: 'Válvula esfera — aberta',                 k: 0.05, confianca: 'alta',  fonte: 'Purdue / ANSYS',          fonteUrl: PURDUE_URL },
-  { id: 'valv-globo-aberta',     categoria: 'valvula', subtipo: 'globo_aberta',     label: 'Válvula globo — aberta',                  k: 6.00, confianca: 'media', fonte: 'Neutrium / Purdue',       fonteUrl: NEUTRIUM_URL, nota: 'Livros-texto citam K ≈ 10; Crane TP-410 = 6' },
-  { id: 'valv-retencao-swing',   categoria: 'valvula', subtipo: 'retencao_swing',   label: 'Válvula retenção — portinhola (swing)',    k: 2.00, confianca: 'media', fonte: 'Neutrium (Crane TP-410)', fonteUrl: NEUTRIUM_URL },
-  { id: 'valv-retencao-disco',   categoria: 'valvula', subtipo: 'retencao_disco',   label: 'Válvula retenção — disco',                k: 10.0, confianca: 'media', fonte: 'Neutrium (Crane TP-410)', fonteUrl: NEUTRIUM_URL },
+  { id: 'valv-borboleta',        categoria: 'valvula', subtipo: 'borboleta',        label: 'Válvula borboleta — totalmente aberta',     k: 0.86, nCrane: 45,  confianca: 'baixa', fonte: 'Crane TP-410 / Neutrium', fonteUrl: NEUTRIUM_URL, nota: 'K = 45 × f_T; varia com DN e fabricante. K estático ref. NPS 2".' },
+  { id: 'valv-esfera-aberta',    categoria: 'valvula', subtipo: 'esfera_aberta',    label: 'Válvula esfera — aberta',                   k: 0.05, nCrane:  3,  confianca: 'alta',  fonte: 'Purdue / ANSYS',          fonteUrl: PURDUE_URL },
+  { id: 'valv-globo-aberta',     categoria: 'valvula', subtipo: 'globo_aberta',     label: 'Válvula globo — aberta',                    k: 6.00, nCrane: 340, confianca: 'media', fonte: 'Neutrium / Purdue',       fonteUrl: NEUTRIUM_URL, nota: 'Livros-texto citam K ≈ 10; Crane TP-410 = 340 × f_T' },
+  { id: 'valv-retencao-swing',   categoria: 'valvula', subtipo: 'retencao_swing',   label: 'Válvula retenção — portinhola (swing)',      k: 2.00, nCrane: 100, confianca: 'media', fonte: 'Neutrium (Crane TP-410)', fonteUrl: NEUTRIUM_URL },
+  { id: 'valv-retencao-disco',   categoria: 'valvula', subtipo: 'retencao_disco',   label: 'Válvula retenção — disco',                  k: 10.0,             confianca: 'media', fonte: 'Neutrium (Crane TP-410)', fonteUrl: NEUTRIUM_URL, nota: '[Dados Insuficientes] nCrane não definido para retencao-disco; K estático' },
   // ── Acessórios ───────────────────────────────────────────────────────────────
   { id: 'uniao-luva',          categoria: 'acessorio', subtipo: 'uniao_luva',          label: 'União / luva',                k: 0.04, confianca: 'media', fonte: 'Neutrium (Crane TP-410)', fonteUrl: NEUTRIUM_URL },
   { id: 'entrada-borda-viva',  categoria: 'acessorio', subtipo: 'entrada_borda_viva',  label: 'Entrada — borda viva',        k: 0.50, confianca: 'alta',  fonte: 'ANSYS / Purdue',          fonteUrl: ANSYS_URL },

@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
+import type { NormativaDefault } from '@/hooks/useNormativeDiameter';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import 'katex/dist/katex.min.css';
@@ -307,6 +308,14 @@ function LinhaCard({
   const [addOpen, setAddOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
+  // Inherit last trecho's normative spec as default for new elements
+  const defaultDimensao = useMemo<NormativaDefault | undefined>(() => {
+    const trechos = linha.elementos.filter((el): el is TrechoTubo => el.tipo === 'trecho');
+    const last = trechos[trechos.length - 1];
+    if (!last?.norma) return undefined;
+    return { norma: last.norma, nps: last.nps, schedule: last.schedule, dn: last.dn, serie_din: last.serie_din };
+  }, [linha.elementos]);
+
   return (
     <Card className="border border-border/60">
       <CardHeader className="px-4 py-3">
@@ -430,6 +439,7 @@ function LinhaCard({
           open={addOpen}
           onClose={() => setAddOpen(false)}
           onConfirm={(el) => { onAddElemento(el); setAddOpen(false); }}
+          defaultDimensao={defaultDimensao}
         />
       )}
 

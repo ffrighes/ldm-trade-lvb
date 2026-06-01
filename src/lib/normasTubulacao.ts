@@ -160,6 +160,36 @@ export function getDNList(): string[] {
   return Object.keys(DIN_11850);
 }
 
+// ── Crane TP-410 — f_T por NPS ───────────────────────────────────────────────
+// f_T = fator de atrito em regime plenamente turbulento (zona de atrito completo)
+// Usado em K = n × f_T para cálculo de perda localizada dependente do tamanho.
+// Fonte: Crane TP-410M, Tabela A-26
+const CRANE_FT: Record<string, number> = {
+  '1/2':    0.027,
+  '3/4':    0.025,
+  '1':      0.023,
+  '1-1/4':  0.022,
+  '1-1/2':  0.021,
+  '2':      0.019,
+  '2-1/2':  0.018,
+  '3':      0.018,
+  '3-1/2':  0.018,
+  '4':      0.017,
+  '5':      0.016,
+  '6':      0.015,
+  '8':      0.014,
+  '10':     0.013,
+  '12':     0.012,
+};
+
+/**
+ * Retorna f_T (Crane TP-410 Tabela A-26) para o NPS informado.
+ * Retorna null se NPS não consta na tabela.
+ */
+export function getFT(nps: string): number | null {
+  return CRANE_FT[nps] ?? null;
+}
+
 /**
  * Retorna dimensões para DIN 11850 dado DN + série.
  * Retorna null se DN não existe na tabela.
