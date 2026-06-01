@@ -16,6 +16,7 @@ import OrcamentoNovoPage from "@/pages/OrcamentoNovoPage";
 import OrcamentoDetalhePage from "@/pages/OrcamentoDetalhePage";
 import AdminUsersPage from "@/pages/AdminUsersPage";
 import AssemblyBomPage from "@/pages/AssemblyBomPage";
+import CalculosPage from "@/pages/CalculosPage";
 import LoginPage from "@/pages/LoginPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import UpdatePasswordPage from "@/pages/UpdatePasswordPage";
@@ -47,6 +48,7 @@ const App = () => (
                       <Route path="/projetos" element={<ProjectsPage />} />
                       <Route path="/projetos/:projetoId" element={<Navigate to="boms" replace />} />
                       <Route path="/projetos/:projetoId/boms" element={<BomTreePage />} />
+                      <Route path="/projetos/:projetoId/calculos" element={<CalculosPage />} />
                       <Route path="/base-dados" element={<BaseDadosPage />} />
                       <Route path="/fornecedores" element={<FornecedoresPage />} />
                       <Route path="/orcamentos" element={<OrcamentosListPage />} />

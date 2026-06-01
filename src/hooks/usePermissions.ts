@@ -28,6 +28,12 @@ export interface Permissions {
   canEditOrcamento: boolean;
   canDeleteOrcamento: boolean;
 
+  // Cálculos de Engenharia
+  canCreateCalculo: boolean;
+  canEditCalculo: boolean;
+  canDeleteCalculo: boolean;
+  canApproveCalculo: boolean;
+
   // Admin
   canAccessAdmin: boolean;
 
@@ -66,6 +72,11 @@ export function usePermissions(): Permissions {
   const canEditOrcamento   = isAdmin || isGerente || isComprador;
   const canDeleteOrcamento = isAdmin || isGerente;
 
+  const canCreateCalculo  = isAdmin || isGerente || isProjetista;
+  const canEditCalculo    = isAdmin || isGerente || isProjetista;
+  const canDeleteCalculo  = isAdmin || isGerente;
+  const canApproveCalculo = isAdmin || isGerente;
+
   return {
     canCreateProject,
     canEditProject,
@@ -81,6 +92,10 @@ export function usePermissions(): Permissions {
     canCreateOrcamento,
     canEditOrcamento,
     canDeleteOrcamento,
+    canCreateCalculo,
+    canEditCalculo,
+    canDeleteCalculo,
+    canApproveCalculo,
     canAccessAdmin,
     isLoading,
     role,
