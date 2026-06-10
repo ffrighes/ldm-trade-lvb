@@ -10,6 +10,8 @@ import DashboardPage from "@/pages/DashboardPage";
 import ProjectsPage from "@/pages/ProjectsPage";
 import BomTreePage from "@/pages/BomTreePage";
 import BaseDadosPage from "@/pages/BaseDadosPage";
+import OrcamentosPage from "@/pages/OrcamentosPage";
+import OrcamentoDetailPage from "@/pages/OrcamentoDetailPage";
 import AdminUsersPage from "@/pages/AdminUsersPage";
 import CalculosPage from "@/pages/CalculosPage";
 import PerdaCargaPage from "@/pages/PerdaCargaPage";
@@ -48,6 +50,8 @@ const App = () => (
                       <Route path="/projetos/:projetoId/calculos/perda-carga/novo" element={<PerdaCargaPage />} />
                       <Route path="/projetos/:projetoId/calculos/perda-carga/:calculoId" element={<PerdaCargaPage />} />
                       <Route path="/base-dados" element={<BaseDadosPage />} />
+                      <Route path="/orcamentos" element={<OrcamentosPage />} />
+                      <Route path="/orcamentos/:orcamentoId" element={<OrcamentoDetailPage />} />
                       <Route path="/admin/usuarios" element={<AdminUsersPage />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>

@@ -12,6 +12,10 @@ export interface Permissions {
   // Base de Dados
   canModifyBaseDados: boolean;
 
+  // Orçamentos (cotações de fornecedor)
+  canManageOrcamentos: boolean;
+  canDeleteOrcamento: boolean;
+
   // BOM hierárquica (PLM)
   canEditBomDraft: boolean;
   canReleaseBomVersion: boolean;
@@ -47,6 +51,11 @@ export function usePermissions(): Permissions {
 
   const canModifyBaseDados = isAdmin || isGerente || isProjetista;
 
+  // Orçamentos: editores são admin/gerente/projetista (espelha canModifyBaseDados);
+  // exclusão do orçamento inteiro é restrita a admin/gerente.
+  const canManageOrcamentos = isAdmin || isGerente || isProjetista;
+  const canDeleteOrcamento = isAdmin || isGerente;
+
   // BOM hierárquica: editores são admin/gerente/projetista
   const canEditBomDraft = isAdmin || isGerente || isProjetista;
   const canReleaseBomVersion = isAdmin || isGerente;
@@ -67,6 +76,8 @@ export function usePermissions(): Permissions {
     canEditProject,
     canDeleteProject,
     canModifyBaseDados,
+    canManageOrcamentos,
+    canDeleteOrcamento,
     canEditBomDraft,
     canReleaseBomVersion,
     canCloneBom,

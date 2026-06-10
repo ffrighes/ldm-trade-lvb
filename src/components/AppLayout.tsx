@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { FolderKanban, Database, LayoutDashboard, Sun, Moon, Users, LogOut, ChevronDown, Settings, PanelLeft, PanelLeftClose } from 'lucide-react';
+import { FolderKanban, Database, LayoutDashboard, Receipt, Sun, Moon, Users, LogOut, ChevronDown, Settings, PanelLeft, PanelLeftClose } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -32,6 +32,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const STATIC_NAV_ITEMS = [
     { to: '/', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/base-dados', label: 'Base de Dados', icon: Database },
+    { to: '/orcamentos', label: 'Orçamentos', icon: Receipt },
     ...(canAccessAdmin ? [{ to: '/admin/usuarios', label: 'Usuários', icon: Users }] : []),
   ];
 
