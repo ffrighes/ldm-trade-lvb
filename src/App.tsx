@@ -10,12 +10,7 @@ import DashboardPage from "@/pages/DashboardPage";
 import ProjectsPage from "@/pages/ProjectsPage";
 import BomTreePage from "@/pages/BomTreePage";
 import BaseDadosPage from "@/pages/BaseDadosPage";
-import FornecedoresPage from "@/pages/FornecedoresPage";
-import OrcamentosListPage from "@/pages/OrcamentosListPage";
-import OrcamentoNovoPage from "@/pages/OrcamentoNovoPage";
-import OrcamentoDetalhePage from "@/pages/OrcamentoDetalhePage";
 import AdminUsersPage from "@/pages/AdminUsersPage";
-import AssemblyBomPage from "@/pages/AssemblyBomPage";
 import CalculosPage from "@/pages/CalculosPage";
 import PerdaCargaPage from "@/pages/PerdaCargaPage";
 import LoginPage from "@/pages/LoginPage";
@@ -53,11 +48,6 @@ const App = () => (
                       <Route path="/projetos/:projetoId/calculos/perda-carga/novo" element={<PerdaCargaPage />} />
                       <Route path="/projetos/:projetoId/calculos/perda-carga/:calculoId" element={<PerdaCargaPage />} />
                       <Route path="/base-dados" element={<BaseDadosPage />} />
-                      <Route path="/fornecedores" element={<FornecedoresPage />} />
-                      <Route path="/orcamentos" element={<OrcamentosListPage />} />
-                      <Route path="/orcamentos/novo" element={<OrcamentoNovoPage />} />
-                      <Route path="/orcamentos/:id" element={<OrcamentoDetalhePage />} />
-                      <Route path="/assemblies" element={<AssemblyBomPage />} />
                       <Route path="/admin/usuarios" element={<AdminUsersPage />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>

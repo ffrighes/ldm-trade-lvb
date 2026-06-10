@@ -12,9 +12,6 @@ export interface Permissions {
   // Base de Dados
   canModifyBaseDados: boolean;
 
-  // Fornecedores
-  canModifyFornecedores: boolean;
-
   // BOM hierárquica (PLM)
   canEditBomDraft: boolean;
   canReleaseBomVersion: boolean;
@@ -22,11 +19,6 @@ export interface Permissions {
   canDeleteBomRoot: boolean;
   canDeleteObsoleteVersion: boolean;
   canRevertObsoleteToDraft: boolean;
-
-  // Orçamentos
-  canCreateOrcamento: boolean;
-  canEditOrcamento: boolean;
-  canDeleteOrcamento: boolean;
 
   // Cálculos de Engenharia
   canCreateCalculo: boolean;
@@ -55,9 +47,6 @@ export function usePermissions(): Permissions {
 
   const canModifyBaseDados = isAdmin || isGerente || isProjetista;
 
-  const isComprador = role === 'comprador';
-  const canModifyFornecedores = isAdmin || isGerente || isComprador;
-
   // BOM hierárquica: editores são admin/gerente/projetista
   const canEditBomDraft = isAdmin || isGerente || isProjetista;
   const canReleaseBomVersion = isAdmin || isGerente;
@@ -67,10 +56,6 @@ export function usePermissions(): Permissions {
   const canRevertObsoleteToDraft = isAdmin || isGerente;
 
   const canAccessAdmin = isAdmin;
-
-  const canCreateOrcamento = isAdmin || isGerente || isComprador;
-  const canEditOrcamento   = isAdmin || isGerente || isComprador;
-  const canDeleteOrcamento = isAdmin || isGerente;
 
   const canCreateCalculo  = isAdmin || isGerente || isProjetista;
   const canEditCalculo    = isAdmin || isGerente || isProjetista;
@@ -82,16 +67,12 @@ export function usePermissions(): Permissions {
     canEditProject,
     canDeleteProject,
     canModifyBaseDados,
-    canModifyFornecedores,
     canEditBomDraft,
     canReleaseBomVersion,
     canCloneBom,
     canDeleteBomRoot,
     canDeleteObsoleteVersion,
     canRevertObsoleteToDraft,
-    canCreateOrcamento,
-    canEditOrcamento,
-    canDeleteOrcamento,
     canCreateCalculo,
     canEditCalculo,
     canDeleteCalculo,
