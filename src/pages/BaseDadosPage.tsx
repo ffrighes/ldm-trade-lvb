@@ -1,4 +1,4 @@
-import { Fragment, useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useMaterials, useAddMaterial, useUpdateMaterial, useDeleteMaterial } from "@/hooks/useSupabaseData";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -41,7 +41,9 @@ import { formatBRL, parseBRL } from "@/lib/formatCurrency";
 import { cn } from "@/lib/utils";
 import { SEM_CATEGORIA_LABEL } from "@/lib/categorias";
 import { useCategorias, useAddCategoria, useDeleteCategoria, useRenameCategoria } from "@/hooks/useCategorias";
+import { useBaseDadosUiState } from "@/hooks/useBaseDadosUiState";
 import { Badge } from "@/components/ui/badge";
+import { useVirtualizer, defaultRangeExtractor } from "@tanstack/react-virtual";
 import * as XLSX from "xlsx";
 
 function parseBitolaValue(bitola: string): number {
@@ -253,19 +255,37 @@ export default function BaseDadosPage() {
   const renameCategoria = useRenameCategoria();
   const deleteCategoria = useDeleteCategoria();
 
+  const {
+    initialSearch,
+    setSearchParam,
+    categoriaFilter,
+    setCategoriaFilter,
+    descFilter,
+    setDescFilter,
+    qualityFilters,
+    setQualityFilters,
+    expandedGroups,
+    setExpandedGroups,
+    collapsedCategorias,
+    setCollapsedCategorias,
+  } = useBaseDadosUiState();
+
   const search = useSearch({
     debounceMs: 300,
     storageKey: "materiais:recent-searches",
+    initialValue: initialSearch,
   });
-  const [descFilter, setDescFilter] = useState("all");
+
+  // Reflete o termo de busca atual na URL (persistência / link compartilhável).
+  useEffect(() => {
+    setSearchParam(search.input);
+  }, [search.input, setSearchParam]);
+
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ descricao: "", bitola: "", unidade: "m", erp: "", custo: "", notas: "", categoria: "" });
-  const [categoriaFilter, setCategoriaFilter] = useState("all");
   const [newFamilyCategoria, setNewFamilyCategoria] = useState<string>("");
   const [editingFamilyCategoria, setEditingFamilyCategoria] = useState<string>("");
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-  const [collapsedCategorias, setCollapsedCategorias] = useState<Set<string>>(new Set());
   const [importing, setImporting] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -292,7 +312,6 @@ export default function BaseDadosPage() {
   const [batchDeleteConfirmOpen, setBatchDeleteConfirmOpen] = useState(false);
   const [batchDeleteSaving, setBatchDeleteSaving] = useState(false);
   const [bitolaSort, setBitolaSort] = useState<{ col: 'bitola' | 'erp' | 'custo'; dir: 'asc' | 'desc' }>({ col: 'bitola', dir: 'asc' });
-  const [qualityFilters, setQualityFilters] = useState<Set<'sem_erp' | 'sem_custo' | 'sem_categoria'>>(new Set());
   const [editingCell, setEditingCell] = useState<{ id: string; field: 'custo' | 'erp' } | null>(null);
   const queryClient = useQueryClient();
 
@@ -765,6 +784,121 @@ export default function BaseDadosPage() {
   const collapseAllCategorias = () =>
     setCollapsedCategorias(new Set(groupedByCategoria.map(([k]) => k)));
   const expandAllCategorias = () => setCollapsedCategorias(new Set());
+
+  /**
+   * Achata a estrutura hierárquica visível (categoria → família → bitolas) em
+   * uma lista linear de linhas, para virtualização. Só entram as linhas de fato
+   * visíveis: cabeçalho da categoria sempre; cabeçalho de colunas + famílias
+   * apenas quando a categoria não está recolhida; bitolas apenas das famílias
+   * expandidas. Assim, virtualizamos sobre `flatRows` renderizando somente o
+   * que está no viewport, mesmo com milhares de bitolas.
+   */
+  type FlatRow =
+    | {
+        kind: 'category';
+        id: string;
+        categoriaKey: string;
+        categoriaLabel: string;
+        familiesCount: number;
+        totalBitolas: number;
+        costRange: string;
+        isCollapsed: boolean;
+      }
+    | { kind: 'colheader'; id: string; categoriaKey: string }
+    | { kind: 'family'; id: string; categoriaKey: string; descricao: string; items: typeof materials }
+    | { kind: 'bitola'; id: string; descricao: string; material: (typeof materials)[number] };
+
+  const flatRows = useMemo<FlatRow[]>(() => {
+    const rows: FlatRow[] = [];
+    for (const [categoriaKey, families] of groupedByCategoria) {
+      const categoriaLabel = categoriaKey === "__none__" ? SEM_CATEGORIA_LABEL : categoriaKey;
+      const totalBitolas = families.reduce((sum, [, items]) => sum + items.length, 0);
+      const isCollapsed = collapsedCategorias.has(categoriaKey);
+      const positiveCosts: number[] = [];
+      for (const [, items] of families)
+        for (const m of items) if (m.custo > 0) positiveCosts.push(m.custo);
+      const costRange =
+        positiveCosts.length > 0
+          ? `${formatBRL(Math.min(...positiveCosts))} – ${formatBRL(Math.max(...positiveCosts))}`
+          : "sem custo";
+
+      rows.push({
+        kind: 'category',
+        id: `cat:${categoriaKey}`,
+        categoriaKey,
+        categoriaLabel,
+        familiesCount: families.length,
+        totalBitolas,
+        costRange,
+        isCollapsed,
+      });
+      if (isCollapsed) continue;
+
+      rows.push({ kind: 'colheader', id: `colh:${categoriaKey}`, categoriaKey });
+      for (const [descricao, items] of families) {
+        rows.push({ kind: 'family', id: `fam:${categoriaKey}:${descricao}`, categoriaKey, descricao, items });
+        if (expandedGroups.has(descricao)) {
+          for (const m of items) rows.push({ kind: 'bitola', id: `bit:${m.id}`, descricao, material: m });
+        }
+      }
+    }
+    return rows;
+  }, [groupedByCategoria, collapsedCategorias, expandedGroups]);
+
+  // Índices das linhas de cabeçalho de categoria — usados para mantê-las
+  // "grudadas" (sticky) no topo enquanto se rola dentro de cada grupo.
+  const stickyIndexes = useMemo(() => {
+    const idx: number[] = [];
+    flatRows.forEach((r, i) => {
+      if (r.kind === 'category') idx.push(i);
+    });
+    return idx;
+  }, [flatRows]);
+
+  const activeStickyIndexRef = useRef(0);
+  const listScrollRef = useRef<HTMLDivElement>(null);
+
+  const rangeExtractor = useCallback(
+    (range: { startIndex: number; endIndex: number; overscan: number; count: number }) => {
+      let active = 0;
+      for (const i of stickyIndexes) {
+        if (i <= range.startIndex) active = i;
+        else break;
+      }
+      activeStickyIndexRef.current = active;
+      const next = new Set<number>([active, ...defaultRangeExtractor(range)]);
+      return [...next].sort((a, b) => a - b);
+    },
+    [stickyIndexes],
+  );
+
+  const rowVirtualizer = useVirtualizer({
+    count: flatRows.length,
+    getScrollElement: () => listScrollRef.current,
+    estimateSize: (index) => {
+      const r = flatRows[index];
+      if (!r) return 44;
+      switch (r.kind) {
+        case 'category':
+          return 60;
+        case 'colheader':
+          return 40;
+        case 'family':
+          return 44;
+        default:
+          return 40;
+      }
+    },
+    overscan: 10,
+    getItemKey: (index) => flatRows[index]?.id ?? index,
+    rangeExtractor,
+  });
+
+  // Grade de colunas compartilhada por cabeçalho de colunas, famílias e bitolas
+  // — mantém o alinhamento de Ø, Un., ERP, Custo, Notas e Ações entre os níveis.
+  const gridColsClass = canModifyBaseDados
+    ? "grid grid-cols-[2.5rem_2rem_minmax(0,1fr)_4rem_11rem_7rem_minmax(0,1.6fr)_7rem]"
+    : "grid grid-cols-[2rem_minmax(0,1fr)_4rem_11rem_7rem_minmax(0,1.6fr)]";
 
   const handleSave = async () => {
     const custo = parseBRL(form.custo);
@@ -2108,361 +2242,381 @@ export default function BaseDadosPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
-          {groupedByCategoria.map(([categoriaKey, families]) => {
-            const categoriaLabel = categoriaKey === "__none__" ? SEM_CATEGORIA_LABEL : categoriaKey;
-            const totalBitolas = families.reduce((sum, [, items]) => sum + items.length, 0);
-            const isCategoriaCollapsed = collapsedCategorias.has(categoriaKey);
-            const allCatItems = families.flatMap(([, items]) => items);
-            const positiveCosts = allCatItems.map((m) => m.custo).filter((c) => c > 0);
-            const costRange =
-              positiveCosts.length > 0
-                ? `${formatBRL(Math.min(...positiveCosts))} – ${formatBRL(Math.max(...positiveCosts))}`
-                : "sem custo";
-            return (
-              <Card key={categoriaKey}>
-                <CardHeader className="pb-3 sticky top-[8.5rem] z-[5] bg-card rounded-t-lg border-b">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 shrink-0"
-                        onClick={() => toggleCategoria(categoriaKey)}
-                        aria-label={isCategoriaCollapsed ? `Expandir categoria ${categoriaLabel}` : `Recolher categoria ${categoriaLabel}`}
-                      >
-                        {isCategoriaCollapsed ? (
-                          <ChevronRight className="h-4 w-4" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4" />
+        <Card className="overflow-hidden">
+          <div
+            ref={listScrollRef}
+            className="overflow-auto h-[calc(100vh-16rem)] min-h-[24rem]"
+            role="table"
+            aria-label="Materiais agrupados por categoria e família"
+            aria-rowcount={flatRows.length}
+          >
+            <div
+              className="relative w-full min-w-[680px]"
+              style={{ height: rowVirtualizer.getTotalSize() }}
+            >
+              {rowVirtualizer.getVirtualItems().map((vItem) => {
+                const row = flatRows[vItem.index];
+                if (!row) return null;
+                const isActiveSticky =
+                  row.kind === 'category' && activeStickyIndexRef.current === vItem.index;
+                const baseStyle: React.CSSProperties = isActiveSticky
+                  ? { position: 'sticky', top: 0, left: 0, width: '100%', zIndex: 3 }
+                  : {
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      transform: `translateY(${vItem.start}px)`,
+                    };
+
+                if (row.kind === 'category') {
+                  return (
+                    <div
+                      key={vItem.key}
+                      data-index={vItem.index}
+                      ref={rowVirtualizer.measureElement}
+                      role="row"
+                      aria-expanded={!row.isCollapsed}
+                      style={baseStyle}
+                      className="border-b bg-card"
+                    >
+                      <div className="flex items-center gap-2 px-3 py-2.5" role="cell">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 shrink-0"
+                          onClick={() => toggleCategoria(row.categoriaKey)}
+                          aria-label={row.isCollapsed ? `Expandir categoria ${row.categoriaLabel}` : `Recolher categoria ${row.categoriaLabel}`}
+                        >
+                          {row.isCollapsed ? (
+                            <ChevronRight className="h-4 w-4" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <Badge
+                          variant={row.categoriaKey === "__none__" ? "outline" : "secondary"}
+                          className="text-sm"
+                        >
+                          {row.categoriaLabel}
+                        </Badge>
+                        <span className="text-sm text-muted-foreground truncate">
+                          {row.familiesCount} {row.familiesCount === 1 ? "família" : "famílias"} · {row.totalBitolas} {row.totalBitolas === 1 ? "bitola" : "bitolas"} · {row.costRange}
+                        </span>
+                        {canModifyBaseDados && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="shrink-0 ml-auto"
+                            onClick={() => {
+                              setNewFamilyInput("");
+                              setNewFamilyCategoria(row.categoriaKey === "__none__" ? "" : row.categoriaKey);
+                              setNewFamilyDialogOpen(true);
+                            }}
+                            aria-label={`Adicionar item em ${row.categoriaLabel}`}
+                          >
+                            <Plus className="h-4 w-4 mr-1" />
+                            Adicionar item
+                          </Button>
                         )}
-                      </Button>
-                      <Badge
-                        variant={categoriaKey === "__none__" ? "outline" : "secondary"}
-                        className="text-sm"
-                      >
-                        {categoriaLabel}
-                      </Badge>
-                      <span className="text-sm text-muted-foreground truncate">
-                        {families.length} {families.length === 1 ? "família" : "famílias"} · {totalBitolas} {totalBitolas === 1 ? "bitola" : "bitolas"} · {costRange}
-                      </span>
+                      </div>
+                    </div>
+                  );
+                }
+
+                if (row.kind === 'colheader') {
+                  return (
+                    <div
+                      key={vItem.key}
+                      data-index={vItem.index}
+                      ref={rowVirtualizer.measureElement}
+                      role="row"
+                      style={baseStyle}
+                      className={cn(gridColsClass, "items-center border-b bg-muted/40 px-1 py-1.5 text-xs font-medium text-muted-foreground")}
+                    >
+                      {canModifyBaseDados && <div role="columnheader" />}
+                      <div role="columnheader" />
+                      <div role="columnheader" className="px-1">
+                        <button
+                          onClick={() => toggleBitolaSort('bitola')}
+                          className="flex items-center gap-1 font-medium hover:text-foreground transition-colors"
+                        >
+                          Ø
+                          {bitolaSort.col === 'bitola' ? (
+                            bitolaSort.dir === 'asc' ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />
+                          ) : null}
+                        </button>
+                      </div>
+                      <div role="columnheader" className="px-1">Un.</div>
+                      <div role="columnheader" className="px-1">
+                        <button
+                          onClick={() => toggleBitolaSort('erp')}
+                          className="flex items-center gap-1 font-medium hover:text-foreground transition-colors"
+                        >
+                          ERP
+                          {bitolaSort.col === 'erp' ? (
+                            bitolaSort.dir === 'asc' ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />
+                          ) : null}
+                        </button>
+                      </div>
+                      <div role="columnheader" className="px-1 text-right">
+                        <button
+                          onClick={() => toggleBitolaSort('custo')}
+                          className="flex items-center gap-1 font-medium hover:text-foreground transition-colors ml-auto"
+                        >
+                          Custo
+                          {bitolaSort.col === 'custo' ? (
+                            bitolaSort.dir === 'asc' ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />
+                          ) : null}
+                        </button>
+                      </div>
+                      <div role="columnheader" className="px-1">Notas</div>
+                      {canModifyBaseDados && <div role="columnheader" className="px-1 text-right">Ações</div>}
+                    </div>
+                  );
+                }
+
+                if (row.kind === 'family') {
+                  const { descricao, items } = row;
+                  const isExpanded = expandedGroups.has(descricao);
+                  return (
+                    <div
+                      key={vItem.key}
+                      data-index={vItem.index}
+                      ref={rowVirtualizer.measureElement}
+                      role="row"
+                      aria-expanded={isExpanded}
+                      style={baseStyle}
+                      className={cn(gridColsClass, "group items-center border-b bg-card px-1 hover:bg-muted/50 cursor-pointer")}
+                      onClick={() => toggleGroup(descricao)}
+                    >
+                      {canModifyBaseDados && (
+                        <div
+                          role="cell"
+                          className="flex items-center justify-center py-2"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Checkbox
+                            checked={selectedFamilies.has(descricao)}
+                            onCheckedChange={() => toggleFamilySelection(descricao)}
+                            aria-label={`Selecionar família ${descricao}`}
+                          />
+                        </div>
+                      )}
+                      <div role="cell" className="flex items-center py-2">
+                        {isExpanded ? (
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div role="cell" className="col-span-5 font-medium py-2 px-1 truncate">
+                        {highlightMatch(descricao, search.debounced)}
+                        <span className="ml-2 text-xs font-normal text-muted-foreground">
+                          {items.length} {items.length === 1 ? "bitola" : "bitolas"}
+                        </span>
+                      </div>
+                      {canModifyBaseDados && (
+                        <div
+                          role="cell"
+                          className="flex justify-end py-2"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-muted-foreground hover:text-foreground"
+                              onClick={() => openRenameFamily(descricao)}
+                              title="Renomear família"
+                            >
+                              <FolderPen className="h-3.5 w-3.5 mr-1" />
+                              <span className="text-xs">Renomear</span>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-muted-foreground hover:text-foreground"
+                              onClick={() => openNew(descricao)}
+                              title="Adicionar bitola a esta família"
+                            >
+                              <PlusCircle className="h-3.5 w-3.5 mr-1" />
+                              <span className="text-xs">Bitola</span>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-destructive hover:text-destructive"
+                              onClick={() => setDeleteFamilyTarget(descricao)}
+                              title="Excluir família"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                const m = row.material;
+                const erpValue = ((m as any).erp ?? "").toString().trim();
+                const hasErp = erpValue.length > 0;
+                const hasCusto = m.custo > 0;
+                return (
+                  <div
+                    key={vItem.key}
+                    data-index={vItem.index}
+                    ref={rowVirtualizer.measureElement}
+                    role="row"
+                    style={baseStyle}
+                    className={cn(gridColsClass, "items-center border-b bg-muted/20 px-1 hover:bg-muted/40")}
+                  >
+                    {canModifyBaseDados && <div role="cell" />}
+                    <div role="cell" />
+                    <div role="cell" className="font-mono py-1.5 pl-6 border-l-2 border-primary/20 truncate">
+                      {highlightMatch(m.bitola, search.debounced)}
+                    </div>
+                    <div role="cell" className="py-1.5 px-1">{m.unidade}</div>
+                    <div role="cell" className="font-mono py-1.5 px-1">
+                      {canModifyBaseDados && editingCell?.id === m.id && editingCell.field === 'erp' ? (
+                        <InlineEditCell
+                          kind="erp"
+                          initialValue={((m as any).erp ?? '').toString()}
+                          onSave={(val) => commitInlineEdit(m, 'erp', val)}
+                          onCancel={() => setEditingCell(null)}
+                        />
+                      ) : (
+                        <div
+                          className={cn(
+                            'group/cell flex items-center gap-1',
+                            canModifyBaseDados && 'cursor-text',
+                          )}
+                          onDoubleClick={canModifyBaseDados ? () => startInlineEdit(m.id, 'erp') : undefined}
+                          title={canModifyBaseDados ? 'Duplo clique para editar' : undefined}
+                        >
+                          {hasErp ? (
+                            highlightMatch(erpValue, search.debounced)
+                          ) : (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="inline-flex items-center gap-1 rounded-md border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-xs font-medium text-warning cursor-help">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  sem ERP
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                Código ERP não cadastrado para esta bitola.
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                          {canModifyBaseDados && (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); startInlineEdit(m.id, 'erp'); }}
+                              className="opacity-0 group-hover/cell:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-foreground shrink-0"
+                              aria-label="Editar ERP"
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <div role="cell" className="text-right font-mono py-1.5 px-1">
+                      {canModifyBaseDados && editingCell?.id === m.id && editingCell.field === 'custo' ? (
+                        <InlineEditCell
+                          kind="custo"
+                          align="right"
+                          initialValue={m.custo ? String(m.custo).replace('.', ',') : ''}
+                          onSave={(val) => commitInlineEdit(m, 'custo', val)}
+                          onCancel={() => setEditingCell(null)}
+                        />
+                      ) : (
+                        <div
+                          className={cn(
+                            'group/cell flex items-center justify-end gap-1',
+                            canModifyBaseDados && 'cursor-text',
+                          )}
+                          onDoubleClick={canModifyBaseDados ? () => startInlineEdit(m.id, 'custo') : undefined}
+                          title={canModifyBaseDados ? 'Duplo clique para editar' : undefined}
+                        >
+                          {canModifyBaseDados && (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); startInlineEdit(m.id, 'custo'); }}
+                              className="opacity-0 group-hover/cell:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-foreground shrink-0"
+                              aria-label="Editar custo"
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </button>
+                          )}
+                          {hasCusto ? (
+                            formatBRL(m.custo)
+                          ) : (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="inline-flex items-center gap-1 rounded-md border border-info/40 bg-info/10 px-1.5 py-0.5 text-xs font-medium text-info cursor-help">
+                                  <Info className="h-3 w-3" />
+                                  sem custo
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                Custo ausente ou igual a R$ 0,00.
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <div role="cell" className="text-sm text-muted-foreground py-1.5 px-1 truncate">
+                      {(m as any).notas || "-"}
                     </div>
                     {canModifyBaseDados && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="shrink-0"
-                        onClick={() => {
-                          setNewFamilyInput("");
-                          setNewFamilyCategoria(categoriaKey === "__none__" ? "" : categoriaKey);
-                          setNewFamilyDialogOpen(true);
-                        }}
-                        aria-label={`Adicionar item em ${categoriaLabel}`}
-                      >
-                        <Plus className="h-4 w-4 mr-1" />
-                        Adicionar item
-                      </Button>
+                      <div role="cell" className="flex justify-end gap-1 py-1.5">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(m)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir item?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta ação não pode ser desfeita. O item{" "}
+                                <strong>
+                                  {m.descricao} {m.bitola}
+                                </strong>{" "}
+                                será removido permanentemente.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => deleteMaterial.mutate(m.id)}
+                                className="bg-destructive hover:bg-destructive/90"
+                              >
+                                Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     )}
                   </div>
-                </CardHeader>
-                {!isCategoriaCollapsed && (
-                <CardContent className="pt-0">
-                  <Table className="table-fixed min-w-[640px]">
-                    {/* Colgroup único compartilhado entre o nível família e o nível bitola
-                        — garante alinhamento de Ø, Un., ERP, Custo, Notas e Ações em ambos. */}
-                    <colgroup>
-                      {canModifyBaseDados && <col className="w-10" />}
-                      <col className="w-8" />
-                      <col />
-                      <col className="w-16" />
-                      <col className="w-44" />
-                      <col className="w-28" />
-                      <col />
-                      {canModifyBaseDados && <col className="w-28" />}
-                    </colgroup>
-                    <TableHeader>
-                      <TableRow>
-                        {canModifyBaseDados && <TableHead />}
-                        <TableHead />
-                        <TableHead>
-                          <button
-                            onClick={() => toggleBitolaSort('bitola')}
-                            className="flex items-center gap-1 font-medium hover:text-foreground transition-colors"
-                          >
-                            Ø
-                            {bitolaSort.col === 'bitola' ? (
-                              bitolaSort.dir === 'asc' ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />
-                            ) : null}
-                          </button>
-                        </TableHead>
-                        <TableHead>Un.</TableHead>
-                        <TableHead>
-                          <button
-                            onClick={() => toggleBitolaSort('erp')}
-                            className="flex items-center gap-1 font-medium hover:text-foreground transition-colors"
-                          >
-                            ERP
-                            {bitolaSort.col === 'erp' ? (
-                              bitolaSort.dir === 'asc' ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />
-                            ) : null}
-                          </button>
-                        </TableHead>
-                        <TableHead className="text-right">
-                          <button
-                            onClick={() => toggleBitolaSort('custo')}
-                            className="flex items-center gap-1 font-medium hover:text-foreground transition-colors ml-auto"
-                          >
-                            Custo
-                            {bitolaSort.col === 'custo' ? (
-                              bitolaSort.dir === 'asc' ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />
-                            ) : null}
-                          </button>
-                        </TableHead>
-                        <TableHead>Notas</TableHead>
-                        {canModifyBaseDados && <TableHead className="text-right">Ações</TableHead>}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {families.map(([descricao, items]) => {
-                        const isExpanded = expandedGroups.has(descricao);
-                        return (
-                          <Fragment key={descricao}>
-                            {/* Linha-pai: família */}
-                            <TableRow
-                              className="hover:bg-muted/50 cursor-pointer group"
-                              onClick={() => toggleGroup(descricao)}
-                            >
-                              {canModifyBaseDados && (
-                                <TableCell
-                                  className="py-2 align-middle"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <Checkbox
-                                    checked={selectedFamilies.has(descricao)}
-                                    onCheckedChange={() => toggleFamilySelection(descricao)}
-                                    aria-label={`Selecionar família ${descricao}`}
-                                  />
-                                </TableCell>
-                              )}
-                              <TableCell className="py-2 align-middle pr-0">
-                                {isExpanded ? (
-                                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                                ) : (
-                                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                                )}
-                              </TableCell>
-                              <TableCell colSpan={5} className="font-medium py-2 align-middle">
-                                {highlightMatch(descricao, search.debounced)}
-                                <span className="ml-2 text-xs font-normal text-muted-foreground">
-                                  {items.length} {items.length === 1 ? "bitola" : "bitolas"}
-                                </span>
-                              </TableCell>
-                              {canModifyBaseDados && (
-                                <TableCell
-                                  className="text-right py-2 align-middle"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-7 px-2 text-muted-foreground hover:text-foreground"
-                                      onClick={() => openRenameFamily(descricao)}
-                                      title="Renomear família"
-                                    >
-                                      <FolderPen className="h-3.5 w-3.5 mr-1" />
-                                      <span className="text-xs">Renomear</span>
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-7 px-2 text-muted-foreground hover:text-foreground"
-                                      onClick={() => openNew(descricao)}
-                                      title="Adicionar bitola a esta família"
-                                    >
-                                      <PlusCircle className="h-3.5 w-3.5 mr-1" />
-                                      <span className="text-xs">Bitola</span>
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-7 px-2 text-destructive hover:text-destructive"
-                                      onClick={() => setDeleteFamilyTarget(descricao)}
-                                      title="Excluir família"
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              )}
-                            </TableRow>
-
-                            {/* Linhas-filhas: bitolas (mesma tabela → colunas alinhadas) */}
-                            {isExpanded &&
-                              items.map((m) => {
-                                const erpValue = ((m as any).erp ?? "").toString().trim();
-                                const hasErp = erpValue.length > 0;
-                                const hasCusto = m.custo > 0;
-                                return (
-                                  <TableRow
-                                    key={m.id}
-                                    className="bg-muted/30 hover:bg-muted/40"
-                                  >
-                                    {canModifyBaseDados && <TableCell className="py-1.5" />}
-                                    <TableCell className="py-1.5" />
-                                    <TableCell className="font-mono py-1.5 pl-6 border-l-2 border-primary/20">
-                                      {highlightMatch(m.bitola, search.debounced)}
-                                    </TableCell>
-                                    <TableCell className="py-1.5">{m.unidade}</TableCell>
-                                    <TableCell className="font-mono py-1.5">
-                                      {canModifyBaseDados && editingCell?.id === m.id && editingCell.field === 'erp' ? (
-                                        <InlineEditCell
-                                          kind="erp"
-                                          initialValue={((m as any).erp ?? '').toString()}
-                                          onSave={(val) => commitInlineEdit(m, 'erp', val)}
-                                          onCancel={() => setEditingCell(null)}
-                                        />
-                                      ) : (
-                                        <div
-                                          className={cn(
-                                            'group/cell flex items-center gap-1',
-                                            canModifyBaseDados && 'cursor-text',
-                                          )}
-                                          onDoubleClick={canModifyBaseDados ? () => startInlineEdit(m.id, 'erp') : undefined}
-                                          title={canModifyBaseDados ? 'Duplo clique para editar' : undefined}
-                                        >
-                                          {hasErp ? (
-                                            highlightMatch(erpValue, search.debounced)
-                                          ) : (
-                                            <Tooltip>
-                                              <TooltipTrigger asChild>
-                                                <span className="inline-flex items-center gap-1 rounded-md border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-xs font-medium text-warning cursor-help">
-                                                  <AlertTriangle className="h-3 w-3" />
-                                                  sem ERP
-                                                </span>
-                                              </TooltipTrigger>
-                                              <TooltipContent>
-                                                Código ERP não cadastrado para esta bitola.
-                                              </TooltipContent>
-                                            </Tooltip>
-                                          )}
-                                          {canModifyBaseDados && (
-                                            <button
-                                              type="button"
-                                              onClick={(e) => { e.stopPropagation(); startInlineEdit(m.id, 'erp'); }}
-                                              className="opacity-0 group-hover/cell:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-foreground shrink-0"
-                                              aria-label="Editar ERP"
-                                            >
-                                              <Pencil className="h-3 w-3" />
-                                            </button>
-                                          )}
-                                        </div>
-                                      )}
-                                    </TableCell>
-                                    <TableCell className="text-right font-mono py-1.5">
-                                      {canModifyBaseDados && editingCell?.id === m.id && editingCell.field === 'custo' ? (
-                                        <InlineEditCell
-                                          kind="custo"
-                                          align="right"
-                                          initialValue={m.custo ? String(m.custo).replace('.', ',') : ''}
-                                          onSave={(val) => commitInlineEdit(m, 'custo', val)}
-                                          onCancel={() => setEditingCell(null)}
-                                        />
-                                      ) : (
-                                        <div
-                                          className={cn(
-                                            'group/cell flex items-center justify-end gap-1',
-                                            canModifyBaseDados && 'cursor-text',
-                                          )}
-                                          onDoubleClick={canModifyBaseDados ? () => startInlineEdit(m.id, 'custo') : undefined}
-                                          title={canModifyBaseDados ? 'Duplo clique para editar' : undefined}
-                                        >
-                                          {canModifyBaseDados && (
-                                            <button
-                                              type="button"
-                                              onClick={(e) => { e.stopPropagation(); startInlineEdit(m.id, 'custo'); }}
-                                              className="opacity-0 group-hover/cell:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-foreground shrink-0"
-                                              aria-label="Editar custo"
-                                            >
-                                              <Pencil className="h-3 w-3" />
-                                            </button>
-                                          )}
-                                          {hasCusto ? (
-                                            formatBRL(m.custo)
-                                          ) : (
-                                            <Tooltip>
-                                              <TooltipTrigger asChild>
-                                                <span className="inline-flex items-center gap-1 rounded-md border border-info/40 bg-info/10 px-1.5 py-0.5 text-xs font-medium text-info cursor-help">
-                                                  <Info className="h-3 w-3" />
-                                                  sem custo
-                                                </span>
-                                              </TooltipTrigger>
-                                              <TooltipContent>
-                                                Custo ausente ou igual a R$ 0,00.
-                                              </TooltipContent>
-                                            </Tooltip>
-                                          )}
-                                        </div>
-                                      )}
-                                    </TableCell>
-                                    <TableCell className="text-sm text-muted-foreground py-1.5 truncate">
-                                      {(m as any).notas || "-"}
-                                    </TableCell>
-                                    {canModifyBaseDados && (
-                                      <TableCell className="py-1.5">
-                                        <div className="flex justify-end gap-1">
-                                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(m)}>
-                                            <Pencil className="h-3.5 w-3.5" />
-                                          </Button>
-                                          <AlertDialog>
-                                            <AlertDialogTrigger asChild>
-                                              <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-7 w-7 text-destructive hover:text-destructive"
-                                              >
-                                                <Trash2 className="h-3.5 w-3.5" />
-                                              </Button>
-                                            </AlertDialogTrigger>
-                                            <AlertDialogContent>
-                                              <AlertDialogHeader>
-                                                <AlertDialogTitle>Excluir item?</AlertDialogTitle>
-                                                <AlertDialogDescription>
-                                                  Esta ação não pode ser desfeita. O item{" "}
-                                                  <strong>
-                                                    {m.descricao} {m.bitola}
-                                                  </strong>{" "}
-                                                  será removido permanentemente.
-                                                </AlertDialogDescription>
-                                              </AlertDialogHeader>
-                                              <AlertDialogFooter>
-                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                <AlertDialogAction
-                                                  onClick={() => deleteMaterial.mutate(m.id)}
-                                                  className="bg-destructive hover:bg-destructive/90"
-                                                >
-                                                  Excluir
-                                                </AlertDialogAction>
-                                              </AlertDialogFooter>
-                                            </AlertDialogContent>
-                                          </AlertDialog>
-                                        </div>
-                                      </TableCell>
-                                    )}
-                                  </TableRow>
-                                );
-                              })}
-                          </Fragment>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-                )}
-              </Card>
-            );
-          })}
-        </div>
+                );
+              })}
+            </div>
+          </div>
+        </Card>
       )}
     </div>
   );
