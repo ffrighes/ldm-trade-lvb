@@ -1,4 +1,5 @@
 import { Fragment, useState, useMemo } from "react";
+import { cn } from "@/lib/utils";
 import { useMaterials, useAddMaterial, useUpdateMaterial, useDeleteMaterial } from "@/hooks/useSupabaseData";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -1335,82 +1336,89 @@ export default function BaseDadosPage() {
                                 </TableCell>
                               )}
                             </TableRow>
-                            {isExpanded && (
-                              <TableRow className="bg-muted/20 hover:bg-muted/20">
-                                <TableCell colSpan={colSpan} className="p-0">
-                                  <div className="overflow-x-auto px-4 py-2">
-                                    <Table>
-                                      <TableHeader>
-                                        <TableRow>
-                                          <TableHead>Ø</TableHead>
-                                          <TableHead>Un.</TableHead>
-                                          <TableHead className="min-w-[160px]">ERP</TableHead>
-                                          <TableHead className="text-right">Custo</TableHead>
-                                          <TableHead>Notas</TableHead>
-                                          {canModifyBaseDados && <TableHead className="w-24">Ações</TableHead>}
-                                        </TableRow>
-                                      </TableHeader>
-                                      <TableBody>
-                                        {items.map((m) => (
-                                          <TableRow key={m.id}>
-                                            <TableCell className="font-mono">{highlightMatch(m.bitola, search.debounced)}</TableCell>
-                                            <TableCell>{m.unidade}</TableCell>
-                                            <TableCell className="font-mono">{(() => { const e = (m as any).erp; return e ? highlightMatch(e, search.debounced) : "-"; })()}</TableCell>
-                                            <TableCell className="text-right font-mono">
-                                              {m.custo > 0 ? formatBRL(m.custo) : "-"}
-                                            </TableCell>
-                                            <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
-                                              {(m as any).notas || "-"}
-                                            </TableCell>
-                                            {canModifyBaseDados && (
-                                              <TableCell>
-                                                <div className="flex gap-1">
-                                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(m)}>
-                                                    <Pencil className="h-3.5 w-3.5" />
-                                                  </Button>
-                                                  <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                      <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-7 w-7 text-destructive hover:text-destructive"
-                                                      >
-                                                        <Trash2 className="h-3.5 w-3.5" />
-                                                      </Button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                      <AlertDialogHeader>
-                                                        <AlertDialogTitle>Excluir item?</AlertDialogTitle>
-                                                        <AlertDialogDescription>
-                                                          Esta ação não pode ser desfeita. O item{" "}
-                                                          <strong>
-                                                            {m.descricao} {m.bitola}
-                                                          </strong>{" "}
-                                                          será removido permanentemente.
-                                                        </AlertDialogDescription>
-                                                      </AlertDialogHeader>
-                                                      <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                        <AlertDialogAction
-                                                          onClick={() => deleteMaterial.mutate(m.id)}
-                                                          className="bg-destructive hover:bg-destructive/90"
-                                                        >
-                                                          Excluir
-                                                        </AlertDialogAction>
-                                                      </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                  </AlertDialog>
-                                                </div>
-                                              </TableCell>
-                                            )}
+                            <TableRow className={cn("bg-muted/20 hover:bg-muted/20", !isExpanded && "!border-b-0")}>
+                              <TableCell colSpan={colSpan} className="p-0">
+                                <div
+                                  className={cn(
+                                    "grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none",
+                                    isExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+                                  )}
+                                >
+                                  <div className="min-h-0 overflow-hidden">
+                                    <div className="overflow-x-auto px-4 py-2">
+                                      <Table>
+                                        <TableHeader>
+                                          <TableRow>
+                                            <TableHead>Ø</TableHead>
+                                            <TableHead>Un.</TableHead>
+                                            <TableHead className="min-w-[160px]">ERP</TableHead>
+                                            <TableHead className="text-right">Custo</TableHead>
+                                            <TableHead>Notas</TableHead>
+                                            {canModifyBaseDados && <TableHead className="w-24">Ações</TableHead>}
                                           </TableRow>
-                                        ))}
-                                      </TableBody>
-                                    </Table>
+                                        </TableHeader>
+                                        <TableBody>
+                                          {items.map((m) => (
+                                            <TableRow key={m.id}>
+                                              <TableCell className="font-mono">{highlightMatch(m.bitola, search.debounced)}</TableCell>
+                                              <TableCell>{m.unidade}</TableCell>
+                                              <TableCell className="font-mono">{(() => { const e = (m as any).erp; return e ? highlightMatch(e, search.debounced) : "-"; })()}</TableCell>
+                                              <TableCell className="text-right font-mono">
+                                                {m.custo > 0 ? formatBRL(m.custo) : "-"}
+                                              </TableCell>
+                                              <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
+                                                {(m as any).notas || "-"}
+                                              </TableCell>
+                                              {canModifyBaseDados && (
+                                                <TableCell>
+                                                  <div className="flex gap-1">
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(m)}>
+                                                      <Pencil className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                    <AlertDialog>
+                                                      <AlertDialogTrigger asChild>
+                                                        <Button
+                                                          variant="ghost"
+                                                          size="icon"
+                                                          className="h-7 w-7 text-destructive hover:text-destructive"
+                                                        >
+                                                          <Trash2 className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                      </AlertDialogTrigger>
+                                                      <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                          <AlertDialogTitle>Excluir item?</AlertDialogTitle>
+                                                          <AlertDialogDescription>
+                                                            Esta ação não pode ser desfeita. O item{" "}
+                                                            <strong>
+                                                              {m.descricao} {m.bitola}
+                                                            </strong>{" "}
+                                                            será removido permanentemente.
+                                                          </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                          <AlertDialogAction
+                                                            onClick={() => deleteMaterial.mutate(m.id)}
+                                                            className="bg-destructive hover:bg-destructive/90"
+                                                          >
+                                                            Excluir
+                                                          </AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                      </AlertDialogContent>
+                                                    </AlertDialog>
+                                                  </div>
+                                                </TableCell>
+                                              )}
+                                            </TableRow>
+                                          ))}
+                                        </TableBody>
+                                      </Table>
+                                    </div>
                                   </div>
-                                </TableCell>
-                              </TableRow>
-                            )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
                           </Fragment>
                         );
                       })}
