@@ -289,6 +289,8 @@ export default function BaseDadosPage() {
   const [batchCategoria, setBatchCategoria] = useState<string>("");
   const [batchSaving, setBatchSaving] = useState(false);
   const [batchConfirmOpen, setBatchConfirmOpen] = useState(false);
+  const [batchDeleteConfirmOpen, setBatchDeleteConfirmOpen] = useState(false);
+  const [batchDeleteSaving, setBatchDeleteSaving] = useState(false);
   const [bitolaSort, setBitolaSort] = useState<{ col: 'bitola' | 'erp' | 'custo'; dir: 'asc' | 'desc' }>({ col: 'bitola', dir: 'asc' });
   const [qualityFilters, setQualityFilters] = useState<Set<'sem_erp' | 'sem_custo' | 'sem_categoria'>>(new Set());
   const [editingCell, setEditingCell] = useState<{ id: string; field: 'custo' | 'erp' } | null>(null);
@@ -1011,6 +1013,11 @@ export default function BaseDadosPage() {
 
   const visibleFamilyNames = useMemo(() => grouped.map(([d]) => d), [grouped]);
 
+  const selectedBitolaCount = useMemo(
+    () => materials.filter((m) => selectedFamilies.has(m.descricao)).length,
+    [materials, selectedFamilies],
+  );
+
   const allVisibleSelected =
     visibleFamilyNames.length > 0 && visibleFamilyNames.every((d) => selectedFamilies.has(d));
   const someVisibleSelected =
@@ -1054,6 +1061,66 @@ export default function BaseDadosPage() {
     } finally {
       setBatchSaving(false);
     }
+  };
+
+  const handleBatchDeleteFamilies = async () => {
+    if (selectedFamilies.size === 0) return;
+    setBatchDeleteSaving(true);
+    try {
+      const families = [...selectedFamilies];
+
+      // 1. Obter IDs dos materiais das famílias selecionadas
+      const { data: familyMaterials, error: fetchError } = await supabase
+        .from("materials")
+        .select("id")
+        .in("descricao", families);
+      if (fetchError) throw fetchError;
+
+      // 2. Nulificar referências em solicitacao_itens (respeitar FK)
+      if (familyMaterials && familyMaterials.length > 0) {
+        const ids = familyMaterials.map((m) => m.id);
+        const { error: itensError } = await supabase
+          .from("solicitacao_itens")
+          .update({ material_id: null })
+          .in("material_id", ids);
+        if (itensError) throw itensError;
+      }
+
+      // 3. Deletar os materiais
+      const { error } = await supabase.from("materials").delete().in("descricao", families);
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ["materials"] });
+      queryClient.invalidateQueries({ queryKey: ["solicitacoes"] });
+      toast.success(
+        `${families.length} ${families.length === 1 ? "família excluída" : "famílias excluídas"}`,
+      );
+      setSelectedFamilies(new Set());
+      setBatchDeleteConfirmOpen(false);
+    } catch (err: any) {
+      toast.error("Erro ao excluir famílias: " + (err.message || "erro desconhecido"));
+    } finally {
+      setBatchDeleteSaving(false);
+    }
+  };
+
+  const handleExportSelection = () => {
+    const exportData = materials
+      .filter((m) => selectedFamilies.has(m.descricao))
+      .map((m) => ({
+        "Descrição (Família)": m.descricao,
+        Categoria: (m as any).categoria || "",
+        Ø: m.bitola,
+        "Un.": m.unidade,
+        ERP: m.erp,
+        Custo: m.custo,
+        Notas: m.notas,
+      }));
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Materiais");
+    XLSX.writeFile(wb, "selecao-materiais.xlsx");
+    toast.success("Seleção exportada");
   };
 
   const handleConfirmNewFamily = () => {
@@ -1697,11 +1764,11 @@ export default function BaseDadosPage() {
 
       {canModifyBaseDados && selectedFamilies.size > 0 && (
         <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-3 rounded-lg border bg-accent/40 px-4 py-3">
-          <div className="text-sm font-medium">
+          <div className="text-sm font-medium shrink-0">
             {selectedFamilies.size} {selectedFamilies.size === 1 ? "família selecionada" : "famílias selecionadas"}
           </div>
-          <div className="flex flex-1 flex-col sm:flex-row gap-2 sm:items-center">
-            <Label className="text-sm text-muted-foreground sm:ml-2">Alterar categoria para:</Label>
+          <div className="flex flex-1 flex-wrap gap-2 sm:items-center">
+            <Label className="text-sm text-muted-foreground sm:ml-2 shrink-0">Alterar categoria para:</Label>
             <Select
               value={batchCategoria || "__none__"}
               onValueChange={(v) => setBatchCategoria(v === "__none__" ? "" : v)}
@@ -1716,12 +1783,28 @@ export default function BaseDadosPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Button onClick={() => setBatchConfirmOpen(true)} disabled={batchSaving}>
+            <Button onClick={() => setBatchConfirmOpen(true)} disabled={batchSaving || batchDeleteSaving}>
               Aplicar
             </Button>
-            <Button variant="ghost" onClick={clearSelection} disabled={batchSaving}>
-              Limpar seleção
-            </Button>
+            <div className="sm:ml-auto flex gap-2 flex-wrap">
+              <Button variant="outline" size="sm" onClick={handleExportSelection} disabled={batchDeleteSaving}>
+                <Download className="h-4 w-4 mr-1.5" />
+                Exportar seleção
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setBatchDeleteConfirmOpen(true)}
+                disabled={batchSaving || batchDeleteSaving}
+                className="text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+              >
+                <Trash2 className="h-4 w-4 mr-1.5" />
+                Excluir selecionadas
+              </Button>
+              <Button variant="ghost" size="sm" onClick={clearSelection} disabled={batchSaving || batchDeleteSaving}>
+                Limpar seleção
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -1741,6 +1824,31 @@ export default function BaseDadosPage() {
             <AlertDialogCancel disabled={batchSaving}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleBatchUpdateCategoria} disabled={batchSaving}>
               {batchSaving ? "Aplicando..." : "Confirmar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={batchDeleteConfirmOpen} onOpenChange={(v) => { if (!batchDeleteSaving) setBatchDeleteConfirmOpen(v); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir famílias selecionadas?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{selectedFamilies.size}</strong>{" "}
+              {selectedFamilies.size === 1 ? "família" : "famílias"} e{" "}
+              <strong>{selectedBitolaCount}</strong>{" "}
+              {selectedBitolaCount === 1 ? "bitola serão removidas" : "bitolas serão removidas"}{" "}
+              permanentemente. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={batchDeleteSaving}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBatchDeleteFamilies}
+              disabled={batchDeleteSaving}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {batchDeleteSaving ? "Excluindo..." : "Excluir"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
