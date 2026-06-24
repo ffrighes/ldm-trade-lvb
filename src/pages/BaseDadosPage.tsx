@@ -1,4 +1,4 @@
-import { Fragment, useState, useMemo, useRef } from "react";
+import { Fragment, useState, useMemo } from "react";
 import { useMaterials, useAddMaterial, useUpdateMaterial, useDeleteMaterial } from "@/hooks/useSupabaseData";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -9,6 +9,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, Upload, Download, PlusCircle, FolderPen, Tags } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { SearchInput } from "@/components/SearchInput";
 import { useSearch } from "@/hooks/useSearch";
 import { highlightMatch } from "@/lib/highlight";
@@ -70,7 +76,9 @@ export default function BaseDadosPage() {
   const [editingFamilyCategoria, setEditingFamilyCategoria] = useState<string>("");
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [importing, setImporting] = useState(false);
-  const [clearBeforeImport, setClearBeforeImport] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importClearBefore, setImportClearBefore] = useState(false);
   const [renameFamilyOpen, setRenameFamilyOpen] = useState(false);
   const [renamingFamily, setRenamingFamily] = useState("");
   const [newFamilyName, setNewFamilyName] = useState("");
@@ -87,38 +95,23 @@ export default function BaseDadosPage() {
   const [batchCategoria, setBatchCategoria] = useState<string>("");
   const [batchSaving, setBatchSaving] = useState(false);
   const [batchConfirmOpen, setBatchConfirmOpen] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
-  const handleImportXlsx = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+  const handleImportXlsx = async (file: File, clearBefore: boolean) => {
+    const MAX_FILE_SIZE = 5 * 1024 * 1024;
     const MAX_ROWS = 5000;
 
     if (!canModifyBaseDados) {
       toast.error("Você não tem permissão para importar materiais.");
-      if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
 
     if (file.size > MAX_FILE_SIZE) {
       toast.error("Arquivo muito grande (máx. 5 MB).");
-      if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
 
-    if (clearBeforeImport) {
-      const confirmed = window.confirm(
-        "ATENÇÃO: Esta ação removerá PERMANENTEMENTE todos os materiais e itens de BOM existentes antes da importação. Deseja continuar?"
-      );
-      if (!confirmed) {
-        if (fileInputRef.current) fileInputRef.current.value = "";
-        return;
-      }
-    }
-
+    setImportDialogOpen(false);
     setImporting(true);
     try {
       const buffer = await file.arrayBuffer();
@@ -201,7 +194,7 @@ export default function BaseDadosPage() {
         queryClient.invalidateQueries({ queryKey: ["material_categorias"] });
       }
 
-      if (clearBeforeImport) {
+      if (clearBefore) {
         const { error: itemsError } = await supabase
           .from("solicitacao_itens")
           .delete()
@@ -230,7 +223,8 @@ export default function BaseDadosPage() {
       toast.error("Erro ao importar: " + (err.message || "erro desconhecido"));
     } finally {
       setImporting(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      setImportFile(null);
+      setImportClearBefore(false);
     }
   };
 
@@ -589,45 +583,53 @@ export default function BaseDadosPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Base de Dados</h1>
         <div className="flex gap-2">
-          <input type="file" accept=".xlsx,.xls" ref={fileInputRef} onChange={handleImportXlsx} className="hidden" />
-          <Button
-            variant="outline"
-            onClick={() => {
-              const exportData = materials.map((m) => ({
-                "Descrição (Família)": m.descricao,
-                Categoria: (m as any).categoria || "",
-                Ø: m.bitola,
-                "Un.": m.unidade,
-                ERP: m.erp,
-                Custo: m.custo,
-                Notas: m.notas,
-              }));
-              const ws = XLSX.utils.json_to_sheet(exportData);
-              const wb = XLSX.utils.book_new();
-              XLSX.utils.book_append_sheet(wb, ws, "Materiais");
-              XLSX.writeFile(wb, "base-dados.xlsx");
-              toast.success("Planilha exportada");
-            }}
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Exportar XLSX
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">
+                <Download className="h-4 w-4 mr-2" />
+                Importar / Exportar
+                <ChevronDown className="h-4 w-4 ml-2" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => {
+                  const exportData = materials.map((m) => ({
+                    "Descrição (Família)": m.descricao,
+                    Categoria: (m as any).categoria || "",
+                    Ø: m.bitola,
+                    "Un.": m.unidade,
+                    ERP: m.erp,
+                    Custo: m.custo,
+                    Notas: m.notas,
+                  }));
+                  const ws = XLSX.utils.json_to_sheet(exportData);
+                  const wb = XLSX.utils.book_new();
+                  XLSX.utils.book_append_sheet(wb, ws, "Materiais");
+                  XLSX.writeFile(wb, "base-dados.xlsx");
+                  toast.success("Planilha exportada");
+                }}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Exportar XLSX
+              </DropdownMenuItem>
+              {canModifyBaseDados && (
+                <DropdownMenuItem
+                  onClick={() => {
+                    setImportFile(null);
+                    setImportClearBefore(false);
+                    setImportDialogOpen(true);
+                  }}
+                  disabled={importing}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  {importing ? "Importando..." : "Importar XLSX"}
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
           {canModifyBaseDados && (
             <>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="clearBeforeImport"
-                  checked={clearBeforeImport}
-                  onCheckedChange={(v) => setClearBeforeImport(!!v)}
-                />
-                <Label htmlFor="clearBeforeImport" className="text-sm cursor-pointer">
-                  Limpar base antes de importar
-                </Label>
-              </div>
-              <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importing}>
-                <Upload className="h-4 w-4 mr-2" />
-                {importing ? "Importando..." : "Importar XLSX"}
-              </Button>
               <Button variant="outline" onClick={() => setManageCategoriasOpen(true)}>
                 <Tags className="h-4 w-4 mr-2" />
                 Categorias
@@ -640,6 +642,55 @@ export default function BaseDadosPage() {
           )}
         </div>
       </div>
+
+      <Dialog open={importDialogOpen} onOpenChange={(v) => { if (!importing) setImportDialogOpen(v); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Importar XLSX</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="importFileInput">Arquivo (.xlsx / .xls)</Label>
+              <input
+                id="importFileInput"
+                type="file"
+                accept=".xlsx,.xls"
+                className="mt-2 block w-full text-sm file:mr-4 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-sm file:font-medium file:bg-secondary file:text-secondary-foreground hover:file:bg-secondary/80 cursor-pointer"
+                onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
+              />
+            </div>
+            <div className="flex items-start gap-2">
+              <Checkbox
+                id="importClearBefore"
+                checked={importClearBefore}
+                onCheckedChange={(v) => setImportClearBefore(!!v)}
+                className="mt-0.5"
+              />
+              <div>
+                <Label htmlFor="importClearBefore" className="cursor-pointer">
+                  Limpar base antes de importar
+                </Label>
+                {importClearBefore && (
+                  <p className="text-xs text-destructive mt-1">
+                    Todos os materiais e itens de BOM existentes serão removidos permanentemente antes da importação.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" disabled={importing}>Cancelar</Button>
+            </DialogClose>
+            <Button
+              onClick={() => importFile && handleImportXlsx(importFile, importClearBefore)}
+              disabled={!importFile || importing}
+            >
+              {importing ? "Importando..." : "Importar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={manageCategoriasOpen} onOpenChange={setManageCategoriasOpen}>
         <DialogContent className="max-w-md">
