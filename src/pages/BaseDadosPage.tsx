@@ -1270,9 +1270,15 @@ export default function BaseDadosPage() {
                         const colSpan = 2 + (canModifyBaseDados ? 2 : 0);
                         return (
                           <Fragment key={descricao}>
-                            <TableRow className="hover:bg-muted/40">
+                            <TableRow
+                              className="hover:bg-muted/50 cursor-pointer group"
+                              onClick={() => toggleGroup(descricao)}
+                            >
                               {canModifyBaseDados && (
-                                <TableCell onClick={(e) => e.stopPropagation()}>
+                                <TableCell
+                                  className="w-10 py-2 align-middle"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
                                   <Checkbox
                                     checked={selectedFamilies.has(descricao)}
                                     onCheckedChange={() => toggleFamilySelection(descricao)}
@@ -1280,30 +1286,27 @@ export default function BaseDadosPage() {
                                   />
                                 </TableCell>
                               )}
-                              <TableCell>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6"
-                                  onClick={() => toggleGroup(descricao)}
-                                  aria-label={isExpanded ? "Recolher" : "Expandir"}
-                                >
-                                  {isExpanded ? (
-                                    <ChevronDown className="h-4 w-4" />
-                                  ) : (
-                                    <ChevronRight className="h-4 w-4" />
-                                  )}
-                                </Button>
+                              <TableCell className="w-8 py-2 align-middle pr-0">
+                                {isExpanded ? (
+                                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                )}
                               </TableCell>
-                              <TableCell className="font-medium">{highlightMatch(descricao, search.debounced)}</TableCell>
+                              <TableCell className="font-medium py-2 align-middle">
+                                {highlightMatch(descricao, search.debounced)}
+                              </TableCell>
                               {canModifyBaseDados && (
-                                <TableCell className="text-right">
-                                  <div className="flex justify-end gap-1">
+                                <TableCell
+                                  className="text-right py-2 align-middle"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                                     <Button
                                       variant="ghost"
                                       size="sm"
                                       className="h-7 px-2 text-muted-foreground hover:text-foreground"
-                                      onClick={(e) => { e.stopPropagation(); openRenameFamily(descricao); }}
+                                      onClick={() => openRenameFamily(descricao)}
                                       title="Renomear família"
                                     >
                                       <FolderPen className="h-3.5 w-3.5 mr-1" />
@@ -1313,7 +1316,7 @@ export default function BaseDadosPage() {
                                       variant="ghost"
                                       size="sm"
                                       className="h-7 px-2 text-muted-foreground hover:text-foreground"
-                                      onClick={(e) => { e.stopPropagation(); openNew(descricao); }}
+                                      onClick={() => openNew(descricao)}
                                       title="Adicionar bitola a esta família"
                                     >
                                       <PlusCircle className="h-3.5 w-3.5 mr-1" />
@@ -1323,7 +1326,7 @@ export default function BaseDadosPage() {
                                       variant="ghost"
                                       size="sm"
                                       className="h-7 px-2 text-destructive hover:text-destructive"
-                                      onClick={(e) => { e.stopPropagation(); setDeleteFamilyTarget(descricao); }}
+                                      onClick={() => setDeleteFamilyTarget(descricao)}
                                       title="Excluir família"
                                     >
                                       <Trash2 className="h-3.5 w-3.5" />
