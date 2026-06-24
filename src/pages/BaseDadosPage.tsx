@@ -98,7 +98,17 @@ export default function BaseDadosPage() {
   const [batchSaving, setBatchSaving] = useState(false);
   const [batchConfirmOpen, setBatchConfirmOpen] = useState(false);
   const [bitolaSort, setBitolaSort] = useState<{ col: 'bitola' | 'erp' | 'custo'; dir: 'asc' | 'desc' }>({ col: 'bitola', dir: 'asc' });
+  const [qualityFilters, setQualityFilters] = useState<Set<'sem_erp' | 'sem_custo' | 'sem_categoria'>>(new Set());
   const queryClient = useQueryClient();
+
+  const toggleQualityFilter = (key: 'sem_erp' | 'sem_custo' | 'sem_categoria') => {
+    setQualityFilters(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   const toggleBitolaSort = (col: 'bitola' | 'erp' | 'custo') => {
     setBitolaSort(prev =>
@@ -241,6 +251,12 @@ export default function BaseDadosPage() {
 
   const descriptions = useMemo(() => [...new Set(materials.map((m) => m.descricao))].sort(), [materials]);
 
+  const qualityCounts = useMemo(() => ({
+    sem_erp: materials.filter(m => !((m as any).erp?.toString().trim())).length,
+    sem_custo: materials.filter(m => !m.custo || m.custo === 0).length,
+    sem_categoria: materials.filter(m => !(m as any).categoria).length,
+  }), [materials]);
+
   const familyCategoria = useMemo(() => {
     const map = new Map<string, string | null>();
     materials.forEach((m) => {
@@ -262,6 +278,9 @@ export default function BaseDadosPage() {
             return false;
           }
         }
+        if (qualityFilters.has('sem_erp') && (m as any).erp?.toString().trim()) return false;
+        if (qualityFilters.has('sem_custo') && m.custo > 0) return false;
+        if (qualityFilters.has('sem_categoria') && (m as any).categoria) return false;
         if (search.debounced) {
           const s = search.debounced.toLowerCase();
           return (
@@ -272,7 +291,7 @@ export default function BaseDadosPage() {
         }
         return true;
       }),
-    [materials, search.debounced, descFilter, categoriaFilter],
+    [materials, search.debounced, descFilter, categoriaFilter, qualityFilters],
   );
 
   const grouped = useMemo(() => {
@@ -1148,6 +1167,29 @@ export default function BaseDadosPage() {
                   ))}
                 </SelectContent>
               </Select>
+              {/* Filtros de qualidade */}
+              <div className="flex flex-wrap gap-3 items-center">
+                {(
+                  [
+                    { key: 'sem_erp', label: 'Sem ERP' },
+                    { key: 'sem_custo', label: 'Sem custo' },
+                    { key: 'sem_categoria', label: 'Sem categoria' },
+                  ] as const
+                ).map(({ key, label }) => (
+                  <label key={key} className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-pointer select-none">
+                    <Checkbox
+                      checked={qualityFilters.has(key)}
+                      onCheckedChange={() => toggleQualityFilter(key)}
+                      aria-label={`Filtrar: ${label}`}
+                    />
+                    <span>
+                      {label}{" "}
+                      <span className="text-xs text-muted-foreground/70">({qualityCounts[key]})</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+
               <div className="flex gap-2 items-center ml-auto flex-wrap">
                 {canModifyBaseDados && grouped.length > 0 && (
                   <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer pl-1 pr-2">
@@ -1175,7 +1217,7 @@ export default function BaseDadosPage() {
             </div>
 
             {/* Chips de filtros ativos */}
-            {(categoriaFilter !== "all" || descFilter !== "all") && (
+            {(categoriaFilter !== "all" || descFilter !== "all" || qualityFilters.size > 0) && (
               <div className="flex flex-wrap gap-2 items-center mt-2 pt-2 border-t">
                 {categoriaFilter !== "all" && (
                   <Badge variant="secondary" className="flex items-center gap-1 pr-1">
@@ -1201,11 +1243,29 @@ export default function BaseDadosPage() {
                     </button>
                   </Badge>
                 )}
+                {(
+                  [
+                    { key: 'sem_erp', label: 'Sem ERP' },
+                    { key: 'sem_custo', label: 'Sem custo' },
+                    { key: 'sem_categoria', label: 'Sem categoria' },
+                  ] as const
+                ).filter(({ key }) => qualityFilters.has(key)).map(({ key, label }) => (
+                  <Badge key={key} variant="secondary" className="flex items-center gap-1 pr-1">
+                    <span>{label}</span>
+                    <button
+                      onClick={() => toggleQualityFilter(key)}
+                      className="ml-1 rounded-sm hover:bg-muted p-0.5"
+                      aria-label={`Remover filtro ${label}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
                 <Button
                   variant="ghost"
                   size="sm"
                   className="h-6 px-2 text-xs text-muted-foreground"
-                  onClick={() => { setCategoriaFilter("all"); setDescFilter("all"); }}
+                  onClick={() => { setCategoriaFilter("all"); setDescFilter("all"); setQualityFilters(new Set()); }}
                 >
                   Limpar filtros
                 </Button>
