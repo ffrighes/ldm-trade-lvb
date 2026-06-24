@@ -75,6 +75,7 @@ export default function BaseDadosPage() {
   const [newFamilyCategoria, setNewFamilyCategoria] = useState<string>("");
   const [editingFamilyCategoria, setEditingFamilyCategoria] = useState<string>("");
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [collapsedCategorias, setCollapsedCategorias] = useState<Set<string>>(new Set());
   const [importing, setImporting] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -306,6 +307,18 @@ export default function BaseDadosPage() {
 
   const expandAll = () => setExpandedGroups(new Set(grouped.map(([d]) => d)));
   const collapseAll = () => setExpandedGroups(new Set());
+
+  const toggleCategoria = (key: string) => {
+    setCollapsedCategorias((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+  const collapseAllCategorias = () =>
+    setCollapsedCategorias(new Set(groupedByCategoria.map(([k]) => k)));
+  const expandAllCategorias = () => setCollapsedCategorias(new Set());
 
   const handleSave = async () => {
     const custo = parseBRL(form.custo);
@@ -1113,7 +1126,7 @@ export default function BaseDadosPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <div className="flex gap-2 items-center ml-auto">
+              <div className="flex gap-2 items-center ml-auto flex-wrap">
                 {canModifyBaseDados && grouped.length > 0 && (
                   <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer pl-1 pr-2">
                     <Checkbox
@@ -1124,6 +1137,12 @@ export default function BaseDadosPage() {
                     Selecionar todas
                   </label>
                 )}
+                <Button variant="outline" size="sm" onClick={expandAllCategorias}>
+                  Expandir categorias
+                </Button>
+                <Button variant="outline" size="sm" onClick={collapseAllCategorias}>
+                  Recolher categorias
+                </Button>
                 <Button variant="outline" size="sm" onClick={expandAll}>
                   Expandir tudo
                 </Button>
@@ -1189,11 +1208,31 @@ export default function BaseDadosPage() {
           {groupedByCategoria.map(([categoriaKey, families]) => {
             const categoriaLabel = categoriaKey === "__none__" ? SEM_CATEGORIA_LABEL : categoriaKey;
             const totalBitolas = families.reduce((sum, [, items]) => sum + items.length, 0);
+            const isCategoriaCollapsed = collapsedCategorias.has(categoriaKey);
+            const allCatItems = families.flatMap(([, items]) => items);
+            const positiveCosts = allCatItems.map((m) => m.custo).filter((c) => c > 0);
+            const costRange =
+              positiveCosts.length > 0
+                ? `${formatBRL(Math.min(...positiveCosts))} – ${formatBRL(Math.max(...positiveCosts))}`
+                : "sem custo";
             return (
               <Card key={categoriaKey}>
-                <CardHeader className="pb-3">
+                <CardHeader className="pb-3 sticky top-[8.5rem] z-[5] bg-card rounded-t-lg border-b">
                   <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 shrink-0"
+                        onClick={() => toggleCategoria(categoriaKey)}
+                        aria-label={isCategoriaCollapsed ? `Expandir categoria ${categoriaLabel}` : `Recolher categoria ${categoriaLabel}`}
+                      >
+                        {isCategoriaCollapsed ? (
+                          <ChevronRight className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        )}
+                      </Button>
                       <Badge
                         variant={categoriaKey === "__none__" ? "outline" : "secondary"}
                         className="text-sm"
@@ -1201,7 +1240,7 @@ export default function BaseDadosPage() {
                         {categoriaLabel}
                       </Badge>
                       <span className="text-sm text-muted-foreground truncate">
-                        {families.length} {families.length === 1 ? "família" : "famílias"} · {totalBitolas} {totalBitolas === 1 ? "bitola" : "bitolas"}
+                        {families.length} {families.length === 1 ? "família" : "famílias"} · {totalBitolas} {totalBitolas === 1 ? "bitola" : "bitolas"} · {costRange}
                       </span>
                     </div>
                     {canModifyBaseDados && (
@@ -1222,6 +1261,7 @@ export default function BaseDadosPage() {
                     )}
                   </div>
                 </CardHeader>
+                {!isCategoriaCollapsed && (
                 <CardContent className="pt-0">
                   <Table>
                     <TableBody>
@@ -1374,6 +1414,7 @@ export default function BaseDadosPage() {
                     </TableBody>
                   </Table>
                 </CardContent>
+                )}
               </Card>
             );
           })}
