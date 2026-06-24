@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, Upload, Download, PlusCircle, FolderPen, Tags } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, Upload, Download, PlusCircle, FolderPen, Tags, X } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -1056,77 +1056,123 @@ export default function BaseDadosPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Card className="mb-4">
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <SearchInput
-              className="flex-1"
-              value={search.input}
-              onChange={search.setInput}
-              placeholder="Buscar por descrição, bitola ou ERP..."
-              ariaLabel="Buscar materiais"
-              ariaControls="materiais-results-status"
-              isLoading={search.isDebouncing}
-              showBelowMinHint={search.isBelowMin}
-              belowMinHint={`Digite ao menos ${SEARCH_MIN_LENGTH} caracteres para buscar.`}
-            />
-            <span
-              id="materiais-results-status"
-              role="status"
-              aria-live="polite"
-              aria-atomic="true"
-              className="sr-only"
-            >
-              {search.debounced
-                ? `${filtered.length} resultado(s) para "${search.debounced}"`
-                : `${filtered.length} material(is)`}
-            </span>
-            <Select value={categoriaFilter} onValueChange={setCategoriaFilter}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Filtrar categoria" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as categorias</SelectItem>
-                {categorias.map((c) => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
-                ))}
-                <SelectItem value="__none__">{SEM_CATEGORIA_LABEL}</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={descFilter} onValueChange={setDescFilter}>
-              <SelectTrigger className="w-56">
-                <SelectValue placeholder="Filtrar família" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as famílias</SelectItem>
-                {descriptions.map((d) => (
-                  <SelectItem key={d} value={d}>
-                    {d}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="flex gap-2 items-center">
-              {canModifyBaseDados && grouped.length > 0 && (
-                <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer pl-1 pr-2">
-                  <Checkbox
-                    checked={allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false}
-                    onCheckedChange={toggleSelectAllVisible}
-                    aria-label="Selecionar todas as famílias visíveis"
-                  />
-                  Selecionar todas
-                </label>
-              )}
-              <Button variant="outline" size="sm" onClick={expandAll}>
-                Expandir tudo
-              </Button>
-              <Button variant="outline" size="sm" onClick={collapseAll}>
-                Recolher tudo
-              </Button>
+      <div className="sticky top-0 z-10 bg-background pb-2">
+        <Card>
+          <CardHeader className="pb-3">
+            {/* Linha 1: busca + contador */}
+            <div className="flex items-center gap-3">
+              <SearchInput
+                className="flex-1"
+                value={search.input}
+                onChange={search.setInput}
+                placeholder="Buscar por descrição, bitola ou ERP..."
+                ariaLabel="Buscar materiais"
+                ariaControls="materiais-results-status"
+                isLoading={search.isDebouncing}
+                showBelowMinHint={search.isBelowMin}
+                belowMinHint={`Digite ao menos ${SEARCH_MIN_LENGTH} caracteres para buscar.`}
+              />
+              <span
+                id="materiais-results-status"
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+                className="sr-only"
+              >
+                {search.debounced
+                  ? `${filtered.length} resultado(s) para "${search.debounced}"`
+                  : `${filtered.length} material(is)`}
+              </span>
+              <span className="shrink-0 text-sm text-muted-foreground whitespace-nowrap">
+                {filtered.length} {filtered.length === 1 ? "resultado" : "resultados"}
+              </span>
             </div>
-          </div>
-        </CardHeader>
-      </Card>
+
+            {/* Linha 2: filtros + checkbox + ações */}
+            <div className="flex flex-wrap gap-2 items-center mt-2">
+              <Select value={categoriaFilter} onValueChange={setCategoriaFilter}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Filtrar categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as categorias</SelectItem>
+                  {categorias.map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                  <SelectItem value="__none__">{SEM_CATEGORIA_LABEL}</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={descFilter} onValueChange={setDescFilter}>
+                <SelectTrigger className="w-56">
+                  <SelectValue placeholder="Filtrar família" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as famílias</SelectItem>
+                  {descriptions.map((d) => (
+                    <SelectItem key={d} value={d}>{d}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex gap-2 items-center ml-auto">
+                {canModifyBaseDados && grouped.length > 0 && (
+                  <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer pl-1 pr-2">
+                    <Checkbox
+                      checked={allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false}
+                      onCheckedChange={toggleSelectAllVisible}
+                      aria-label="Selecionar todas as famílias visíveis"
+                    />
+                    Selecionar todas
+                  </label>
+                )}
+                <Button variant="outline" size="sm" onClick={expandAll}>
+                  Expandir tudo
+                </Button>
+                <Button variant="outline" size="sm" onClick={collapseAll}>
+                  Recolher tudo
+                </Button>
+              </div>
+            </div>
+
+            {/* Chips de filtros ativos */}
+            {(categoriaFilter !== "all" || descFilter !== "all") && (
+              <div className="flex flex-wrap gap-2 items-center mt-2 pt-2 border-t">
+                {categoriaFilter !== "all" && (
+                  <Badge variant="secondary" className="flex items-center gap-1 pr-1">
+                    <span>Categoria: {categoriaFilter === "__none__" ? SEM_CATEGORIA_LABEL : categoriaFilter}</span>
+                    <button
+                      onClick={() => setCategoriaFilter("all")}
+                      className="ml-1 rounded-sm hover:bg-muted p-0.5"
+                      aria-label="Remover filtro de categoria"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+                {descFilter !== "all" && (
+                  <Badge variant="secondary" className="flex items-center gap-1 pr-1">
+                    <span>Família: {descFilter}</span>
+                    <button
+                      onClick={() => setDescFilter("all")}
+                      className="ml-1 rounded-sm hover:bg-muted p-0.5"
+                      aria-label="Remover filtro de família"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs text-muted-foreground"
+                  onClick={() => { setCategoriaFilter("all"); setDescFilter("all"); }}
+                >
+                  Limpar filtros
+                </Button>
+              </div>
+            )}
+          </CardHeader>
+        </Card>
+      </div>
 
       {grouped.length === 0 ? (
         <Card>
