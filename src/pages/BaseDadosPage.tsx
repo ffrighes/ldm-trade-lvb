@@ -1,4 +1,4 @@
-import { Fragment, useState, useMemo } from "react";
+import { Fragment, useState, useMemo, useRef, useEffect } from "react";
 import { useMaterials, useAddMaterial, useUpdateMaterial, useDeleteMaterial } from "@/hooks/useSupabaseData";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -38,6 +38,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from "sonner";
 import { formatBRL, parseBRL } from "@/lib/formatCurrency";
+import { cn } from "@/lib/utils";
 import { SEM_CATEGORIA_LABEL } from "@/lib/categorias";
 import { useCategorias, useAddCategoria, useDeleteCategoria, useRenameCategoria } from "@/hooks/useCategorias";
 import { Badge } from "@/components/ui/badge";
@@ -52,6 +53,109 @@ function parseBitolaValue(bitola: string): number {
   if (fraction) return parseInt(fraction[1]) / parseInt(fraction[2]);
   const num = parseFloat(s.replace(",", "."));
   return isNaN(num) ? Infinity : num;
+}
+
+/**
+ * Normaliza um custo digitado em formato pt-BR (vírgula decimal, ponto de
+ * milhar) para número. Reaproveita a convenção de `parseBRL` e adiciona
+ * validação estrita: retorna `null` para entradas inválidas ou negativas.
+ */
+function parseCustoInput(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (trimmed === "") return null;
+  const cleaned = trimmed.replace(/[R$\s.]/g, "").replace(",", ".");
+  if (!/^\d+(\.\d+)?$/.test(cleaned)) return null;
+  const num = parseFloat(cleaned);
+  if (!isFinite(num) || num < 0) return null;
+  return num;
+}
+
+/**
+ * Célula em edição inline (Custo ou ERP) na sub-tabela de bitolas.
+ * - Salva ao pressionar Enter ou ao perder o foco (blur).
+ * - Cancela com Esc (restaura o valor original, sem salvar).
+ * - Para `kind="custo"`, valida e normaliza o número antes de salvar;
+ *   valores inválidos mantêm o input aberto com sinalização de erro.
+ * O componente gerencia o próprio estado e desmonta ao concluir, evitando
+ * salvamentos duplicados entre Enter/blur.
+ */
+function InlineEditCell({
+  kind,
+  initialValue,
+  align = "left",
+  onSave,
+  onCancel,
+}: {
+  kind: "custo" | "erp";
+  initialValue: string;
+  align?: "left" | "right";
+  onSave: (normalized: string | number) => void;
+  onCancel: () => void;
+}) {
+  const [value, setValue] = useState(initialValue);
+  const [error, setError] = useState(false);
+  const settled = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  }, []);
+
+  const commit = () => {
+    if (settled.current) return;
+    if (kind === "custo") {
+      const parsed = parseCustoInput(value);
+      if (parsed === null) {
+        setError(true);
+        inputRef.current?.focus();
+        return; // mantém o input em edição
+      }
+      settled.current = true;
+      onSave(parsed);
+    } else {
+      settled.current = true;
+      onSave(value.trim());
+    }
+  };
+
+  const cancel = () => {
+    if (settled.current) return;
+    settled.current = true;
+    onCancel();
+  };
+
+  return (
+    <Input
+      ref={inputRef}
+      value={value}
+      onChange={(e) => {
+        setValue(e.target.value);
+        if (error) setError(false);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          commit();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          cancel();
+        }
+      }}
+      onBlur={commit}
+      onClick={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
+      inputMode={kind === "custo" ? "decimal" : "text"}
+      aria-invalid={error}
+      placeholder={kind === "custo" ? "0,00" : "Código ERP"}
+      className={cn(
+        "h-7 py-1 text-sm",
+        kind === "custo" && "font-mono",
+        align === "right" && "text-right",
+        error && "border-destructive focus-visible:ring-destructive",
+      )}
+    />
+  );
 }
 
 export default function BaseDadosPage() {
@@ -100,7 +204,46 @@ export default function BaseDadosPage() {
   const [batchConfirmOpen, setBatchConfirmOpen] = useState(false);
   const [bitolaSort, setBitolaSort] = useState<{ col: 'bitola' | 'erp' | 'custo'; dir: 'asc' | 'desc' }>({ col: 'bitola', dir: 'asc' });
   const [qualityFilters, setQualityFilters] = useState<Set<'sem_erp' | 'sem_custo' | 'sem_categoria'>>(new Set());
+  const [editingCell, setEditingCell] = useState<{ id: string; field: 'custo' | 'erp' } | null>(null);
   const queryClient = useQueryClient();
+
+  const startInlineEdit = (id: string, field: 'custo' | 'erp') => {
+    if (!canModifyBaseDados) return;
+    setEditingCell({ id, field });
+  };
+
+  /**
+   * Persiste a edição inline de uma célula (Custo ou ERP) com atualização
+   * otimista: reflete o valor na UI imediatamente, faz rollback em caso de
+   * erro e invalida a query ["materials"] em sucesso (via onSuccess do hook).
+   * Não dispara update quando o valor não mudou.
+   */
+  const commitInlineEdit = async (
+    m: (typeof materials)[number],
+    field: 'custo' | 'erp',
+    value: string | number,
+  ) => {
+    setEditingCell(null);
+    const current = field === 'custo' ? m.custo : ((m as any).erp ?? '').toString().trim();
+    if (value === current) return; // sem alteração → nenhuma chamada de update
+
+    const previous = queryClient.getQueryData<any[]>(['materials']);
+    queryClient.setQueryData<any[]>(['materials'], (old) =>
+      (old ?? []).map((item) => (item.id === m.id ? { ...item, [field]: value } : item)),
+    );
+
+    try {
+      await updateMaterial.mutateAsync({ id: m.id, [field]: value } as any);
+      // sucesso: onSuccess do hook invalida ["materials"]; toast omitido p/ não poluir
+    } catch {
+      if (previous) queryClient.setQueryData(['materials'], previous); // rollback
+      toast.error(
+        field === 'custo'
+          ? 'Erro ao salvar o custo. Alteração revertida.'
+          : 'Erro ao salvar o ERP. Alteração revertida.',
+      );
+    }
+  };
 
   const toggleQualityFilter = (key: 'sem_erp' | 'sem_custo' | 'sem_categoria') => {
     setQualityFilters(prev => {
@@ -1572,37 +1715,94 @@ export default function BaseDadosPage() {
                                     </TableCell>
                                     <TableCell className="py-1.5">{m.unidade}</TableCell>
                                     <TableCell className="font-mono py-1.5">
-                                      {hasErp ? (
-                                        highlightMatch(erpValue, search.debounced)
+                                      {canModifyBaseDados && editingCell?.id === m.id && editingCell.field === 'erp' ? (
+                                        <InlineEditCell
+                                          kind="erp"
+                                          initialValue={((m as any).erp ?? '').toString()}
+                                          onSave={(val) => commitInlineEdit(m, 'erp', val)}
+                                          onCancel={() => setEditingCell(null)}
+                                        />
                                       ) : (
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <span className="inline-flex items-center gap-1 rounded-md border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-xs font-medium text-warning cursor-help">
-                                              <AlertTriangle className="h-3 w-3" />
-                                              sem ERP
-                                            </span>
-                                          </TooltipTrigger>
-                                          <TooltipContent>
-                                            Código ERP não cadastrado para esta bitola.
-                                          </TooltipContent>
-                                        </Tooltip>
+                                        <div
+                                          className={cn(
+                                            'group/cell flex items-center gap-1',
+                                            canModifyBaseDados && 'cursor-text',
+                                          )}
+                                          onDoubleClick={canModifyBaseDados ? () => startInlineEdit(m.id, 'erp') : undefined}
+                                          title={canModifyBaseDados ? 'Duplo clique para editar' : undefined}
+                                        >
+                                          {hasErp ? (
+                                            highlightMatch(erpValue, search.debounced)
+                                          ) : (
+                                            <Tooltip>
+                                              <TooltipTrigger asChild>
+                                                <span className="inline-flex items-center gap-1 rounded-md border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-xs font-medium text-warning cursor-help">
+                                                  <AlertTriangle className="h-3 w-3" />
+                                                  sem ERP
+                                                </span>
+                                              </TooltipTrigger>
+                                              <TooltipContent>
+                                                Código ERP não cadastrado para esta bitola.
+                                              </TooltipContent>
+                                            </Tooltip>
+                                          )}
+                                          {canModifyBaseDados && (
+                                            <button
+                                              type="button"
+                                              onClick={(e) => { e.stopPropagation(); startInlineEdit(m.id, 'erp'); }}
+                                              className="opacity-0 group-hover/cell:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-foreground shrink-0"
+                                              aria-label="Editar ERP"
+                                            >
+                                              <Pencil className="h-3 w-3" />
+                                            </button>
+                                          )}
+                                        </div>
                                       )}
                                     </TableCell>
                                     <TableCell className="text-right font-mono py-1.5">
-                                      {hasCusto ? (
-                                        formatBRL(m.custo)
+                                      {canModifyBaseDados && editingCell?.id === m.id && editingCell.field === 'custo' ? (
+                                        <InlineEditCell
+                                          kind="custo"
+                                          align="right"
+                                          initialValue={m.custo ? String(m.custo).replace('.', ',') : ''}
+                                          onSave={(val) => commitInlineEdit(m, 'custo', val)}
+                                          onCancel={() => setEditingCell(null)}
+                                        />
                                       ) : (
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <span className="inline-flex items-center gap-1 rounded-md border border-info/40 bg-info/10 px-1.5 py-0.5 text-xs font-medium text-info cursor-help">
-                                              <Info className="h-3 w-3" />
-                                              sem custo
-                                            </span>
-                                          </TooltipTrigger>
-                                          <TooltipContent>
-                                            Custo ausente ou igual a R$ 0,00.
-                                          </TooltipContent>
-                                        </Tooltip>
+                                        <div
+                                          className={cn(
+                                            'group/cell flex items-center justify-end gap-1',
+                                            canModifyBaseDados && 'cursor-text',
+                                          )}
+                                          onDoubleClick={canModifyBaseDados ? () => startInlineEdit(m.id, 'custo') : undefined}
+                                          title={canModifyBaseDados ? 'Duplo clique para editar' : undefined}
+                                        >
+                                          {canModifyBaseDados && (
+                                            <button
+                                              type="button"
+                                              onClick={(e) => { e.stopPropagation(); startInlineEdit(m.id, 'custo'); }}
+                                              className="opacity-0 group-hover/cell:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-foreground shrink-0"
+                                              aria-label="Editar custo"
+                                            >
+                                              <Pencil className="h-3 w-3" />
+                                            </button>
+                                          )}
+                                          {hasCusto ? (
+                                            formatBRL(m.custo)
+                                          ) : (
+                                            <Tooltip>
+                                              <TooltipTrigger asChild>
+                                                <span className="inline-flex items-center gap-1 rounded-md border border-info/40 bg-info/10 px-1.5 py-0.5 text-xs font-medium text-info cursor-help">
+                                                  <Info className="h-3 w-3" />
+                                                  sem custo
+                                                </span>
+                                              </TooltipTrigger>
+                                              <TooltipContent>
+                                                Custo ausente ou igual a R$ 0,00.
+                                              </TooltipContent>
+                                            </Tooltip>
+                                          )}
+                                        </div>
                                       )}
                                     </TableCell>
                                     <TableCell className="text-sm text-muted-foreground py-1.5 truncate">
