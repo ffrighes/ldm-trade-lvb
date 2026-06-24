@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, Upload, Download, PlusCircle, FolderPen, Tags, X, AlertTriangle, Info } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, ChevronUp, Upload, Download, PlusCircle, FolderPen, Tags, X, AlertTriangle, Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   DropdownMenu,
@@ -97,7 +97,16 @@ export default function BaseDadosPage() {
   const [batchCategoria, setBatchCategoria] = useState<string>("");
   const [batchSaving, setBatchSaving] = useState(false);
   const [batchConfirmOpen, setBatchConfirmOpen] = useState(false);
+  const [bitolaSort, setBitolaSort] = useState<{ col: 'bitola' | 'erp' | 'custo'; dir: 'asc' | 'desc' }>({ col: 'bitola', dir: 'asc' });
   const queryClient = useQueryClient();
+
+  const toggleBitolaSort = (col: 'bitola' | 'erp' | 'custo') => {
+    setBitolaSort(prev =>
+      prev.col === col
+        ? { col, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+        : { col, dir: 'asc' }
+    );
+  };
 
   const handleImportXlsx = async (file: File, clearBefore: boolean) => {
     const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -273,13 +282,25 @@ export default function BaseDadosPage() {
       list.push(m);
       map.set(m.descricao, list);
     });
+    const dirMul = bitolaSort.dir === 'asc' ? 1 : -1;
     return [...map.entries()]
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([desc, items]) => [
         desc,
-        [...items].sort((a, b) => parseBitolaValue(a.bitola) - parseBitolaValue(b.bitola)),
+        [...items].sort((a, b) => {
+          if (bitolaSort.col === 'bitola') {
+            return (parseBitolaValue(a.bitola) - parseBitolaValue(b.bitola)) * dirMul;
+          }
+          if (bitolaSort.col === 'custo') {
+            return (a.custo - b.custo) * dirMul;
+          }
+          // erp: alfanumérico
+          const ea = ((a as any).erp ?? '').toString();
+          const eb = ((b as any).erp ?? '').toString();
+          return ea.localeCompare(eb, 'pt-BR', { sensitivity: 'base' }) * dirMul;
+        }),
       ] as [string, typeof materials]);
-  }, [filtered]);
+  }, [filtered, bitolaSort]);
 
   const groupedByCategoria = useMemo(() => {
     const map = new Map<string, Array<[string, typeof materials]>>();
@@ -1281,10 +1302,40 @@ export default function BaseDadosPage() {
                       <TableRow>
                         {canModifyBaseDados && <TableHead />}
                         <TableHead />
-                        <TableHead>Ø</TableHead>
+                        <TableHead>
+                          <button
+                            onClick={() => toggleBitolaSort('bitola')}
+                            className="flex items-center gap-1 font-medium hover:text-foreground transition-colors"
+                          >
+                            Ø
+                            {bitolaSort.col === 'bitola' ? (
+                              bitolaSort.dir === 'asc' ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />
+                            ) : null}
+                          </button>
+                        </TableHead>
                         <TableHead>Un.</TableHead>
-                        <TableHead>ERP</TableHead>
-                        <TableHead className="text-right">Custo</TableHead>
+                        <TableHead>
+                          <button
+                            onClick={() => toggleBitolaSort('erp')}
+                            className="flex items-center gap-1 font-medium hover:text-foreground transition-colors"
+                          >
+                            ERP
+                            {bitolaSort.col === 'erp' ? (
+                              bitolaSort.dir === 'asc' ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />
+                            ) : null}
+                          </button>
+                        </TableHead>
+                        <TableHead className="text-right">
+                          <button
+                            onClick={() => toggleBitolaSort('custo')}
+                            className="flex items-center gap-1 font-medium hover:text-foreground transition-colors ml-auto"
+                          >
+                            Custo
+                            {bitolaSort.col === 'custo' ? (
+                              bitolaSort.dir === 'asc' ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />
+                            ) : null}
+                          </button>
+                        </TableHead>
                         <TableHead>Notas</TableHead>
                         {canModifyBaseDados && <TableHead className="text-right">Ações</TableHead>}
                       </TableRow>
