@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, ChevronUp, Upload, Download, PlusCircle, FolderPen, Tags, X, AlertTriangle, Info, Database } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, ChevronUp, Upload, Download, PlusCircle, FolderPen, Tags, X, AlertTriangle, Info, Database, Copy, ArrowRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -68,6 +68,90 @@ function parseCustoInput(raw: string): number | null {
   const num = parseFloat(cleaned);
   if (!isFinite(num) || num < 0) return null;
   return num;
+}
+
+/**
+ * Material normalizado a partir de uma linha do XLSX, pronto para gravação
+ * via upsert (mesmo formato do caminho de importação existente).
+ */
+type ImportMaterial = {
+  descricao: string;
+  bitola: string;
+  unidade: string;
+  erp: string;
+  custo: number;
+  notas: string;
+  categoria: string | null;
+};
+
+/** Uma alteração de campo detectada entre o item da base e o item do arquivo. */
+type FieldChange = { field: string; from: string; to: string };
+
+/** Linha recusada na pré-visualização (não será gravada). */
+type ImportError = { row: number | null; label: string; motivo: string };
+
+/**
+ * Resultado da pré-visualização da importação. Calculado SEM gravar nada.
+ * `toWrite` contém apenas as linhas válidas e desduplicadas que serão
+ * efetivamente persistidas ao confirmar (novos + atualizações + inalterados).
+ */
+type ImportPreview = {
+  clearBefore: boolean;
+  novos: ImportMaterial[];
+  atualizacoes: Array<{ material: ImportMaterial; changes: FieldChange[] }>;
+  inalterados: number;
+  erros: ImportError[];
+  avisos: string[];
+  toWrite: ImportMaterial[];
+  novasCategorias: string[];
+  removeCount: number;
+};
+
+/**
+ * Normaliza um custo vindo do XLSX (número nativo da célula ou string em
+ * formato pt-BR) para número não-negativo. Retorna:
+ * - `0` quando vazio (custo opcional);
+ * - `null` quando inválido (texto não numérico, negativo) → vira erro.
+ */
+function parseImportCusto(raw: unknown): number | null {
+  if (raw === "" || raw === null || raw === undefined) return 0;
+  if (typeof raw === "number") return isFinite(raw) && raw >= 0 ? raw : null;
+  const s = String(raw).trim();
+  if (s === "") return 0;
+  const cleaned = s.replace(/[R$\s.]/g, "").replace(",", ".");
+  if (!/^\d+(\.\d+)?$/.test(cleaned)) return null;
+  const n = parseFloat(cleaned);
+  return isFinite(n) && n >= 0 ? n : null;
+}
+
+/**
+ * Compara um material existente na base com a versão vinda do arquivo e
+ * retorna a lista de campos que mudariam num upsert. A chave (família+bitola)
+ * já é considerada igual; só comparamos os campos atualizáveis.
+ */
+function diffMaterial(existing: any, m: ImportMaterial): FieldChange[] {
+  const changes: FieldChange[] = [];
+  const exErp = ((existing.erp ?? "") as string).toString().trim();
+  const exNotas = ((existing.notas ?? "") as string).toString().trim();
+  const exCat = (existing.categoria ?? null) as string | null;
+  const fmt = (v: string | null) => (v == null || v === "" ? "—" : v);
+
+  if ((existing.unidade ?? "") !== m.unidade) {
+    changes.push({ field: "Unidade", from: fmt(existing.unidade ?? ""), to: fmt(m.unidade) });
+  }
+  if (exErp !== m.erp) {
+    changes.push({ field: "ERP", from: fmt(exErp), to: fmt(m.erp) });
+  }
+  if (Number(existing.custo ?? 0) !== m.custo) {
+    changes.push({ field: "Custo", from: formatBRL(Number(existing.custo ?? 0)), to: formatBRL(m.custo) });
+  }
+  if (exNotas !== m.notas) {
+    changes.push({ field: "Notas", from: fmt(exNotas), to: fmt(m.notas) });
+  }
+  if ((exCat ?? "") !== (m.categoria ?? "")) {
+    changes.push({ field: "Categoria", from: fmt(exCat), to: fmt(m.categoria) });
+  }
+  return changes;
 }
 
 /**
@@ -186,6 +270,9 @@ export default function BaseDadosPage() {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importClearBefore, setImportClearBefore] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
+  const [previewTab, setPreviewTab] = useState<"novos" | "atualizacoes" | "erros">("novos");
   const [renameFamilyOpen, setRenameFamilyOpen] = useState(false);
   const [renamingFamily, setRenamingFamily] = useState("");
   const [newFamilyName, setNewFamilyName] = useState("");
@@ -262,178 +349,242 @@ export default function BaseDadosPage() {
     );
   };
 
-  const handleImportXlsx = async (file: File, clearBefore: boolean) => {
-    const MAX_FILE_SIZE = 5 * 1024 * 1024;
-    const MAX_ROWS = 5000;
+  const MAX_FILE_SIZE = 5 * 1024 * 1024;
+  const MAX_ROWS = 5000;
 
+  /**
+   * Faz o parse do XLSX e calcula o diff contra a base — SEM gravar nada.
+   * Classifica cada linha em Novos / Atualizações / Erros e detecta avisos
+   * (ERPs duplicados). Lança Error em falhas de parse / limites.
+   */
+  const buildImportPreview = async (file: File, clearBefore: boolean): Promise<ImportPreview> => {
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: "array" });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+    if (rows.length > MAX_ROWS) {
+      throw new Error(`Planilha muito grande (máx. ${MAX_ROWS} linhas).`);
+    }
+
+    const headerMap: Record<string, string> = {
+      "Descrição (Família)": "descricao",
+      Descrição: "descricao",
+      descricao: "descricao",
+      Ø: "bitola",
+      Bitola: "bitola",
+      bitola: "bitola",
+      "Un.": "unidade",
+      Unidade: "unidade",
+      unidade: "unidade",
+      ERP: "erp",
+      erp: "erp",
+      Custo: "custo",
+      custo: "custo",
+      Notas: "notas",
+      notas: "notas",
+      Categoria: "categoria",
+      categoria: "categoria",
+    };
+
+    const erros: ImportError[] = [];
+    const valids: ImportMaterial[] = [];
+
+    rows.forEach((row, idx) => {
+      const rowNum = idx + 2; // +1 cabeçalho, +1 base 1
+      const mapped: any = {};
+      for (const [key, value] of Object.entries(row)) {
+        const field = headerMap[key.trim()];
+        if (field) mapped[field] = value;
+      }
+      const descricao = String(mapped.descricao ?? "").trim();
+      const bitola = String(mapped.bitola ?? "").trim();
+
+      const missing: string[] = [];
+      if (!descricao) missing.push("Descrição (Família)");
+      if (!bitola) missing.push("Ø (Bitola)");
+      if (missing.length > 0) {
+        erros.push({
+          row: rowNum,
+          label: descricao || bitola || "(linha vazia)",
+          motivo: `Campo(s) obrigatório(s) ausente(s): ${missing.join(", ")}`,
+        });
+        return;
+      }
+
+      const custo = parseImportCusto(mapped.custo);
+      if (custo === null) {
+        erros.push({
+          row: rowNum,
+          label: `${descricao} ${bitola}`,
+          motivo: `Custo inválido: "${String(mapped.custo).trim()}"`,
+        });
+        return;
+      }
+
+      const unRaw = String(mapped.unidade || "un").trim();
+      const catRaw = String(mapped.categoria || "").trim();
+      valids.push({
+        descricao,
+        bitola,
+        unidade: unRaw === "M" ? "m" : unRaw === "STK" ? "un" : unRaw.toLowerCase() || "un",
+        erp: String(mapped.erp || "").trim(),
+        custo,
+        notas: String(mapped.notas || "").trim(),
+        categoria: catRaw || null,
+      });
+    });
+
+    // Desduplica por família+bitola (case-insensitive), mantendo a última
+    // ocorrência. As ocorrências anteriores viram erro (duplicata interna).
+    const deduped = new Map<string, ImportMaterial>();
+    for (const m of valids) {
+      const key = `${m.descricao.toLowerCase()}|||${m.bitola.toLowerCase()}`;
+      if (deduped.has(key)) {
+        erros.push({
+          row: null,
+          label: `${m.descricao} ${m.bitola}`,
+          motivo: "Duplicata interna do arquivo (família+bitola) — mantida a última ocorrência",
+        });
+      }
+      deduped.set(key, m);
+    }
+    const uniqueMaterials = [...deduped.values()];
+
+    // Avisos: ERPs duplicados (no arquivo e contra a base). Não bloqueiam a
+    // gravação — o upsert prossegue —, mas são sinalizados ao usuário.
+    const normalizeErp = (s: string) => s.replace(/\s+/g, "").toLowerCase();
+    const avisos: string[] = [];
+
+    const fileErpMap = new Map<string, string>();
+    const fileErpDupes: string[] = [];
+    for (const m of uniqueMaterials) {
+      if (!m.erp) continue;
+      const normErp = normalizeErp(m.erp);
+      const label = `${m.descricao} ${m.bitola}`;
+      if (fileErpMap.has(normErp)) {
+        fileErpDupes.push(`"${m.erp}" (${label} e ${fileErpMap.get(normErp)})`);
+      } else {
+        fileErpMap.set(normErp, label);
+      }
+    }
+    if (fileErpDupes.length > 0) {
+      avisos.push(`${fileErpDupes.length} ERP(s) duplicado(s) no arquivo: ${fileErpDupes.slice(0, 3).join("; ")}`);
+    }
+
+    // Classificação contra a base (ignorada quando "limpar base" está marcado,
+    // pois tudo será inserido do zero).
+    const novos: ImportMaterial[] = [];
+    const atualizacoes: Array<{ material: ImportMaterial; changes: FieldChange[] }> = [];
+    let inalterados = 0;
+
+    if (clearBefore) {
+      novos.push(...uniqueMaterials);
+    } else {
+      const existingByKey = new Map<string, any>();
+      const existingErpMap = new Map<string, string>();
+      for (const m of materials) {
+        existingByKey.set(`${m.descricao.toLowerCase().trim()}|||${m.bitola.toLowerCase().trim()}`, m);
+        const erp = ((m as any).erp ?? "").toString().trim();
+        if (erp) existingErpMap.set(normalizeErp(erp), `${m.descricao} ${m.bitola}`);
+      }
+
+      const dbErpConflicts: string[] = [];
+      for (const m of uniqueMaterials) {
+        const key = `${m.descricao.toLowerCase()}|||${m.bitola.toLowerCase()}`;
+        const existing = existingByKey.get(key);
+        if (!existing) {
+          novos.push(m);
+          if (m.erp && existingErpMap.has(normalizeErp(m.erp))) {
+            dbErpConflicts.push(
+              `ERP "${m.erp}" (arquivo: ${m.descricao} ${m.bitola}, base: ${existingErpMap.get(normalizeErp(m.erp))})`,
+            );
+          }
+          continue;
+        }
+        const changes = diffMaterial(existing, m);
+        if (changes.length > 0) atualizacoes.push({ material: m, changes });
+        else inalterados++;
+      }
+      if (dbErpConflicts.length > 0) {
+        avisos.push(`${dbErpConflicts.length} conflito(s) de ERP com a base: ${dbErpConflicts.slice(0, 3).join("; ")}`);
+      }
+    }
+
+    const novasCategorias = [
+      ...new Set(
+        uniqueMaterials
+          .map((m) => m.categoria)
+          .filter((c): c is string => !!c && !categorias.includes(c)),
+      ),
+    ];
+
+    return {
+      clearBefore,
+      novos,
+      atualizacoes,
+      inalterados,
+      erros,
+      avisos,
+      toWrite: uniqueMaterials,
+      novasCategorias,
+      removeCount: clearBefore ? materials.length : 0,
+    };
+  };
+
+  /**
+   * Etapa 1: ao confirmar a seleção do arquivo, gera a pré-visualização
+   * (sem gravar) e abre o Dialog de revisão.
+   */
+  const handleGeneratePreview = async (file: File, clearBefore: boolean) => {
     if (!canModifyBaseDados) {
       toast.error("Você não tem permissão para importar materiais.");
       return;
     }
-
     if (file.size > MAX_FILE_SIZE) {
       toast.error("Arquivo muito grande (máx. 5 MB).");
       return;
     }
 
-    setImportDialogOpen(false);
+    setPreviewLoading(true);
+    try {
+      const preview = await buildImportPreview(file, clearBefore);
+      if (preview.toWrite.length === 0) {
+        toast.error(
+          preview.erros.length > 0
+            ? "Nenhum item válido na planilha — verifique os erros."
+            : "Nenhum item válido encontrado na planilha",
+        );
+        return;
+      }
+      setImportPreview(preview);
+      setPreviewTab(
+        preview.novos.length > 0 ? "novos" : preview.atualizacoes.length > 0 ? "atualizacoes" : "erros",
+      );
+      setImportDialogOpen(false);
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Erro ao ler a planilha: " + (err.message || "erro desconhecido"));
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  /**
+   * Etapa 2: grava de fato. Reaproveita o caminho de importação existente
+   * (upsert de categorias, opção de limpar base, upsert em lote). Apenas as
+   * linhas válidas (`toWrite`) são persistidas; erros já foram descartados.
+   */
+  const handleConfirmImport = async () => {
+    if (!importPreview) return;
+    const { toWrite, novasCategorias, clearBefore } = importPreview;
+
     setImporting(true);
     try {
-      const buffer = await file.arrayBuffer();
-      const workbook = XLSX.read(buffer, { type: "array" });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-
-      if (rows.length > MAX_ROWS) {
-        toast.error(`Planilha muito grande (máx. ${MAX_ROWS} linhas).`);
-        return;
-      }
-
-      const headerMap: Record<string, string> = {
-        "Descrição (Família)": "descricao",
-        Descrição: "descricao",
-        descricao: "descricao",
-        Ø: "bitola",
-        Bitola: "bitola",
-        bitola: "bitola",
-        "Un.": "unidade",
-        Unidade: "unidade",
-        unidade: "unidade",
-        ERP: "erp",
-        erp: "erp",
-        Custo: "custo",
-        custo: "custo",
-        Notas: "notas",
-        notas: "notas",
-        Categoria: "categoria",
-        categoria: "categoria",
-      };
-
-      const importedRows = rows
-        .map((row) => {
-          const mapped: any = {};
-          for (const [key, value] of Object.entries(row)) {
-            const field = headerMap[key.trim()];
-            if (field) mapped[field] = value;
-          }
-          if (!mapped.descricao || !mapped.bitola) return null;
-          const unRaw = String(mapped.unidade || "un").trim();
-          const catRaw = String(mapped.categoria || "").trim();
-          const categoria = catRaw || null;
-          return {
-            descricao: String(mapped.descricao).trim(),
-            bitola: String(mapped.bitola).trim(),
-            unidade: unRaw === "M" ? "m" : unRaw === "STK" ? "un" : unRaw.toLowerCase() || "un",
-            erp: String(mapped.erp || "").trim(),
-            custo: parseFloat(String(mapped.custo || "0").replace(",", ".")) || 0,
-            notas: String(mapped.notas || "").trim(),
-            categoria,
-          };
-        })
-        .filter(Boolean) as any[];
-
-      // Deduplicate by descricao+bitola (case-insensitive), keeping last occurrence
-      const deduped = new Map<string, any>();
-      for (const m of importedRows) {
-        deduped.set(`${m.descricao.toLowerCase()}|||${m.bitola.toLowerCase()}`, m);
-      }
-      const uniqueMaterials = [...deduped.values()];
-
-      if (uniqueMaterials.length === 0) {
-        toast.error("Nenhum item válido encontrado na planilha");
-        return;
-      }
-
-      // Conflict detection before writing
-      const normalizeErpImport = (s: string) => s.replace(/\s+/g, "").toLowerCase();
-      const conflictMessages: string[] = [];
-
-      // Within-file: descricao+bitola duplicates (rows dropped by dedup)
-      const internalKeyDupes = importedRows.length - uniqueMaterials.length;
-      if (internalKeyDupes > 0) {
-        conflictMessages.push(
-          `${internalKeyDupes} linha(s) com família+bitola duplicada no arquivo — mantida a última ocorrência`,
-        );
-      }
-
-      // Within-file: ERP duplicates across different descricao+bitola pairs
-      const fileErpMap = new Map<string, string>();
-      const fileErpDupes: string[] = [];
-      for (const m of uniqueMaterials) {
-        if (!m.erp) continue;
-        const normErp = normalizeErpImport(m.erp);
-        const label = `${m.descricao} ${m.bitola}`;
-        if (fileErpMap.has(normErp)) {
-          fileErpDupes.push(`"${m.erp}" (${label} e ${fileErpMap.get(normErp)})`);
-        } else {
-          fileErpMap.set(normErp, label);
-        }
-      }
-      if (fileErpDupes.length > 0) {
-        const examples = fileErpDupes.slice(0, 2).join("; ");
-        conflictMessages.push(
-          `${fileErpDupes.length} ERP(s) duplicado(s) no arquivo: ${examples}`,
-        );
-      }
-
-      // Against existing DB (skipped when clearing before import)
-      if (!clearBefore) {
-        const existingErpMap = new Map<string, string>(); // normalized erp → label
-        const existingKeySet = new Set<string>(); // normalized descricao|||bitola
-        for (const m of materials) {
-          const erp = ((m as any).erp ?? "").toString().trim();
-          if (erp) existingErpMap.set(normalizeErpImport(erp), `${m.descricao} ${m.bitola}`);
-          existingKeySet.add(
-            `${m.descricao.toLowerCase().trim()}|||${m.bitola.toLowerCase().trim()}`,
-          );
-        }
-
-        const dbKeyConflicts: string[] = [];
-        const dbErpConflicts: string[] = [];
-        for (const m of uniqueMaterials) {
-          const key = `${m.descricao.toLowerCase()}|||${m.bitola.toLowerCase()}`;
-          if (existingKeySet.has(key)) {
-            dbKeyConflicts.push(`${m.descricao} ${m.bitola}`);
-          } else if (m.erp) {
-            // New key but ERP already used by a different existing item
-            const normErp = normalizeErpImport(m.erp);
-            if (existingErpMap.has(normErp)) {
-              dbErpConflicts.push(
-                `ERP "${m.erp}" (arquivo: ${m.descricao} ${m.bitola}, base: ${existingErpMap.get(normErp)})`,
-              );
-            }
-          }
-        }
-
-        if (dbKeyConflicts.length > 0) {
-          const examples = dbKeyConflicts.slice(0, 2).join(", ");
-          conflictMessages.push(
-            `${dbKeyConflicts.length} item(ns) já existente(s) na base serão atualizados (ex: ${examples})`,
-          );
-        }
-        if (dbErpConflicts.length > 0) {
-          const examples = dbErpConflicts.slice(0, 2).join("; ");
-          conflictMessages.push(
-            `${dbErpConflicts.length} conflito(s) de ERP com a base: ${examples}`,
-          );
-        }
-      }
-
-      if (conflictMessages.length > 0) {
-        toast.warning(`Conflitos detectados: ${conflictMessages.join(" · ")}`, { duration: 8000 });
-      }
-
-      const newCategorias = [
-        ...new Set(
-          uniqueMaterials
-            .map((m) => m.categoria)
-            .filter((c): c is string => !!c && !categorias.includes(c)),
-        ),
-      ];
-      if (newCategorias.length > 0) {
+      if (novasCategorias.length > 0) {
         const { error: catError } = await supabase
           .from("material_categorias" as never)
-          .upsert(newCategorias.map((nome) => ({ nome })) as never, { onConflict: "nome" });
+          .upsert(novasCategorias.map((nome) => ({ nome })) as never, { onConflict: "nome" });
         if (catError) throw catError;
         queryClient.invalidateQueries({ queryKey: ["material_categorias"] });
       }
@@ -453,8 +604,8 @@ export default function BaseDadosPage() {
 
       const batchSize = 100;
       let inserted = 0;
-      for (let i = 0; i < uniqueMaterials.length; i += batchSize) {
-        const batch = uniqueMaterials.slice(i, i + batchSize);
+      for (let i = 0; i < toWrite.length; i += batchSize) {
+        const batch = toWrite.slice(i, i + batchSize);
         const { error } = await supabase.from("materials").upsert(batch as any[], { onConflict: "descricao,bitola" });
         if (error) throw error;
         inserted += batch.length;
@@ -462,14 +613,43 @@ export default function BaseDadosPage() {
 
       queryClient.invalidateQueries({ queryKey: ["materials"] });
       toast.success(`${inserted} itens importados com sucesso`);
+      setImportPreview(null);
+      setImportFile(null);
+      setImportClearBefore(false);
     } catch (err: any) {
       console.error(err);
       toast.error("Erro ao importar: " + (err.message || "erro desconhecido"));
     } finally {
       setImporting(false);
-      setImportFile(null);
-      setImportClearBefore(false);
     }
+  };
+
+  /** Monta o texto da lista de erros para copiar / baixar. */
+  const buildErrorReport = (erros: ImportError[]) =>
+    erros.map((e) => `${e.row != null ? `Linha ${e.row}` : "—"}\t${e.label}\t${e.motivo}`).join("\n");
+
+  const handleCopyErrors = async () => {
+    if (!importPreview) return;
+    try {
+      await navigator.clipboard.writeText(
+        "Linha\tItem\tMotivo\n" + buildErrorReport(importPreview.erros),
+      );
+      toast.success("Lista de erros copiada");
+    } catch {
+      toast.error("Não foi possível copiar a lista");
+    }
+  };
+
+  const handleDownloadErrors = () => {
+    if (!importPreview) return;
+    const content = "Linha\tItem\tMotivo\n" + buildErrorReport(importPreview.erros);
+    const blob = new Blob([content], { type: "text/tab-separated-values;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "erros-importacao.tsv";
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const descriptions = useMemo(() => [...new Set(materials.map((m) => m.descricao))].sort(), [materials]);
@@ -951,7 +1131,7 @@ export default function BaseDadosPage() {
         </div>
       </div>
 
-      <Dialog open={importDialogOpen} onOpenChange={(v) => { if (!importing) setImportDialogOpen(v); }}>
+      <Dialog open={importDialogOpen} onOpenChange={(v) => { if (!previewLoading) setImportDialogOpen(v); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Importar XLSX</DialogTitle>
@@ -988,13 +1168,215 @@ export default function BaseDadosPage() {
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline" disabled={importing}>Cancelar</Button>
+              <Button variant="outline" disabled={previewLoading}>Cancelar</Button>
             </DialogClose>
             <Button
-              onClick={() => importFile && handleImportXlsx(importFile, importClearBefore)}
-              disabled={!importFile || importing}
+              onClick={() => importFile && handleGeneratePreview(importFile, importClearBefore)}
+              disabled={!importFile || previewLoading}
             >
-              {importing ? "Importando..." : "Importar"}
+              {previewLoading ? "Analisando..." : "Pré-visualizar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!importPreview}
+        onOpenChange={(v) => { if (!v && !importing) setImportPreview(null); }}
+      >
+        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Pré-visualização da importação</DialogTitle>
+          </DialogHeader>
+
+          {importPreview && (
+            <div className="flex flex-col gap-4 overflow-hidden">
+              {/* Aviso de limpeza da base */}
+              {importPreview.clearBefore && (
+                <div className="flex items-start gap-2 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2.5">
+                  <AlertTriangle className="h-5 w-5 shrink-0 text-destructive mt-0.5" />
+                  <div className="text-sm text-destructive">
+                    <strong>Limpar base antes de importar está ativado.</strong> Os{" "}
+                    <strong>{importPreview.removeCount}</strong> itens atuais (e os itens de BOM
+                    vinculados) serão <strong>apagados permanentemente</strong> antes da gravação dos{" "}
+                    <strong>{importPreview.toWrite.length}</strong> itens da planilha.
+                  </div>
+                </div>
+              )}
+
+              {/* Contadores por categoria */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {([
+                  { key: "novos", label: "Novos", value: importPreview.novos.length, cls: "text-emerald-600 dark:text-emerald-400" },
+                  { key: "atualizacoes", label: "Atualizações", value: importPreview.atualizacoes.length, cls: "text-amber-600 dark:text-amber-400" },
+                  { key: "inalterados", label: "Inalterados", value: importPreview.inalterados, cls: "text-muted-foreground" },
+                  { key: "erros", label: "Erros", value: importPreview.erros.length, cls: "text-destructive" },
+                ] as const).map((c) => (
+                  <div key={c.key} className="rounded-lg border px-3 py-2 text-center">
+                    <div className={cn("text-2xl font-bold", c.cls)}>{c.value}</div>
+                    <div className="text-xs text-muted-foreground">{c.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Avisos (ERP) */}
+              {importPreview.avisos.length > 0 && (
+                <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+                  <Info className="h-4 w-4 shrink-0 mt-0.5" />
+                  <ul className="space-y-0.5">
+                    {importPreview.avisos.map((a, i) => <li key={i}>{a}</li>)}
+                  </ul>
+                </div>
+              )}
+
+              {/* Abas */}
+              <div className="flex gap-1 border-b">
+                {([
+                  { key: "novos", label: `Novos (${importPreview.novos.length})` },
+                  { key: "atualizacoes", label: `Atualizações (${importPreview.atualizacoes.length})` },
+                  { key: "erros", label: `Erros (${importPreview.erros.length})` },
+                ] as const).map((t) => (
+                  <button
+                    key={t.key}
+                    onClick={() => setPreviewTab(t.key)}
+                    className={cn(
+                      "px-3 py-1.5 text-sm font-medium border-b-2 -mb-px transition-colors",
+                      previewTab === t.key
+                        ? "border-primary text-foreground"
+                        : "border-transparent text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Conteúdo das abas */}
+              <div className="overflow-y-auto min-h-[8rem] max-h-[40vh] border rounded-md">
+                {previewTab === "novos" && (
+                  importPreview.novos.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">Nenhum item novo.</p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Família</TableHead>
+                          <TableHead>Ø</TableHead>
+                          <TableHead>ERP</TableHead>
+                          <TableHead className="text-right">Custo</TableHead>
+                          <TableHead>Categoria</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {importPreview.novos.map((m, i) => (
+                          <TableRow key={i}>
+                            <TableCell className="font-medium">{m.descricao}</TableCell>
+                            <TableCell>{m.bitola}</TableCell>
+                            <TableCell className="font-mono text-xs">{m.erp || "—"}</TableCell>
+                            <TableCell className="text-right font-mono">{formatBRL(m.custo)}</TableCell>
+                            <TableCell>{m.categoria || SEM_CATEGORIA_LABEL}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )
+                )}
+
+                {previewTab === "atualizacoes" && (
+                  importPreview.atualizacoes.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">Nenhuma atualização.</p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Família</TableHead>
+                          <TableHead>Ø</TableHead>
+                          <TableHead>Alterações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {importPreview.atualizacoes.map(({ material, changes }, i) => (
+                          <TableRow key={i}>
+                            <TableCell className="font-medium">{material.descricao}</TableCell>
+                            <TableCell>{material.bitola}</TableCell>
+                            <TableCell>
+                              <div className="flex flex-col gap-1">
+                                {changes.map((ch, j) => (
+                                  <div key={j} className="flex items-center gap-1.5 text-xs flex-wrap">
+                                    <span className="font-medium">{ch.field}:</span>
+                                    <span className="text-muted-foreground line-through">{ch.from}</span>
+                                    <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                                    <span className="text-foreground font-medium">{ch.to}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )
+                )}
+
+                {previewTab === "erros" && (
+                  importPreview.erros.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">Nenhum erro encontrado.</p>
+                  ) : (
+                    <div>
+                      <div className="flex items-center justify-end gap-2 p-2 border-b bg-muted/30">
+                        <Button variant="outline" size="sm" className="h-7" onClick={handleCopyErrors}>
+                          <Copy className="h-3.5 w-3.5 mr-1.5" /> Copiar
+                        </Button>
+                        <Button variant="outline" size="sm" className="h-7" onClick={handleDownloadErrors}>
+                          <Download className="h-3.5 w-3.5 mr-1.5" /> Baixar
+                        </Button>
+                      </div>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-16">Linha</TableHead>
+                            <TableHead>Item</TableHead>
+                            <TableHead>Motivo</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {importPreview.erros.map((e, i) => (
+                            <TableRow key={i}>
+                              <TableCell className="text-muted-foreground">{e.row ?? "—"}</TableCell>
+                              <TableCell className="font-medium">{e.label}</TableCell>
+                              <TableCell className="text-xs text-destructive">{e.motivo}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )
+                )}
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                {importPreview.erros.length > 0 && (
+                  <>As <strong>{importPreview.erros.length}</strong> linha(s) com erro serão ignoradas. </>
+                )}
+                Serão gravados <strong>{importPreview.toWrite.length}</strong> item(ns).
+              </p>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImportPreview(null)} disabled={importing}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleConfirmImport}
+              disabled={importing || !importPreview || importPreview.toWrite.length === 0}
+              className={importPreview?.clearBefore ? "bg-destructive hover:bg-destructive/90" : undefined}
+            >
+              {importing
+                ? "Importando..."
+                : importPreview?.clearBefore
+                  ? `Limpar base e importar (${importPreview.toWrite.length})`
+                  : `Confirmar importação (${importPreview?.toWrite.length ?? 0})`}
             </Button>
           </DialogFooter>
         </DialogContent>
