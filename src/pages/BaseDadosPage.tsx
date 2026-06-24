@@ -309,7 +309,7 @@ export default function BaseDadosPage() {
         categoria: "categoria",
       };
 
-      const materials = rows
+      const importedRows = rows
         .map((row) => {
           const mapped: any = {};
           for (const [key, value] of Object.entries(row)) {
@@ -332,16 +332,95 @@ export default function BaseDadosPage() {
         })
         .filter(Boolean) as any[];
 
-      // Deduplicate by descricao+bitola, keeping last occurrence
+      // Deduplicate by descricao+bitola (case-insensitive), keeping last occurrence
       const deduped = new Map<string, any>();
-      for (const m of materials) {
-        deduped.set(`${m.descricao}|||${m.bitola}`, m);
+      for (const m of importedRows) {
+        deduped.set(`${m.descricao.toLowerCase()}|||${m.bitola.toLowerCase()}`, m);
       }
       const uniqueMaterials = [...deduped.values()];
 
       if (uniqueMaterials.length === 0) {
         toast.error("Nenhum item válido encontrado na planilha");
         return;
+      }
+
+      // Conflict detection before writing
+      const normalizeErpImport = (s: string) => s.replace(/\s+/g, "").toLowerCase();
+      const conflictMessages: string[] = [];
+
+      // Within-file: descricao+bitola duplicates (rows dropped by dedup)
+      const internalKeyDupes = importedRows.length - uniqueMaterials.length;
+      if (internalKeyDupes > 0) {
+        conflictMessages.push(
+          `${internalKeyDupes} linha(s) com família+bitola duplicada no arquivo — mantida a última ocorrência`,
+        );
+      }
+
+      // Within-file: ERP duplicates across different descricao+bitola pairs
+      const fileErpMap = new Map<string, string>();
+      const fileErpDupes: string[] = [];
+      for (const m of uniqueMaterials) {
+        if (!m.erp) continue;
+        const normErp = normalizeErpImport(m.erp);
+        const label = `${m.descricao} ${m.bitola}`;
+        if (fileErpMap.has(normErp)) {
+          fileErpDupes.push(`"${m.erp}" (${label} e ${fileErpMap.get(normErp)})`);
+        } else {
+          fileErpMap.set(normErp, label);
+        }
+      }
+      if (fileErpDupes.length > 0) {
+        const examples = fileErpDupes.slice(0, 2).join("; ");
+        conflictMessages.push(
+          `${fileErpDupes.length} ERP(s) duplicado(s) no arquivo: ${examples}`,
+        );
+      }
+
+      // Against existing DB (skipped when clearing before import)
+      if (!clearBefore) {
+        const existingErpMap = new Map<string, string>(); // normalized erp → label
+        const existingKeySet = new Set<string>(); // normalized descricao|||bitola
+        for (const m of materials) {
+          const erp = ((m as any).erp ?? "").toString().trim();
+          if (erp) existingErpMap.set(normalizeErpImport(erp), `${m.descricao} ${m.bitola}`);
+          existingKeySet.add(
+            `${m.descricao.toLowerCase().trim()}|||${m.bitola.toLowerCase().trim()}`,
+          );
+        }
+
+        const dbKeyConflicts: string[] = [];
+        const dbErpConflicts: string[] = [];
+        for (const m of uniqueMaterials) {
+          const key = `${m.descricao.toLowerCase()}|||${m.bitola.toLowerCase()}`;
+          if (existingKeySet.has(key)) {
+            dbKeyConflicts.push(`${m.descricao} ${m.bitola}`);
+          } else if (m.erp) {
+            // New key but ERP already used by a different existing item
+            const normErp = normalizeErpImport(m.erp);
+            if (existingErpMap.has(normErp)) {
+              dbErpConflicts.push(
+                `ERP "${m.erp}" (arquivo: ${m.descricao} ${m.bitola}, base: ${existingErpMap.get(normErp)})`,
+              );
+            }
+          }
+        }
+
+        if (dbKeyConflicts.length > 0) {
+          const examples = dbKeyConflicts.slice(0, 2).join(", ");
+          conflictMessages.push(
+            `${dbKeyConflicts.length} item(ns) já existente(s) na base serão atualizados (ex: ${examples})`,
+          );
+        }
+        if (dbErpConflicts.length > 0) {
+          const examples = dbErpConflicts.slice(0, 2).join("; ");
+          conflictMessages.push(
+            `${dbErpConflicts.length} conflito(s) de ERP com a base: ${examples}`,
+          );
+        }
+      }
+
+      if (conflictMessages.length > 0) {
+        toast.warning(`Conflitos detectados: ${conflictMessages.join(" · ")}`, { duration: 8000 });
       }
 
       const newCategorias = [
@@ -511,6 +590,37 @@ export default function BaseDadosPage() {
       toast.error("Preencha todos os campos obrigatórios");
       return;
     }
+
+    // Duplicate detection before persisting
+    const normalizeErp = (s: string) => s.replace(/\s+/g, "").toLowerCase();
+    const erpInput = normalizeErp(form.erp.trim());
+    const descInput = form.descricao.trim().toLowerCase();
+    const bitolaInput = form.bitola.trim().toLowerCase();
+
+    for (const m of materials) {
+      if (m.id === editingId) continue; // skip self when editing
+
+      if (erpInput) {
+        const existingErp = normalizeErp(((m as any).erp ?? "").toString());
+        if (existingErp && existingErp === erpInput) {
+          toast.error(
+            `ERP "${form.erp.trim()}" já está cadastrado em "${m.descricao} — ${m.bitola}". Corrija o código antes de salvar.`,
+          );
+          return;
+        }
+      }
+
+      if (
+        m.descricao.trim().toLowerCase() === descInput &&
+        m.bitola.trim().toLowerCase() === bitolaInput
+      ) {
+        toast.error(
+          `A combinação família "${m.descricao}" + bitola "${m.bitola}" já existe na base. Edite o item existente.`,
+        );
+        return;
+      }
+    }
+
     const categoria = form.categoria || familyCategoria.get(form.descricao) || null;
     try {
       if (editingId) {
