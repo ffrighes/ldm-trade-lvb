@@ -8,7 +8,8 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, ChevronUp, Upload, Download, PlusCircle, FolderPen, Tags, X, AlertTriangle, Info } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, ChevronUp, Upload, Download, PlusCircle, FolderPen, Tags, X, AlertTriangle, Info, Database } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   DropdownMenu,
@@ -54,7 +55,7 @@ function parseBitolaValue(bitola: string): number {
 }
 
 export default function BaseDadosPage() {
-  const { data: materials = [] } = useMaterials();
+  const { data: materials = [], isLoading: materialsLoading } = useMaterials();
   const addMaterial = useAddMaterial();
   const updateMaterial = useUpdateMaterial();
   const deleteMaterial = useDeleteMaterial();
@@ -1137,9 +1138,11 @@ export default function BaseDadosPage() {
                   ? `${filtered.length} resultado(s) para "${search.debounced}"`
                   : `${filtered.length} material(is)`}
               </span>
-              <span className="shrink-0 text-sm text-muted-foreground whitespace-nowrap">
-                {filtered.length} {filtered.length === 1 ? "resultado" : "resultados"}
-              </span>
+              {!materialsLoading && (
+                <span className="shrink-0 text-sm text-muted-foreground whitespace-nowrap">
+                  {filtered.length} {filtered.length === 1 ? "resultado" : "resultados"}
+                </span>
+              )}
             </div>
 
             {/* Linha 2: filtros + checkbox + ações */}
@@ -1275,13 +1278,89 @@ export default function BaseDadosPage() {
         </Card>
       </div>
 
-      {grouped.length === 0 ? (
+      {materialsLoading ? (
+        <div className="space-y-4">
+          {[0, 1, 2].map((ci) => (
+            <Card key={ci}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-6 w-6 rounded" />
+                  <Skeleton className="h-5 w-36 rounded" />
+                  <Skeleton className="h-4 w-52 rounded" />
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-1">
+                  {[0, 1, 2, 3].map((ri) => (
+                    <div key={ri} className="flex items-center gap-4 py-2 px-1">
+                      <Skeleton className="h-4 w-4 shrink-0 rounded" />
+                      <Skeleton className="h-4 flex-1 rounded" />
+                      <Skeleton className="h-4 w-10 rounded" />
+                      <Skeleton className="h-4 w-28 rounded" />
+                      <Skeleton className="h-4 w-20 rounded" />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : grouped.length === 0 && materials.length === 0 ? (
         <Card>
-          <CardContent className="py-8">
-            <div className="text-center text-muted-foreground">
-              {search.debounced
-                ? <>Nenhum material encontrado para <strong>"{search.debounced}"</strong>. Tente outro termo.</>
-                : 'Nenhum item encontrado'}
+          <CardContent className="py-16">
+            <div className="flex flex-col items-center gap-4 text-center">
+              <div className="rounded-full bg-muted p-4">
+                <Database className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">Base de dados vazia</h3>
+                <p className="text-sm text-muted-foreground mt-1 max-w-xs">
+                  Cadastre a primeira família de materiais ou importe uma planilha XLSX para começar.
+                </p>
+              </div>
+              {canModifyBaseDados && (
+                <div className="flex gap-3 flex-wrap justify-center">
+                  <Button
+                    onClick={() => { setNewFamilyInput(""); setNewFamilyCategoria(""); setNewFamilyDialogOpen(true); }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nova Família
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => { setImportFile(null); setImportClearBefore(false); setImportDialogOpen(true); }}
+                    disabled={importing}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Importar XLSX
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      ) : grouped.length === 0 ? (
+        <Card>
+          <CardContent className="py-10">
+            <div className="flex flex-col items-center gap-3 text-center">
+              <p className="text-muted-foreground">
+                {search.debounced
+                  ? <>Nenhum material encontrado para <strong>"{search.debounced}"</strong>.</>
+                  : 'Nenhum material encontrado para os filtros selecionados.'}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  search.setInput("");
+                  setCategoriaFilter("all");
+                  setDescFilter("all");
+                  setQualityFilters(new Set());
+                }}
+              >
+                <X className="h-3.5 w-3.5 mr-1.5" />
+                Limpar busca/filtros
+              </Button>
             </div>
           </CardContent>
         </Card>
