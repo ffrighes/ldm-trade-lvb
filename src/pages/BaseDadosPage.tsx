@@ -1345,7 +1345,7 @@ export default function BaseDadosPage() {
                 id="importFileInput"
                 type="file"
                 accept=".xlsx,.xls"
-                className="mt-2 block w-full text-sm file:mr-4 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-sm file:font-medium file:bg-secondary file:text-secondary-foreground hover:file:bg-secondary/80 cursor-pointer"
+                className="mt-2 block w-full text-sm file:mr-4 file:py-1.5 file:px-3 file:rounded-none file:border-0 file:text-sm file:font-medium file:bg-secondary file:text-secondary-foreground hover:file:bg-secondary/80 cursor-pointer"
                 onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
               />
             </div>
@@ -2162,20 +2162,20 @@ export default function BaseDadosPage() {
             <Card key={ci}>
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-3">
-                  <Skeleton className="h-6 w-6 rounded" />
-                  <Skeleton className="h-5 w-36 rounded" />
-                  <Skeleton className="h-4 w-52 rounded" />
+                  <Skeleton className="h-6 w-6 rounded-none" />
+                  <Skeleton className="h-5 w-36 rounded-none" />
+                  <Skeleton className="h-4 w-52 rounded-none" />
                 </div>
               </CardHeader>
               <CardContent className="pt-0">
                 <div className="space-y-1">
                   {[0, 1, 2, 3].map((ri) => (
                     <div key={ri} className="flex items-center gap-4 py-2 px-1">
-                      <Skeleton className="h-4 w-4 shrink-0 rounded" />
-                      <Skeleton className="h-4 flex-1 rounded" />
-                      <Skeleton className="h-4 w-10 rounded" />
-                      <Skeleton className="h-4 w-28 rounded" />
-                      <Skeleton className="h-4 w-20 rounded" />
+                      <Skeleton className="h-4 w-4 shrink-0 rounded-none" />
+                      <Skeleton className="h-4 flex-1 rounded-none" />
+                      <Skeleton className="h-4 w-10 rounded-none" />
+                      <Skeleton className="h-4 w-28 rounded-none" />
+                      <Skeleton className="h-4 w-20 rounded-none" />
                     </div>
                   ))}
                 </div>
@@ -2187,7 +2187,7 @@ export default function BaseDadosPage() {
         <Card>
           <CardContent className="py-16">
             <div className="flex flex-col items-center gap-4 text-center">
-              <div className="rounded-full bg-muted p-4">
+              <div className="rounded-none bg-muted p-4">
                 <Database className="h-8 w-8 text-muted-foreground" />
               </div>
               <div>

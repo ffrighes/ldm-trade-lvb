@@ -399,16 +399,16 @@ function NodeRow(props: RowProps) {
   };
 
   return (
-    <div ref={droppable.setNodeRef} className={droppable.isOver ? 'rounded bg-primary/10' : ''}>
+    <div ref={droppable.setNodeRef} className={droppable.isOver ? 'rounded-none bg-primary/10' : ''}>
       <div
-        className="group flex items-center gap-1 py-1.5 px-1 rounded hover:bg-muted/40"
+        className="group flex items-center gap-1 py-1.5 px-1 rounded-none hover:bg-muted/40"
         style={{ paddingLeft: `${depth * 18 + 4}px` }}
         ref={draggable.setNodeRef}
         {...draggable.attributes}
         onClick={hasChildren ? toggle : undefined}
       >
         {hasChildren ? (
-          <button onClick={(e) => { e.stopPropagation(); toggle(); }} className="p-0.5 hover:bg-muted rounded" aria-label="Expandir">
+          <button onClick={(e) => { e.stopPropagation(); toggle(); }} className="p-0.5 hover:bg-muted rounded-none" aria-label="Expandir">
             {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
           </button>
         ) : (

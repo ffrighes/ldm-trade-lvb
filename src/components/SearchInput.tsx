@@ -110,7 +110,7 @@ export const SearchInput = forwardRef<SearchInputRef, SearchInputProps>(function
           <button
             type="button"
             onClick={handleClear}
-            className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="p-1 rounded-none hover:bg-muted text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="Limpar busca"
           >
             <X className="h-3.5 w-3.5" aria-hidden="true" />
@@ -118,7 +118,7 @@ export const SearchInput = forwardRef<SearchInputRef, SearchInputProps>(function
         )}
         {bindShortcut && !value && !isLoading && (
           <kbd
-            className="hidden sm:inline-flex items-center rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+            className="hidden sm:inline-flex items-center rounded-none border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
             aria-hidden="true"
           >
             ⌘K
