@@ -35,6 +35,7 @@ import { SelectCategoryDialog } from './SelectCategoryDialog';
 import { SEM_CATEGORIA_LABEL } from '@/lib/categorias';
 import { normalizeForSearch } from '@/lib/normalizeSearch';
 import { useCategorias } from '@/hooks/useCategorias';
+import { computeBomNodeDisplay } from '@/lib/bomDisplayCount';
 
 type DraftEntry = { id: string; categoria: string };
 
@@ -54,9 +55,11 @@ interface Props {
   rootId: string;
   readOnly: boolean;
   search?: string;
+  /** Count of direct child bom_root records (conjuntos filhos + catalog usages). */
+  childCount?: number;
 }
 
-export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '' }: Props) {
+export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '', childCount = 0 }: Props) {
   const { data: nodes = [], isLoading } = useBomNodes(versionId);
   const { data: materials = [] } = useMaterials();
   const { data: categorias = [] } = useCategorias();
@@ -195,8 +198,12 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
   const rootAssemblyChildren = tree.children.filter((c) => c.node_type !== 'ITEM');
   const rootItemChildren = tree.children.filter((c) => c.node_type === 'ITEM');
   const rootDrafts = drafts[tree.id] ?? [];
-  const hasContent =
-    rootAssemblyChildren.length > 0 || rootItemChildren.length > 0 || rootDrafts.length > 0;
+  const { total: totalNodeCount, isEmpty } = computeBomNodeDisplay(
+    nodes.length,
+    childCount,
+    rootDrafts.length,
+  );
+  const hasContent = !isEmpty;
 
   const handleAdd = (pid: string, tab: 'item' | 'subconjunto') => {
     if (tab === 'item') addDraft(pid, SEM_CATEGORIA_LABEL);
@@ -207,7 +214,7 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
     <>
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span>{Math.max(0, nodes.length - 1)} nó(s)</span>
+          <span>{totalNodeCount} nó(s)</span>
         </div>
         <div className="flex items-center gap-2">
           {!readOnly && (
