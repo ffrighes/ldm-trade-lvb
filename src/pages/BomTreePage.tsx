@@ -33,6 +33,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { exportConjuntoXlsx } from '@/lib/exportConjuntoXlsx';
+import { significantCommonPrefix, extractSuffix } from '@/lib/commonPrefix';
 import { supabase } from '@/integrations/supabase/client';
 import type { BomNode, BomRoot, BomRootUsage, BomTreeNode, BomVersion } from '@/types/bom';
 
@@ -223,6 +224,14 @@ export default function BomTreePage() {
   );
 
   const usageChildIds = useMemo(() => new Set(usageEdges.map((u) => u.child_root_id)), [usageEdges]);
+
+  const childListPrefix = useMemo(() => {
+    const names = [
+      ...childRoots.map((c) => c.name),
+      ...usageEdges.map((e) => catalogMap.get(e.child_root_id)?.name).filter((n): n is string => Boolean(n)),
+    ];
+    return significantCommonPrefix(names);
+  }, [childRoots, usageEdges, catalogMap]);
 
   const handleExportPdf = async (options: ExportPdfOptions = {}) => {
     if (!currentRoot || !currentVersion || nodes.length === 0 || !projeto) return;
@@ -432,31 +441,48 @@ export default function BomTreePage() {
                   </Button>
                 )}
               </div>
+              {childListPrefix && (
+                <p className="text-xs text-muted-foreground italic mb-1 px-1 truncate" title={childListPrefix}>
+                  {childListPrefix}
+                </p>
+              )}
               <ul className="space-y-1">
-                {childRoots.map((child) => (
-                  <li key={child.id}>
-                    <button
-                      type="button"
-                      onClick={() => setSelection(child.id, undefined)}
-                      className="w-full text-left px-3 py-2 rounded-md border bg-card/40 opacity-70 hover:opacity-100 hover:bg-muted transition-all flex items-center gap-3"
-                      title={`Abrir ${child.codigo} — ${child.name}`}
-                    >
-                      <BomNodeIcon type="CONJUNTO" />
-                      <span className="font-mono text-xs text-muted-foreground shrink-0">
-                        {child.codigo}
-                      </span>
-                      <span className="text-sm flex-1 min-w-0 truncate">{child.name}</span>
-                      {child.quantity_in_parent !== 1 && (
-                        <span className="text-xs text-muted-foreground shrink-0">
-                          × {child.quantity_in_parent}
+                {childRoots.map((child) => {
+                  const suffix = extractSuffix(child.name, childListPrefix);
+                  const hasSuffix = childListPrefix && suffix !== child.name;
+                  return (
+                    <li key={child.id}>
+                      <button
+                        type="button"
+                        onClick={() => setSelection(child.id, undefined)}
+                        className="w-full text-left px-3 py-2 rounded-md border bg-card/40 opacity-70 hover:opacity-100 hover:bg-muted transition-all flex items-center gap-3"
+                        title={`Abrir ${child.codigo} — ${child.name}`}
+                      >
+                        <BomNodeIcon type="CONJUNTO" />
+                        <span className="font-mono text-xs text-muted-foreground shrink-0">
+                          {child.codigo}
                         </span>
-                      )}
-                    </button>
-                  </li>
-                ))}
+                        {hasSuffix ? (
+                          <span className="flex-1 min-w-0 truncate font-semibold text-sm">
+                            {suffix}
+                          </span>
+                        ) : (
+                          <span className="text-sm flex-1 min-w-0 truncate">{child.name}</span>
+                        )}
+                        {child.quantity_in_parent !== 1 && (
+                          <span className="text-xs text-muted-foreground shrink-0">
+                            × {child.quantity_in_parent}
+                          </span>
+                        )}
+                      </button>
+                    </li>
+                  );
+                })}
                 {usageEdges.map((edge) => {
                   const child = catalogMap.get(edge.child_root_id);
                   if (!child) return null;
+                  const suffix = extractSuffix(child.name, childListPrefix);
+                  const hasSuffix = childListPrefix && suffix !== child.name;
                   return (
                     <li key={edge.id} className="flex items-center gap-2">
                       <button
@@ -469,7 +495,13 @@ export default function BomTreePage() {
                         <span className="font-mono text-xs text-muted-foreground shrink-0">
                           {child.codigo}
                         </span>
-                        <span className="text-sm flex-1 min-w-0 truncate">{child.name}</span>
+                        {hasSuffix ? (
+                          <span className="flex-1 min-w-0 truncate font-semibold text-sm">
+                            {suffix}
+                          </span>
+                        ) : (
+                          <span className="text-sm flex-1 min-w-0 truncate">{child.name}</span>
+                        )}
                         <span className="text-xs text-muted-foreground shrink-0">
                           × {edge.quantity}
                         </span>
