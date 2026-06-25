@@ -306,7 +306,19 @@ export default function BomTreePage() {
       </div>
 
       <div className="flex items-center justify-between mb-6 gap-2 flex-wrap">
-        <h1 className="text-2xl font-bold">Estrutura de Produto (BOMs)</h1>
+        {currentRoot ? (
+          <h1 className="text-lg font-semibold leading-tight">
+            <span className="font-mono text-muted-foreground mr-1">{currentRoot.codigo}</span>
+            {currentRoot.name}
+            {currentVersion && (
+              <span className="ml-2 text-sm font-normal text-muted-foreground">
+                · v{currentVersion.version_number} ({currentVersion.status})
+              </span>
+            )}
+          </h1>
+        ) : (
+          <h1 className="sr-only">Estrutura de Produto (BOMs)</h1>
+        )}
         <div className="flex items-center gap-2">
           {canCloneBom && (
             <Button variant="outline" onClick={() => setOpenClone(true)}>
