@@ -395,105 +395,102 @@ export default function BomTreePage() {
               rootId={currentRoot.id}
               readOnly={isReadOnly}
               search={search}
+              childCount={childRoots.length + usageEdges.length}
             />
           ) : currentRoot ? (
             <p className="text-muted-foreground py-6">Sem versões neste Conjunto.</p>
           ) : null}
-        </CardContent>
-      </Card>
 
-      {currentRoot && (childRoots.length > 0 || usageEdges.length > 0 || canEditBomDraft) && (
-        <Card className="mt-4">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <BomNodeIcon type="CONJUNTO" />
-                Conjuntos filhos ({childRoots.length + usageEdges.length})
-              </CardTitle>
-              {canEditBomDraft && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setOpenCatalog(true)}
-                  title="Adicionar referência do catálogo global"
-                >
-                  <Star className="h-3.5 w-3.5 mr-1.5" />
-                  Catálogo
-                </Button>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-1">
-              {childRoots.map((child) => (
-                <li key={child.id}>
-                  <button
-                    type="button"
-                    onClick={() => setSelection(child.id, undefined)}
-                    className="w-full text-left px-3 py-2 rounded-md border bg-card/40 opacity-70 hover:opacity-100 hover:bg-muted transition-all flex items-center gap-3"
-                    title={`Abrir ${child.codigo} — ${child.name}`}
+          {currentRoot && (childRoots.length > 0 || usageEdges.length > 0 || canEditBomDraft) && (
+            <div className="mt-4 border-t pt-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                  <BomNodeIcon type="CONJUNTO" />
+                  Conjuntos filhos ({childRoots.length + usageEdges.length})
+                </span>
+                {canEditBomDraft && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setOpenCatalog(true)}
+                    title="Adicionar referência do catálogo global"
                   >
-                    <BomNodeIcon type="CONJUNTO" />
-                    <span className="font-mono text-xs text-muted-foreground shrink-0">
-                      {child.codigo}
-                    </span>
-                    <span className="text-sm flex-1 min-w-0 truncate">{child.name}</span>
-                    {child.quantity_in_parent !== 1 && (
-                      <span className="text-xs text-muted-foreground shrink-0">
-                        × {child.quantity_in_parent}
-                      </span>
-                    )}
-                  </button>
-                </li>
-              ))}
-              {usageEdges.map((edge) => {
-                const child = catalogMap.get(edge.child_root_id);
-                if (!child) return null;
-                return (
-                  <li key={edge.id} className="flex items-center gap-2">
+                    <Star className="h-3.5 w-3.5 mr-1.5" />
+                    Catálogo
+                  </Button>
+                )}
+              </div>
+              <ul className="space-y-1">
+                {childRoots.map((child) => (
+                  <li key={child.id}>
                     <button
                       type="button"
-                      className="flex-1 text-left px-3 py-2 rounded-md border bg-card/40 opacity-70 hover:opacity-100 hover:bg-muted transition-all flex items-center gap-3"
-                      title={`Template de catálogo: ${child.codigo} — ${child.name}`}
-                      onClick={() => {}}
+                      onClick={() => setSelection(child.id, undefined)}
+                      className="w-full text-left px-3 py-2 rounded-md border bg-card/40 opacity-70 hover:opacity-100 hover:bg-muted transition-all flex items-center gap-3"
+                      title={`Abrir ${child.codigo} — ${child.name}`}
                     >
-                      <Star className="h-4 w-4 text-amber-500 shrink-0" />
+                      <BomNodeIcon type="CONJUNTO" />
                       <span className="font-mono text-xs text-muted-foreground shrink-0">
                         {child.codigo}
                       </span>
                       <span className="text-sm flex-1 min-w-0 truncate">{child.name}</span>
-                      <span className="text-xs text-muted-foreground shrink-0">
-                        × {edge.quantity}
-                      </span>
-                      <span className="text-xs bg-amber-100 text-amber-700 rounded-none px-1 shrink-0">
-                        catálogo
-                      </span>
+                      {child.quantity_in_parent !== 1 && (
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          × {child.quantity_in_parent}
+                        </span>
+                      )}
                     </button>
-                    {canEditBomDraft && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-                        title="Remover referência do catálogo"
-                        onClick={() =>
-                          removeChildUsage.mutate({ usageId: edge.id, parentRootId: currentRoot.id })
-                        }
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
                   </li>
-                );
-              })}
-              {childRoots.length === 0 && usageEdges.length === 0 && (
-                <li className="text-sm text-muted-foreground px-2 py-1">
-                  Nenhum filho. Use &ldquo;Catálogo&rdquo; para adicionar um template padrão.
-                </li>
-              )}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
+                ))}
+                {usageEdges.map((edge) => {
+                  const child = catalogMap.get(edge.child_root_id);
+                  if (!child) return null;
+                  return (
+                    <li key={edge.id} className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="flex-1 text-left px-3 py-2 rounded-md border bg-card/40 opacity-70 hover:opacity-100 hover:bg-muted transition-all flex items-center gap-3"
+                        title={`Template de catálogo: ${child.codigo} — ${child.name}`}
+                        onClick={() => {}}
+                      >
+                        <Star className="h-4 w-4 text-amber-500 shrink-0" />
+                        <span className="font-mono text-xs text-muted-foreground shrink-0">
+                          {child.codigo}
+                        </span>
+                        <span className="text-sm flex-1 min-w-0 truncate">{child.name}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          × {edge.quantity}
+                        </span>
+                        <span className="text-xs bg-amber-100 text-amber-700 rounded-none px-1 shrink-0">
+                          catálogo
+                        </span>
+                      </button>
+                      {canEditBomDraft && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                          title="Remover referência do catálogo"
+                          onClick={() =>
+                            removeChildUsage.mutate({ usageId: edge.id, parentRootId: currentRoot.id })
+                          }
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </li>
+                  );
+                })}
+                {childRoots.length === 0 && usageEdges.length === 0 && (
+                  <li className="text-sm text-muted-foreground px-2 py-1">
+                    Nenhum filho. Use &ldquo;Catálogo&rdquo; para adicionar um template padrão.
+                  </li>
+                )}
+              </ul>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <CreateConjuntoDialog
         open={openCreate}
