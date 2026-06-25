@@ -687,6 +687,12 @@ function renderChildSection(
 
 // ---- Main export function ----
 
+export interface ExportPdfOptions {
+  /** Se true, inclui as páginas de itens diretos / detalhe (subconjuntos e conjuntos filhos).
+   *  Default: false → apenas a lista consolidada. */
+  includeDirectItems?: boolean;
+}
+
 export function exportConjuntoPdf(
   root: BomRoot,
   version: BomVersion,
@@ -694,7 +700,10 @@ export function exportConjuntoPdf(
   matMap: Map<string, MaterialLite>,
   childConjuntos: ExportChildData[] = [],
   project: { numero: string; descricao: string },
+  options: ExportPdfOptions = {},
 ) {
+  const includeDirectItems = options.includeDirectItems ?? false;
+
   const doc = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'landscape' });
   const generatedAt = format(new Date(), 'dd/MM/yyyy HH:mm');
   const rootLabel = `${root.codigo} — ${root.name}`;
@@ -707,28 +716,30 @@ export function exportConjuntoPdf(
   const allItems = collectAllItems(tree, matMap, childConjuntos);
   renderConsolidatedPage(doc, rootLabel, allItems, generatedAt);
 
-  // ---- Page 3: Root direct items ----
-  doc.addPage();
-  const rootDirectItems = collectDirectItems(tree, matMap);
-  renderDirectItemsPage(
-    doc,
-    `${rootLabel} (itens diretos)`,
-    [],
-    null,
-    null,
-    rootDirectItems,
-    generatedAt,
-  );
+  if (includeDirectItems) {
+    // ---- Page 3: Root direct items ----
+    doc.addPage();
+    const rootDirectItems = collectDirectItems(tree, matMap);
+    renderDirectItemsPage(
+      doc,
+      `${rootLabel} (itens diretos)`,
+      [],
+      null,
+      null,
+      rootDirectItems,
+      generatedAt,
+    );
 
-  // ---- Subconjunto pages for root's own BOM tree ----
-  const rootBreadcrumb = [rootLabel];
-  for (const { node: sub, breadcrumb } of collectAllSubconjuntos(tree, rootBreadcrumb)) {
-    renderSubconjuntoPage(doc, sub, breadcrumb, matMap, generatedAt);
-  }
+    // ---- Subconjunto pages for root's own BOM tree ----
+    const rootBreadcrumb = [rootLabel];
+    for (const { node: sub, breadcrumb } of collectAllSubconjuntos(tree, rootBreadcrumb)) {
+      renderSubconjuntoPage(doc, sub, breadcrumb, matMap, generatedAt);
+    }
 
-  // ---- Child BomRoot sections ----
-  for (const child of childConjuntos) {
-    renderChildSection(doc, child, matMap, generatedAt);
+    // ---- Child BomRoot sections ----
+    for (const child of childConjuntos) {
+      renderChildSection(doc, child, matMap, generatedAt);
+    }
   }
 
   if (typeof (doc as unknown as { putTotalPages?: (s: string) => void }).putTotalPages === 'function') {
