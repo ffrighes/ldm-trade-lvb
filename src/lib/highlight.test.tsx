@@ -22,4 +22,19 @@ describe('highlightMatch', () => {
     expect(container.querySelectorAll('mark').length).toBeGreaterThan(0);
     expect(container.textContent).toBe('a.b.c');
   });
+
+  it('matches without accents while preserving the original accents in the mark', () => {
+    const { container } = render(<>{highlightMatch('Válvula de esfera', 'valvula')}</>);
+    const mark = container.querySelector('mark');
+    expect(mark).not.toBeNull();
+    expect(mark?.textContent).toBe('Válvula');
+    expect(container.textContent).toBe('Válvula de esfera');
+  });
+
+  it('matches a fully-accented word from an unaccented term', () => {
+    const { container } = render(<>{highlightMatch('Conexão', 'conexao')}</>);
+    const mark = container.querySelector('mark');
+    expect(mark?.textContent).toBe('Conexão');
+    expect(container.textContent).toBe('Conexão');
+  });
 });
