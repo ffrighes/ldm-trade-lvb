@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { FolderKanban, Database, LayoutDashboard, Receipt, Sun, Moon, Users, LogOut, ChevronDown, Settings, PanelLeft, PanelLeftClose } from 'lucide-react';
@@ -12,6 +12,47 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import ProjectEnvironmentPanel, { useProjectEnvironmentMatch } from '@/components/ProjectEnvironmentPanel';
 import { useSidebarCollapsed } from '@/hooks/useSidebarCollapsed';
 
+function SidebarNavItem({
+  to,
+  label,
+  icon: Icon,
+  active,
+  collapsed,
+}: {
+  to: string;
+  label: string;
+  icon: React.ElementType;
+  active: boolean;
+  collapsed: boolean;
+}) {
+  const linkEl = (
+    <Link
+      to={to}
+      className={cn(
+        'rounded-md text-sm font-medium transition-colors',
+        collapsed
+          ? 'flex items-center justify-center w-10 h-10 mx-auto'
+          : 'flex items-center gap-3 px-3 py-2.5',
+        active
+          ? 'bg-sidebar-primary text-sidebar-primary-foreground'
+          : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+      )}
+    >
+      <Icon className="h-4 w-4" />
+      {!collapsed && label}
+    </Link>
+  );
+
+  if (!collapsed) return linkEl;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{linkEl}</TooltipTrigger>
+      <TooltipContent side="right">{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
@@ -23,6 +64,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const isProjectsActive = pathname.startsWith('/projetos');
   const [projectsOpen, setProjectsOpen] = useState(isProjectsActive);
   const { collapsed, toggle: toggleSidebar } = useSidebarCollapsed();
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+        e.preventDefault();
+        toggleSidebar();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [toggleSidebar]);
 
   const sortedProjects = useMemo(
     () => [...projects].sort((a, b) => a.numero.localeCompare(b.numero)),
@@ -45,26 +97,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (collapsed && variant === 'desktop') {
       return (
         <Popover>
-          <TooltipProvider delayDuration={300}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <PopoverTrigger asChild>
-                  <button
-                    className={cn(
-                      'flex items-center justify-center w-10 h-10 mx-auto rounded-md transition-colors',
-                      isProjectsActive
-                        ? 'bg-sidebar-primary text-sidebar-primary-foreground'
-                        : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-                    )}
-                    aria-label="Projetos"
-                  >
-                    <FolderKanban className="h-4 w-4" />
-                  </button>
-                </PopoverTrigger>
-              </TooltipTrigger>
-              <TooltipContent side="right">Projetos</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <PopoverTrigger asChild>
+                <button
+                  className={cn(
+                    'flex items-center justify-center w-10 h-10 mx-auto rounded-md transition-colors',
+                    isProjectsActive
+                      ? 'bg-sidebar-primary text-sidebar-primary-foreground'
+                      : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+                  )}
+                  aria-label="Projetos"
+                >
+                  <FolderKanban className="h-4 w-4" />
+                </button>
+              </PopoverTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="right">Projetos</TooltipContent>
+          </Tooltip>
           <PopoverContent side="right" align="start" className="min-w-64 p-2">
             <p className="px-2 py-1 text-xs font-medium text-muted-foreground">Projetos</p>
             <div className="max-h-72 overflow-y-auto space-y-0.5">
@@ -179,6 +229,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           collapsed ? 'w-14' : 'w-64',
         )}
       >
+      <TooltipProvider delayDuration={300}>
         <div
           className={cn(
             'flex items-start justify-between',
@@ -209,23 +260,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {STATIC_NAV_ITEMS.slice(0, 1).map(({ to, label, icon: Icon }) => {
             const active = to === '/' ? pathname === '/' : pathname.startsWith(to);
             return (
-              <Link
+              <SidebarNavItem
                 key={to}
                 to={to}
-                title={collapsed ? label : undefined}
-                className={cn(
-                  'rounded-md text-sm font-medium transition-colors',
-                  collapsed
-                    ? 'flex items-center justify-center w-10 h-10 mx-auto'
-                    : 'flex items-center gap-3 px-3 py-2.5',
-                  active
-                    ? 'bg-sidebar-primary text-sidebar-primary-foreground'
-                    : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                {!collapsed && label}
-              </Link>
+                label={label}
+                icon={Icon}
+                active={active}
+                collapsed={collapsed}
+              />
             );
           })}
 
@@ -234,43 +276,45 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {STATIC_NAV_ITEMS.slice(1).map(({ to, label, icon: Icon }) => {
             const active = pathname.startsWith(to);
             return (
-              <Link
+              <SidebarNavItem
                 key={to}
                 to={to}
-                title={collapsed ? label : undefined}
-                className={cn(
-                  'rounded-md text-sm font-medium transition-colors',
-                  collapsed
-                    ? 'flex items-center justify-center w-10 h-10 mx-auto'
-                    : 'flex items-center gap-3 px-3 py-2.5',
-                  active
-                    ? 'bg-sidebar-primary text-sidebar-primary-foreground'
-                    : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                {!collapsed && label}
-              </Link>
+                label={label}
+                icon={Icon}
+                active={active}
+                collapsed={collapsed}
+              />
             );
           })}
         </nav>
 
         {/* Toggle collapse — sempre visível */}
         <div className={cn('px-3 pb-1', collapsed && 'px-2')}>
-          <button
-            onClick={toggleSidebar}
-            title={collapsed ? 'Expandir menu' : 'Recolher menu'}
-            aria-label={collapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
-            className={cn(
-              'flex items-center gap-3 rounded-md text-sm font-medium text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors',
-              collapsed
-                ? 'justify-center w-10 h-10 mx-auto'
-                : 'w-full px-3 py-2',
-            )}
-          >
-            {collapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-            {!collapsed && <span>Recolher</span>}
-          </button>
+          {collapsed ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={toggleSidebar}
+                  aria-label="Expandir menu lateral"
+                  aria-expanded={false}
+                  className="flex items-center justify-center w-10 h-10 mx-auto rounded-md text-sm font-medium text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+                >
+                  <PanelLeft className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">Expandir menu</TooltipContent>
+            </Tooltip>
+          ) : (
+            <button
+              onClick={toggleSidebar}
+              aria-label="Recolher menu lateral"
+              aria-expanded={true}
+              className="flex items-center gap-3 w-full px-3 py-2 rounded-md text-sm font-medium text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+            >
+              <PanelLeftClose className="h-4 w-4" />
+              <span>Recolher</span>
+            </button>
+          )}
         </div>
 
         {/* User info + logout */}
@@ -282,21 +326,31 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </p>
             </div>
           )}
-          <button
-            onClick={handleSignOut}
-            title={collapsed ? 'Sair' : undefined}
-            aria-label="Sair"
-            className={cn(
-              'rounded-md text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors',
-              collapsed
-                ? 'flex items-center justify-center w-10 h-10 mx-auto'
-                : 'flex items-center gap-3 w-full px-3 py-2.5',
-            )}
-          >
-            <LogOut className="h-4 w-4" />
-            {!collapsed && 'Sair'}
-          </button>
+          {collapsed ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={handleSignOut}
+                  aria-label="Sair"
+                  className="flex items-center justify-center w-10 h-10 mx-auto rounded-md text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">Sair</TooltipContent>
+            </Tooltip>
+          ) : (
+            <button
+              onClick={handleSignOut}
+              aria-label="Sair"
+              className="flex items-center gap-3 w-full px-3 py-2.5 rounded-md text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
+              Sair
+            </button>
+          )}
         </div>
+      </TooltipProvider>
       </aside>
 
       {/* Mobile nav */}
