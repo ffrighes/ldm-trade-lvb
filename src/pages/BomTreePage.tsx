@@ -21,7 +21,17 @@ import { VersionPanel } from '@/components/bom/VersionPanel';
 import { BomNodeIcon } from '@/components/bom/BomNodeIcon';
 import { RootQuantityField } from '@/components/bom/RootQuantityField';
 import { CatalogPickerDialog } from '@/components/bom/CatalogPickerDialog';
-import { exportConjuntoPdf, type ExportChildData } from '@/lib/exportConjuntoPdf';
+import { exportConjuntoPdf, type ExportChildData, type ExportPdfOptions } from '@/lib/exportConjuntoPdf';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { exportConjuntoXlsx } from '@/lib/exportConjuntoXlsx';
 import { supabase } from '@/integrations/supabase/client';
 import type { BomNode, BomRoot, BomRootUsage, BomTreeNode, BomVersion } from '@/types/bom';
@@ -44,6 +54,8 @@ export default function BomTreePage() {
   const [openClone, setOpenClone] = useState(false);
   const [openCopy, setOpenCopy] = useState(false);
   const [openCatalog, setOpenCatalog] = useState(false);
+  const [exportPdfDialogOpen, setExportPdfDialogOpen] = useState(false);
+  const [includeDirectItems, setIncludeDirectItems] = useState(false);
   const [xlsxDialogOpen, setXlsxDialogOpen] = useState(false);
   const [xlsxDialogData, setXlsxDialogData] = useState<{
     tree: BomTreeNode;
@@ -212,7 +224,7 @@ export default function BomTreePage() {
 
   const usageChildIds = useMemo(() => new Set(usageEdges.map((u) => u.child_root_id)), [usageEdges]);
 
-  const handleExportPdf = async () => {
+  const handleExportPdf = async (options: ExportPdfOptions = {}) => {
     if (!currentRoot || !currentVersion || nodes.length === 0 || !projeto) return;
     const tree = buildBomTree(nodes);
     if (!tree) return;
@@ -221,7 +233,7 @@ export default function BomTreePage() {
     try {
       const rootLabel = `${currentRoot.codigo} — ${currentRoot.name}`;
       const childConjuntos = await fetchDescendantConjuntos(currentRoot, roots, [rootLabel]);
-      exportConjuntoPdf(currentRoot, currentVersion, tree, matMap, childConjuntos, projeto);
+      exportConjuntoPdf(currentRoot, currentVersion, tree, matMap, childConjuntos, projeto, options);
     } catch (err) {
       toast.error('Erro ao gerar PDF: ' + (err instanceof Error ? err.message : String(err)));
     }
@@ -328,7 +340,7 @@ export default function BomTreePage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handleExportPdf}
+                    onClick={() => { setIncludeDirectItems(false); setExportPdfDialogOpen(true); }}
                     disabled={!currentVersion || nodes.length === 0 || !projeto}
                     title="Exportar PDF"
                   >
@@ -529,6 +541,40 @@ export default function BomTreePage() {
           }}
         />
       )}
+
+      <Dialog open={exportPdfDialogOpen} onOpenChange={setExportPdfDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Exportar PDF</DialogTitle>
+            <DialogDescription>
+              Por padrão, o PDF contém apenas a Lista Consolidada de Itens.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-start gap-3 py-2">
+            <Checkbox
+              id="include-direct-items"
+              checked={includeDirectItems}
+              onCheckedChange={(v) => setIncludeDirectItems(v === true)}
+            />
+            <Label htmlFor="include-direct-items" className="text-sm leading-snug">
+              Incluir também as listas de itens diretos (subconjuntos e conjuntos filhos)
+            </Label>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExportPdfDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={async () => {
+                await handleExportPdf({ includeDirectItems });
+                setExportPdfDialogOpen(false);
+              }}
+            >
+              Exportar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
