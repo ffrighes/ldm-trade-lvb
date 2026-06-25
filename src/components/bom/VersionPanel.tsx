@@ -122,7 +122,7 @@ export function VersionPanel({ rootId, versions, selectedId, onSelect }: Props) 
             {showObsolete && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="sm">
+                  <Button variant="destructive" size="sm">
                     <Archive className="h-3.5 w-3.5 mr-1" /> Marcar OBSOLETE
                   </Button>
                 </AlertDialogTrigger>
@@ -130,13 +130,15 @@ export function VersionPanel({ rootId, versions, selectedId, onSelect }: Props) 
                   <AlertDialogHeader>
                     <AlertDialogTitle>Marcar versão como OBSOLETE?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      A versão v{current!.version_number} deixará de ser a versão liberada e passará a
-                      ser somente leitura. Esta ação encerra o ciclo de vida desta versão.
+                      A versão v{current!.version_number} ficará somente leitura e não poderá voltar
+                      para DRAFT ou RELEASED. Esta ação encerra permanentemente o ciclo de vida desta versão.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogCancel autoFocus>Cancelar</AlertDialogCancel>
                     <AlertDialogAction
+                      aria-label="Confirmar marcação como OBSOLETE"
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                       onClick={async () => {
                         try {
                           await obsolete.mutateAsync({ rootId, versionId: current!.id });
