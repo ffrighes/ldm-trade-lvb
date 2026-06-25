@@ -38,7 +38,7 @@ export function highlightMatch(text: string, term: string): ReactNode {
     const origEnd = map[hit + needle.length - 1] + 1; // exclusivo
     if (origStart > cursor) nodes.push(text.slice(cursor, origStart));
     nodes.push(
-      <mark key={origStart} className="bg-amber-200/70 text-amber-950 dark:bg-amber-400/15 dark:text-amber-100 rounded-[3px] px-0.5 box-decoration-clone font-medium">
+      <mark key={origStart} className="bg-amber-200/70 text-amber-950 dark:bg-amber-400/15 dark:text-amber-100 rounded-none px-0.5 box-decoration-clone font-medium">
         {text.slice(origStart, origEnd)}
       </mark>,
     );

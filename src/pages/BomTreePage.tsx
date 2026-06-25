@@ -453,7 +453,7 @@ export default function BomTreePage() {
                       <span className="text-xs text-muted-foreground shrink-0">
                         × {edge.quantity}
                       </span>
-                      <span className="text-xs bg-amber-100 text-amber-700 rounded px-1 shrink-0">
+                      <span className="text-xs bg-amber-100 text-amber-700 rounded-none px-1 shrink-0">
                         catálogo
                       </span>
                     </button>

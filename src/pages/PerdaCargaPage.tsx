@@ -131,7 +131,7 @@ function FormulaDialog({ elemento, resultado, fluido, Q, open, onClose }: Formul
             <BlockMath math={`\\Delta P_{\\text{elev}} = \\rho g \\Delta z = ${fluido.densidade} \\times ${G} \\times ${Dz_m.toFixed(4)} = ${dpElev.toFixed(1)}\\ \\text{Pa}`} />
           </div>
         )}
-        <div className="rounded border border-primary/30 bg-primary/5 p-3">
+        <div className="rounded-none border border-primary/30 bg-primary/5 p-3">
           <p className="text-muted-foreground mb-1">Total ({t.quantidade}× trecho):</p>
           <p><strong>ΔP = {dpTotal.toFixed(1)} Pa = {(dpTotal * PA_TO_BAR).toFixed(6).replace('.',',')} bar = {(dpTotal / (fluido.densidade * G)).toFixed(4).replace('.',',')} m.c.a.</strong></p>
         </div>
@@ -156,7 +156,7 @@ function FormulaDialog({ elemento, resultado, fluido, Q, open, onClose }: Formul
           <p className="text-muted-foreground mb-1">Perda localizada — método K:</p>
           <BlockMath math={`\\Delta P = n \\cdot K \\cdot \\frac{\\rho v^2}{2} = ${elemento.quantidade} \\times ${K} \\times \\frac{${fluido.densidade} \\times ${v.toFixed(4)}^2}{2} = ${dpPa.toFixed(1)}\\ \\text{Pa}`} />
         </div>
-        <div className="rounded border border-primary/30 bg-primary/5 p-3">
+        <div className="rounded-none border border-primary/30 bg-primary/5 p-3">
           <p><strong>ΔP = {dpPa.toFixed(1)} Pa = {(dpPa * PA_TO_BAR).toFixed(6).replace('.',',')} bar = {(dpPa / (fluido.densidade * G)).toFixed(4).replace('.',',')} m.c.a.</strong></p>
         </div>
       </div>
