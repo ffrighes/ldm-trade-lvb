@@ -11,6 +11,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useStandardCatalog } from '@/hooks/useBomTree';
+import { normalizeForSearch } from '@/lib/normalizeSearch';
 import type { BomRoot } from '@/types/bom';
 
 interface Props {
@@ -29,8 +30,8 @@ export function CatalogPickerDialog({ open, onOpenChange, onSelect, existingChil
   const [quantity, setQuantity] = useState('1');
 
   const filtered = catalog.filter((r) => {
-    const q = search.toLowerCase();
-    return r.codigo.toLowerCase().includes(q) || r.name.toLowerCase().includes(q);
+    const q = normalizeForSearch(search);
+    return normalizeForSearch(r.codigo).includes(q) || normalizeForSearch(r.name).includes(q);
   });
 
   function handleOpenChange(v: boolean) {

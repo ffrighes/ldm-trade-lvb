@@ -33,6 +33,7 @@ import { CreateConjuntoDialog } from './CreateConjuntoDialog';
 import { EditNodeDialog } from './EditNodeDialog';
 import { SelectCategoryDialog } from './SelectCategoryDialog';
 import { SEM_CATEGORIA_LABEL } from '@/lib/categorias';
+import { normalizeForSearch } from '@/lib/normalizeSearch';
 import { useCategorias } from '@/hooks/useCategorias';
 
 type DraftEntry = { id: string; categoria: string };
@@ -179,11 +180,11 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
 
   const matchesSearch = (n: BomTreeNode): boolean => {
     if (!search.trim()) return true;
-    const q = search.toLowerCase();
-    if ((n.name ?? '').toLowerCase().includes(q)) return true;
+    const q = normalizeForSearch(search);
+    if (normalizeForSearch(n.name ?? '').includes(q)) return true;
     if (n.material_id) {
       const m = matById.get(n.material_id);
-      if (m && (`${m.descricao} ${m.bitola}`).toLowerCase().includes(q)) return true;
+      if (m && normalizeForSearch(`${m.descricao} ${m.bitola}`).includes(q)) return true;
     }
     return n.children.some(matchesSearch);
   };

@@ -20,6 +20,7 @@ import {
 import { SearchInput } from "@/components/SearchInput";
 import { useSearch } from "@/hooks/useSearch";
 import { highlightMatch } from "@/lib/highlight";
+import { normalizeForSearch } from "@/lib/normalizeSearch";
 import { SEARCH_MIN_LENGTH } from "@/lib/sanitizeSearch";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -706,11 +707,11 @@ export default function BaseDadosPage() {
         if (qualityFilters.has('sem_custo') && m.custo > 0) return false;
         if (qualityFilters.has('sem_categoria') && (m as any).categoria) return false;
         if (search.debounced) {
-          const s = search.debounced.toLowerCase();
+          const s = normalizeForSearch(search.debounced);
           return (
-            m.descricao.toLowerCase().includes(s) ||
-            m.bitola.toLowerCase().includes(s) ||
-            (m as any).erp?.toLowerCase().includes(s)
+            normalizeForSearch(m.descricao).includes(s) ||
+            normalizeForSearch(m.bitola).includes(s) ||
+            normalizeForSearch((m as any).erp ?? '').includes(s)
           );
         }
         return true;

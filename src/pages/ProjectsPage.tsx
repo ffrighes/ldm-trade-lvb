@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { SearchInput } from '@/components/SearchInput';
 import { useSearch } from '@/hooks/useSearch';
 import { highlightMatch } from '@/lib/highlight';
+import { normalizeForSearch } from '@/lib/normalizeSearch';
 import { SEARCH_MIN_LENGTH } from '@/lib/sanitizeSearch';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -34,12 +35,12 @@ export default function ProjectsPage() {
   const [form, setForm] = useState({ numero: '', descricao: '' });
 
   const filtered = useMemo(() => {
-    const term = search.debounced.toLowerCase();
+    const term = normalizeForSearch(search.debounced);
     if (!term) return projects;
     return projects.filter(
       (p) =>
-        p.numero.toLowerCase().includes(term) ||
-        p.descricao.toLowerCase().includes(term),
+        normalizeForSearch(p.numero).includes(term) ||
+        normalizeForSearch(p.descricao).includes(term),
     );
   }, [projects, search.debounced]);
 
