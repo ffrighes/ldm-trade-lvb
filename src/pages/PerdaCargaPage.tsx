@@ -260,11 +260,11 @@ function ElementoRow({ elemento, resultado, fluido, Q, onRemove, onUpdate, reado
         </td>
         <td className="px-2 py-2">
           <div className="flex items-center justify-end gap-0.5">
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setFormulaOpen(true)} title="Ver fórmula">
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setFormulaOpen(true)} aria-label="Ver fórmula">
               <FlaskConical className="h-3.5 w-3.5" />
             </Button>
             {!readonly && (
-              <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={onRemove} title="Remover">
+              <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={onRemove} aria-label="Remover elemento">
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
             )}
@@ -320,7 +320,7 @@ function LinhaCard({
     <Card className="border border-border/60">
       <CardHeader className="px-4 py-3">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setExpanded((p) => !p)}>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setExpanded((p) => !p)} aria-label={expanded ? 'Recolher linha' : 'Expandir linha'}>
             {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </Button>
 
@@ -358,7 +358,7 @@ function LinhaCard({
           </div>
 
           {!readonly && (
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive shrink-0" onClick={() => setDeleteOpen(true)}>
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive shrink-0" onClick={() => setDeleteOpen(true)} aria-label="Remover linha">
               <Trash2 className="h-4 w-4" />
             </Button>
           )}
@@ -367,7 +367,7 @@ function LinhaCard({
         {resultado.avisos.length > 0 && (
           <div className="ml-10 space-y-0.5 mt-1">
             {resultado.avisos.map((a, i) => (
-              <div key={i} className="flex items-start gap-1.5 text-xs text-yellow-500">
+              <div key={i} className="flex items-start gap-1.5 text-xs text-warning-text">
                 <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
                 {a}
               </div>

@@ -480,14 +480,14 @@ function NodeRow(props: RowProps) {
         </Badge>
 
         {!readOnly && (
-          <div className="ml-auto flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="ml-auto flex items-center opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
             {!isItem && (
               <>
                 <Button
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7"
-                  title="Adicionar item"
+                  aria-label="Adicionar item"
                   onClick={(e) => { e.stopPropagation(); onAdd(node.id, 'item'); }}
                 >
                   <Package className="h-3.5 w-3.5" />
@@ -497,7 +497,7 @@ function NodeRow(props: RowProps) {
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7"
-                    title="Adicionar Conjunto filho"
+                    aria-label="Adicionar Conjunto filho"
                     onClick={(e) => { e.stopPropagation(); onAdd(node.id, 'subconjunto'); }}
                   >
                     <FolderPlus className="h-3.5 w-3.5" />
@@ -507,7 +507,7 @@ function NodeRow(props: RowProps) {
             )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}>
+                <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Mais opções" onClick={(e) => e.stopPropagation()}>
                   <MoreVertical className="h-3.5 w-3.5" />
                 </Button>
               </DropdownMenuTrigger>

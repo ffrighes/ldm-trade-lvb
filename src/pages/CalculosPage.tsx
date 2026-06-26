@@ -7,6 +7,7 @@ import { InlineMath } from 'react-katex';
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { calculoStatusBadgeVariant } from '@/lib/statusColors';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog,
@@ -60,14 +61,8 @@ function SafeFormula({ formula }: { formula: string }) {
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
-const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'outline'> = {
-  'Rascunho': 'secondary',
-  'Em Revisão': 'outline',
-  'Aprovado': 'default',
-};
-
 function StatusBadge({ status }: { status: string }) {
-  return <Badge variant={STATUS_VARIANT[status] ?? 'secondary'}>{status}</Badge>;
+  return <Badge variant={calculoStatusBadgeVariant[status] ?? 'secondary'}>{status}</Badge>;
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -337,17 +332,17 @@ export default function CalculosPage() {
                               variant="ghost"
                               size="icon"
                               onClick={() => navigate(`/projetos/${projetoId}/calculos/perda-carga/${c.id}`)}
-                              title="Abrir editor de perda de carga"
+                              aria-label="Abrir editor de perda de carga"
                             >
                               <Droplets className="h-4 w-4" />
                             </Button>
                           ) : (
                             <>
-                              <Button variant="ghost" size="icon" onClick={() => openView(c)} title="Visualizar">
+                              <Button variant="ghost" size="icon" onClick={() => openView(c)} aria-label="Visualizar cálculo">
                                 <Eye className="h-4 w-4" />
                               </Button>
                               {canEditCalculo && (
-                                <Button variant="ghost" size="icon" onClick={() => openEdit(c)} title="Editar">
+                                <Button variant="ghost" size="icon" onClick={() => openEdit(c)} aria-label="Editar cálculo">
                                   <Pencil className="h-4 w-4" />
                                 </Button>
                               )}
@@ -359,7 +354,7 @@ export default function CalculosPage() {
                               size="icon"
                               className="text-destructive hover:text-destructive"
                               onClick={() => setDeleteTarget(c)}
-                              title="Excluir"
+                              aria-label="Excluir cálculo"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>

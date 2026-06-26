@@ -201,10 +201,10 @@ export default function AdminUsersPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => openEdit(user)} disabled={isMutating}>
+                            <Button variant="ghost" size="icon" onClick={() => openEdit(user)} disabled={isMutating} aria-label="Editar usuário">
                               <Pencil className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => openDelete(user)} disabled={isMutating}>
+                            <Button variant="ghost" size="icon" onClick={() => openDelete(user)} disabled={isMutating} aria-label="Excluir usuário">
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                           </div>
