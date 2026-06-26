@@ -339,6 +339,73 @@ export function useRemoveBomSubtree() {
   });
 }
 
+/**
+ * Atomically removes multiple subtrees in a single transaction.
+ *
+ * Delegates to the `bom_batch_remove_subtrees` RPC, whose plpgsql body runs as
+ * one transaction: if any node is ineligible (non-DRAFT version, missing
+ * permission, or the root CONJUNTO) the whole batch rolls back and nothing is
+ * deleted. The cache is invalidated on success. Returns the number of rows
+ * removed (cascade descendants excluded from the count).
+ */
+export function useBatchRemoveBomNodes() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { versionId: string; nodeIds: string[] }) => {
+      const { data, error } = await sb.rpc('bom_batch_remove_subtrees', {
+        p_node_ids: args.nodeIds,
+      });
+      if (error) throw error;
+      return (data as number) ?? 0;
+    },
+    onSuccess: (_d, vars) => invalidateVersion(qc, vars.versionId),
+  });
+}
+
+/**
+ * Atomically reparents multiple nodes under a new parent in a single
+ * transaction. Ineligible nodes (cross-version, root CONJUNTO, or a target that
+ * sits inside the moved node's own subtree) abort and roll back the whole
+ * batch. Nodes already under the target are skipped (idempotent).
+ */
+export function useBatchMoveBomNodes() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { versionId: string; nodeIds: string[]; newParentId: string }) => {
+      const { data, error } = await sb.rpc('bom_batch_move_nodes', {
+        p_node_ids: args.nodeIds,
+        p_new_parent: args.newParentId,
+      });
+      if (error) throw error;
+      return (data as number) ?? 0;
+    },
+    onSuccess: (_d, vars) => invalidateVersion(qc, vars.versionId),
+  });
+}
+
+/**
+ * Atomically sets the same quantity on multiple nodes in a single transaction.
+ * The CONJUNTO root (which has no quantity) and any ineligible node abort and
+ * roll back the whole batch.
+ */
+export function useBatchSetBomNodeQuantity() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { versionId: string; nodeIds: string[]; quantity: number }) => {
+      if (!(args.quantity > 0)) {
+        throw new Error('Quantidade deve ser maior que zero.');
+      }
+      const { data, error } = await sb.rpc('bom_batch_set_quantity', {
+        p_node_ids: args.nodeIds,
+        p_quantity: args.quantity,
+      });
+      if (error) throw error;
+      return (data as number) ?? 0;
+    },
+    onSuccess: (_d, vars) => invalidateVersion(qc, vars.versionId),
+  });
+}
+
 export function useNewBomVersion() {
   const qc = useQueryClient();
   return useMutation({
