@@ -9,7 +9,7 @@ import { useProjects, useMaterials } from '@/hooks/useSupabaseData';
 import {
   useBomRoots, useBomVersions, useBomNodes, buildBomTree,
   useBomRootUsages, useAddChildUsage, useRemoveChildUsage,
-  useStandardCatalog,
+  useStandardCatalog, useSetBomRootQuantityOptimistic, useSetChildUsageQuantity,
 } from '@/hooks/useBomTree';
 import { usePermissions } from '@/hooks/usePermissions';
 import { CreateConjuntoDialog } from '@/components/bom/CreateConjuntoDialog';
@@ -20,6 +20,7 @@ import { BomTreeView } from '@/components/bom/BomTreeView';
 import { VersionPanel } from '@/components/bom/VersionPanel';
 import { BomNodeIcon } from '@/components/bom/BomNodeIcon';
 import { RootQuantityField } from '@/components/bom/RootQuantityField';
+import { InlineQuantityEditor } from '@/components/bom/InlineQuantityEditor';
 import { CatalogPickerDialog } from '@/components/bom/CatalogPickerDialog';
 import { exportConjuntoPdf, type ExportChildData, type ExportPdfOptions } from '@/lib/exportConjuntoPdf';
 import {
@@ -217,6 +218,12 @@ export default function BomTreePage() {
   const { data: catalogRoots = [] } = useStandardCatalog();
   const addChildUsage = useAddChildUsage();
   const removeChildUsage = useRemoveChildUsage();
+  const setChildRootQty = useSetBomRootQuantityOptimistic();
+  const setChildUsageQty = useSetChildUsageQuantity();
+
+  // Inline quantity editing is blocked without edit permission or on an
+  // OBSOLETE Conjunto (its version was retired and must not be restructured).
+  const canEditChildQty = canEditBomDraft && currentVersion?.status !== 'OBSOLETE';
 
   const catalogMap = useMemo(
     () => new Map(catalogRoots.map((r) => [r.id, r])),
@@ -451,11 +458,11 @@ export default function BomTreePage() {
                   const suffix = extractSuffix(child.name, childListPrefix);
                   const hasSuffix = childListPrefix && suffix !== child.name;
                   return (
-                    <li key={child.id}>
+                    <li key={child.id} className="flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => setSelection(child.id, undefined)}
-                        className="w-full text-left px-3 py-2 rounded-md border bg-card/40 opacity-70 hover:opacity-100 hover:bg-muted transition-all flex items-center gap-3"
+                        className="flex-1 min-w-0 text-left px-3 py-2 rounded-md border bg-card/40 opacity-70 hover:opacity-100 hover:bg-muted transition-all flex items-center gap-3"
                         title={`Abrir ${child.codigo} — ${child.name}`}
                       >
                         <BomNodeIcon type="CONJUNTO" />
@@ -469,12 +476,20 @@ export default function BomTreePage() {
                         ) : (
                           <span className="text-sm flex-1 min-w-0 truncate">{child.name}</span>
                         )}
-                        {child.quantity_in_parent !== 1 && (
-                          <span className="text-xs text-muted-foreground shrink-0">
-                            × {child.quantity_in_parent}
-                          </span>
-                        )}
                       </button>
+                      {(canEditChildQty || child.quantity_in_parent !== 1) && (
+                        <InlineQuantityEditor
+                          quantity={child.quantity_in_parent}
+                          canEdit={canEditChildQty}
+                          onSave={(quantity) =>
+                            setChildRootQty.mutateAsync({
+                              rootId: child.id,
+                              projectId: projetoId,
+                              quantity,
+                            })
+                          }
+                        />
+                      )}
                     </li>
                   );
                 })}
@@ -487,7 +502,7 @@ export default function BomTreePage() {
                     <li key={edge.id} className="flex items-center gap-2">
                       <button
                         type="button"
-                        className="flex-1 text-left px-3 py-2 rounded-md border bg-card/40 opacity-70 hover:opacity-100 hover:bg-muted transition-all flex items-center gap-3"
+                        className="flex-1 min-w-0 text-left px-3 py-2 rounded-md border bg-card/40 opacity-70 hover:opacity-100 hover:bg-muted transition-all flex items-center gap-3"
                         title={`Template de catálogo: ${child.codigo} — ${child.name}`}
                         onClick={() => {}}
                       >
@@ -502,13 +517,21 @@ export default function BomTreePage() {
                         ) : (
                           <span className="text-sm flex-1 min-w-0 truncate">{child.name}</span>
                         )}
-                        <span className="text-xs text-muted-foreground shrink-0">
-                          × {edge.quantity}
-                        </span>
                         <span className="text-xs bg-amber-100 text-amber-700 rounded-none px-1 shrink-0">
                           catálogo
                         </span>
                       </button>
+                      <InlineQuantityEditor
+                        quantity={edge.quantity}
+                        canEdit={canEditChildQty}
+                        onSave={(quantity) =>
+                          setChildUsageQty.mutateAsync({
+                            usageId: edge.id,
+                            parentRootId: currentRoot.id,
+                            quantity,
+                          })
+                        }
+                      />
                       {canEditBomDraft && (
                         <Button
                           variant="ghost"

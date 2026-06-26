@@ -459,6 +459,91 @@ export function useSetBomRootQuantity() {
 /** Alias of useSetBomRootQuantity with a more explicit name for use in RootQuantityField. */
 export const useSetBomRootQuantityInParent = useSetBomRootQuantity;
 
+/** Validates that a child quantity is a positive integer (≥ 1). */
+function assertPositiveInteger(quantity: number) {
+  if (!Number.isInteger(quantity) || quantity < 1) {
+    throw new Error('Quantidade deve ser um inteiro maior ou igual a 1.');
+  }
+}
+
+/**
+ * Optimistically updates a child Conjunto's `quantity_in_parent`.
+ * Patches the `['bom-roots', projectId]` cache immediately and rolls back on
+ * error, so the inline editor in the children list reflects the change without
+ * waiting for the round-trip. Reconciles by invalidating on settle.
+ */
+export function useSetBomRootQuantityOptimistic() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { rootId: string; projectId: string; quantity: number }) => {
+      assertPositiveInteger(args.quantity);
+      const { error } = await sb.rpc('bom_root_set_quantity_in_parent', {
+        p_root_id: args.rootId,
+        p_quantity: args.quantity,
+      });
+      if (error) throw error;
+    },
+    onMutate: async (args) => {
+      const key = ['bom-roots', args.projectId];
+      await qc.cancelQueries({ queryKey: key });
+      const previous = qc.getQueryData<BomRoot[]>(key);
+      qc.setQueryData<BomRoot[]>(key, (old) =>
+        old?.map((r) =>
+          r.id === args.rootId ? { ...r, quantity_in_parent: args.quantity } : r,
+        ),
+      );
+      return { previous, key };
+    },
+    onError: (_err, _args, ctx) => {
+      if (ctx?.previous !== undefined) qc.setQueryData(ctx.key, ctx.previous);
+    },
+    onSettled: (_d, _e, args) => {
+      qc.invalidateQueries({ queryKey: ['bom-roots', args.projectId] });
+    },
+  });
+}
+
+/**
+ * Optimistically updates a catalog usage edge's `quantity`.
+ * Writes directly to `bom_root_usage` (allowed by RLS for editors), patching the
+ * `['bom-root-usages', parentRootId]` cache and rolling back on error.
+ */
+export function useSetChildUsageQuantity() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { usageId: string; parentRootId: string; quantity: number }) => {
+      assertPositiveInteger(args.quantity);
+      const client = supabase as unknown as {
+        from: (t: string) => {
+          update: (v: AnyRecord) => {
+            eq: (col: string, val: unknown) => Promise<{ error: unknown }>;
+          };
+        };
+      };
+      const { error } = await client
+        .from('bom_root_usage')
+        .update({ quantity: args.quantity })
+        .eq('id', args.usageId);
+      if (error) throw error;
+    },
+    onMutate: async (args) => {
+      const key = ['bom-root-usages', args.parentRootId];
+      await qc.cancelQueries({ queryKey: key });
+      const previous = qc.getQueryData<BomRootUsage[]>(key);
+      qc.setQueryData<BomRootUsage[]>(key, (old) =>
+        old?.map((u) => (u.id === args.usageId ? { ...u, quantity: args.quantity } : u)),
+      );
+      return { previous, key };
+    },
+    onError: (_err, _args, ctx) => {
+      if (ctx?.previous !== undefined) qc.setQueryData(ctx.key, ctx.previous);
+    },
+    onSettled: (_d, _e, args) => {
+      qc.invalidateQueries({ queryKey: ['bom-root-usages', args.parentRootId] });
+    },
+  });
+}
+
 export function useSetBomRootParent() {
   const qc = useQueryClient();
   return useMutation({
