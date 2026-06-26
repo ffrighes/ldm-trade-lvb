@@ -12,6 +12,7 @@ import { ChevronDown, ChevronRight, MoreVertical, Package, FolderPlus, Edit3, Co
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
@@ -238,14 +239,17 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
               </Button>
             </>
           )}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowCumulative((v) => !v)}
-            title="Alternar quantidade acumulada"
-          >
-            {showCumulative ? 'Mostrar qtd. unitária' : 'Mostrar qtd. acumulada'}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Switch
+              id="toggle-cumulative"
+              checked={showCumulative}
+              onCheckedChange={setShowCumulative}
+              aria-checked={showCumulative}
+            />
+            <Label htmlFor="toggle-cumulative" className="cursor-pointer select-none text-sm">
+              Qtd. acumulada
+            </Label>
+          </div>
         </div>
       </div>
 
