@@ -36,6 +36,7 @@ import { EditNodeDialog } from './EditNodeDialog';
 import { SelectCategoryDialog } from './SelectCategoryDialog';
 import { SEM_CATEGORIA_LABEL } from '@/lib/categorias';
 import { normalizeForSearch } from '@/lib/normalizeSearch';
+import { highlightMatch } from '@/lib/highlight';
 import { useCategorias } from '@/hooks/useCategorias';
 import { computeBomNodeDisplay } from '@/lib/bomDisplayCount';
 
@@ -303,6 +304,7 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
                   onAddDraft={addDraft}
                   onRemoveDraft={removeDraft}
                   onDelete={(n) => setConfirmDelete(n)}
+                  search={search}
                 />
               )}
             </>
@@ -446,17 +448,18 @@ function NodeRow(props: RowProps) {
                 const sep = ' — ';
                 const sepIdx = isItem ? displayName.lastIndexOf(sep) : -1;
                 if (sepIdx >= 0) {
+                  const desc = displayName.slice(0, sepIdx);
                   const spec = displayName.slice(sepIdx + sep.length);
                   return (
                     <>
-                      <span className="truncate">{displayName.slice(0, sepIdx)}</span>
+                      <span className="truncate">{highlightMatch(desc, search)}</span>
                       <span className="shrink-0 font-mono text-xs text-muted-foreground">
-                        {spec}
+                        {highlightMatch(spec, search)}
                       </span>
                     </>
                   );
                 }
-                return <span className="truncate">{displayName}</span>;
+                return <span className="truncate">{highlightMatch(displayName, search)}</span>;
               })()}
             </span>
           </TooltipTrigger>
@@ -596,6 +599,7 @@ function NodeRow(props: RowProps) {
               onAddDraft={onAddDraft}
               onRemoveDraft={onRemoveDraft}
               onDelete={onDelete}
+              search={search}
             />
           )}
         </div>
@@ -621,6 +625,7 @@ interface ItemsTableProps {
   onAddDraft: (parentId: string, categoria: string) => void;
   onRemoveDraft: (parentId: string, draftId: string) => void;
   onDelete: (n: BomTreeNode) => void;
+  search?: string;
 }
 
 function parseBitolaValue(b: string): number {
@@ -642,6 +647,7 @@ function parseBitolaValue(b: string): number {
 function ItemsByCategoryTable({
   parentId, versionId, items, drafts, depth, matById, materials, categoriaOrder,
   readOnly, showCumulative, editingItems, onToggleItemEdit, onOpenItemEdit, onAddDraft, onRemoveDraft, onDelete,
+  search = '',
 }: ItemsTableProps) {
   const duplicate = useDuplicateBomSubtree();
 
@@ -799,11 +805,11 @@ function ItemsByCategoryTable({
                     return (
                       <tr key={it.id} className="border-b hover:bg-muted/30">
                         <td className="py-2 px-2 align-middle">{startIndex + idx + 1}</td>
-                        <td className="py-2 px-2 align-middle font-mono text-xs text-muted-foreground">{tag}</td>
+                        <td className="py-2 px-2 align-middle font-mono text-xs text-muted-foreground">{highlightMatch(tag, search)}</td>
                         <td className="py-2 px-2 align-middle max-w-[20rem]">
-                          <span className="block truncate" title={descricao}>{descricao}</span>
+                          <span className="block truncate" title={descricao}>{highlightMatch(descricao, search)}</span>
                         </td>
-                        <td className="py-2 px-2 align-middle font-mono text-xs text-muted-foreground">{bitola}</td>
+                        <td className="py-2 px-2 align-middle font-mono text-xs text-muted-foreground">{highlightMatch(bitola, search)}</td>
                         <td className="py-2 px-2 align-middle font-mono text-xs text-muted-foreground">{erp}</td>
                         <td className="py-2 px-2 align-middle text-right tabular-nums">{qty}</td>
                         <td className="py-2 px-2 align-middle">{unidade}</td>
