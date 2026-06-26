@@ -267,6 +267,55 @@ export function useMoveBomNode() {
   });
 }
 
+/**
+ * Reorders sibling BOM nodes by persisting a minimal batch of position updates.
+ *
+ * The cache (`['bom-nodes', versionId]`) is patched optimistically so the tree
+ * reflows immediately; on any RPC error the previous order is restored. Updates
+ * are applied through the existing `bom_update_node` RPC (position-only), which
+ * is guarded server-side by `bom_assert_editor` + `bom_assert_draft`, so the
+ * write also fails for non-editors or non-DRAFT versions.
+ */
+export function useReorderBomNodes() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: {
+      versionId: string;
+      updates: { id: string; position: number }[];
+    }) => {
+      for (const u of args.updates) {
+        const { error } = await sb.rpc('bom_update_node', {
+          p_node_id: u.id,
+          p_name: null,
+          p_quantity: null,
+          p_notes: null,
+          p_position: u.position,
+          p_clear_notes: false,
+          p_material_id: null,
+          p_clear_name: false,
+        });
+        if (error) throw error;
+      }
+    },
+    onMutate: async (args) => {
+      const key = ['bom-nodes', args.versionId];
+      await qc.cancelQueries({ queryKey: key });
+      const previous = qc.getQueryData<BomNode[]>(key);
+      const posById = new Map(args.updates.map((u) => [u.id, u.position]));
+      qc.setQueryData<BomNode[]>(key, (old) =>
+        old?.map((n) => (posById.has(n.id) ? { ...n, position: posById.get(n.id)! } : n)),
+      );
+      return { previous, key };
+    },
+    onError: (_err, _args, ctx) => {
+      if (ctx?.previous !== undefined) qc.setQueryData(ctx.key, ctx.previous);
+    },
+    onSettled: (_d, _e, args) => {
+      qc.invalidateQueries({ queryKey: ['bom-nodes', args.versionId] });
+    },
+  });
+}
+
 export function useDuplicateBomSubtree() {
   const qc = useQueryClient();
   return useMutation({

@@ -2,12 +2,19 @@ import { useMemo, useState, useEffect } from 'react';
 import {
   DndContext,
   PointerSensor,
+  KeyboardSensor,
   useSensor,
   useSensors,
-  useDraggable,
-  useDroppable,
+  closestCenter,
   type DragEndEvent,
 } from '@dnd-kit/core';
+import {
+  SortableContext,
+  useSortable,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { ChevronDown, ChevronRight, MoreVertical, Package, FolderPlus, Edit3, Copy, Trash2, ArrowUp, ArrowDown, Check, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,8 +34,9 @@ import { toast } from 'sonner';
 import { useMaterials } from '@/hooks/useSupabaseData';
 import {
   buildBomTree, useAddBomNode, useBomNodes, useDuplicateBomSubtree, useMoveBomNode,
-  useRemoveBomSubtree, useUpdateBomNode,
+  useRemoveBomSubtree, useReorderBomNodes, useUpdateBomNode,
 } from '@/hooks/useBomTree';
+import { reorderPositionUpdates, shiftPositionUpdates } from '@/lib/bomReorder';
 import type { BomTreeNode } from '@/types/bom';
 import { BomNodeIcon, bomNodeTypeLabel } from './BomNodeIcon';
 import { CreateConjuntoDialog } from './CreateConjuntoDialog';
@@ -68,6 +76,21 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
   const { data: categorias = [] } = useCategorias();
   const tree = useMemo(() => buildBomTree(nodes), [nodes]);
   const move = useMoveBomNode();
+  const reorder = useReorderBomNodes();
+
+  /** Flat id → tree node lookup, rebuilt whenever the tree changes. */
+  const nodeMap = useMemo(() => {
+    const map = new Map<string, BomTreeNode>();
+    const walk = (n: BomTreeNode) => { map.set(n.id, n); n.children.forEach(walk); };
+    if (tree) walk(tree);
+    return map;
+  }, [tree]);
+
+  /** Assembly (non-ITEM) siblings of a node, in current position order. */
+  const assemblySiblingsOf = (node: BomTreeNode): BomTreeNode[] => {
+    const parent = node.parent_id ? nodeMap.get(node.parent_id) : null;
+    return (parent?.children ?? []).filter((c) => c.node_type !== 'ITEM');
+  };
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
@@ -154,7 +177,27 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
     return [...set];
   }, [categoriaOrder, tree, matById]);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  /** Persist a minimal batch of sibling position updates with rollback on error. */
+  const persistReorder = async (updates: { id: string; position: number }[]) => {
+    if (updates.length === 0) return;
+    try {
+      await reorder.mutateAsync({ versionId, updates });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Falha ao reordenar');
+    }
+  };
+
+  /** Keyboard fallback: move an assembly node one slot up (-1) or down (+1). */
+  const moveNodeByKeyboard = (node: BomTreeNode, direction: -1 | 1) => {
+    if (readOnly) return;
+    const siblings = assemblySiblingsOf(node).map((s) => ({ id: s.id, position: s.position }));
+    void persistReorder(shiftPositionUpdates(siblings, node.id, direction));
+  };
 
   const onDragEnd = async (e: DragEndEvent) => {
     if (!e.over || !e.active || readOnly) return;
@@ -162,12 +205,18 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
     const targetId = String(e.over.id);
     if (draggedId === targetId) return;
 
-    const map = new Map<string, BomTreeNode>();
-    const walk = (n: BomTreeNode) => { map.set(n.id, n); n.children.forEach(walk); };
-    if (tree) walk(tree);
-    const target = map.get(targetId);
-    const dragged = map.get(draggedId);
+    const dragged = nodeMap.get(draggedId);
+    const target = nodeMap.get(targetId);
     if (!target || !dragged) return;
+
+    // Same parent → reorder siblings (assembly nodes render in position order).
+    if (dragged.parent_id && dragged.parent_id === target.parent_id) {
+      const siblings = assemblySiblingsOf(dragged).map((s) => ({ id: s.id, position: s.position }));
+      await persistReorder(reorderPositionUpdates(siblings, draggedId, targetId));
+      return;
+    }
+
+    // Different parent → reparent the node into the target assembly.
     if (target.node_type === 'ITEM') {
       toast.error('Items não podem ter filhos'); return;
     }
@@ -255,37 +304,43 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
       </div>
 
       <TooltipProvider delayDuration={300}>
-      <DndContext sensors={sensors} onDragEnd={onDragEnd}>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <div className="border rounded-md p-2 bg-card">
           {hasContent ? (
             <>
-              {rootAssemblyChildren.map((c, i) => (
-                <NodeRow
-                  key={c.id}
-                  node={c}
-                  depth={0}
-                  expanded={expanded}
-                  setExpanded={setExpanded}
-                  matById={matById}
-                  materials={materials as MaterialLite[]}
-                  categoriaOrder={categoriaOrder}
-                  readOnly={readOnly}
-                  showCumulative={showCumulative}
-                  editingItems={editingItems}
-                  onToggleItemEdit={toggleItemEdit}
-                  onOpenItemEdit={openItemEdit}
-                  drafts={drafts}
-                  onAddDraft={addDraft}
-                  onRemoveDraft={removeDraft}
-                  onAdd={handleAdd}
-                  onEdit={(n) => setEditNode(n)}
-                  onDelete={(n) => setConfirmDelete(n)}
-                  visible={matchesSearch(c)}
-                  search={search}
-                  siblings={rootAssemblyChildren.length}
-                  siblingIndex={i}
-                />
-              ))}
+              <SortableContext
+                items={rootAssemblyChildren.map((c) => c.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {rootAssemblyChildren.map((c, i) => (
+                  <NodeRow
+                    key={c.id}
+                    node={c}
+                    depth={0}
+                    expanded={expanded}
+                    setExpanded={setExpanded}
+                    matById={matById}
+                    materials={materials as MaterialLite[]}
+                    categoriaOrder={categoriaOrder}
+                    readOnly={readOnly}
+                    showCumulative={showCumulative}
+                    editingItems={editingItems}
+                    onToggleItemEdit={toggleItemEdit}
+                    onOpenItemEdit={openItemEdit}
+                    drafts={drafts}
+                    onAddDraft={addDraft}
+                    onRemoveDraft={removeDraft}
+                    onAdd={handleAdd}
+                    onEdit={(n) => setEditNode(n)}
+                    onDelete={(n) => setConfirmDelete(n)}
+                    onMoveNode={moveNodeByKeyboard}
+                    visible={matchesSearch(c)}
+                    search={search}
+                    siblings={rootAssemblyChildren.length}
+                    siblingIndex={i}
+                  />
+                ))}
+              </SortableContext>
               {(rootItemChildren.length > 0 || rootDrafts.length > 0) && (
                 <ItemsByCategoryTable
                   parentId={tree.id}
@@ -357,6 +412,7 @@ interface RowProps {
   onAdd: (parentId: string, defaultTab: 'item' | 'subconjunto') => void;
   onEdit: (n: BomTreeNode) => void;
   onDelete: (n: BomTreeNode) => void;
+  onMoveNode: (node: BomTreeNode, direction: -1 | 1) => void;
   visible: boolean;
   search: string;
   siblings: number;
@@ -367,7 +423,8 @@ function NodeRow(props: RowProps) {
   const {
     node, depth, expanded, setExpanded, matById, materials, categoriaOrder,
     readOnly, showCumulative, editingItems, onToggleItemEdit, onOpenItemEdit,
-    drafts, onAddDraft, onRemoveDraft, onAdd, onEdit, onDelete, search,
+    drafts, onAddDraft, onRemoveDraft, onAdd, onEdit, onDelete, onMoveNode, search,
+    siblings, siblingIndex,
   } = props;
   const isOpen = expanded.has(node.id) || (search.trim().length > 0);
   const hasChildren = node.children.length > 0;
@@ -382,11 +439,17 @@ function NodeRow(props: RowProps) {
     [node.children],
   );
 
-  const update = useUpdateBomNode();
   const duplicate = useDuplicateBomSubtree();
 
-  const droppable = useDroppable({ id: node.id, disabled: readOnly || isItem });
-  const draggable = useDraggable({ id: node.id, disabled: readOnly || isConjunto });
+  const {
+    attributes, listeners, setNodeRef, setActivatorNodeRef,
+    transform, transition, isDragging, isOver,
+  } = useSortable({ id: node.id, disabled: readOnly || isConjunto });
+  const sortableStyle: React.CSSProperties = {
+    transform: CSS.Translate.toString(transform),
+    transition,
+  };
+  const canReorder = !readOnly && !isConjunto;
 
   const material = node.material_id ? matById.get(node.material_id) : null;
   const displayName = isItem
@@ -402,25 +465,15 @@ function NodeRow(props: RowProps) {
     return next;
   });
 
-  const moveSibling = async (delta: -1 | 1) => {
-    try {
-      await update.mutateAsync({
-        versionId: node.version_id,
-        nodeId: node.id,
-        position: node.position + delta,
-      });
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Falha ao mover');
-    }
-  };
-
   return (
-    <div ref={droppable.setNodeRef} className={droppable.isOver ? 'rounded-none bg-primary/10' : ''}>
+    <div
+      ref={setNodeRef}
+      style={sortableStyle}
+      className={`${isOver ? 'rounded-none bg-primary/10' : ''} ${isDragging ? 'opacity-60' : ''}`}
+    >
       <div
         className="group flex items-center gap-1 py-1.5 px-1 rounded-none hover:bg-muted/40"
         style={{ paddingLeft: `${depth * 18 + 4}px` }}
-        ref={draggable.setNodeRef}
-        {...draggable.attributes}
         onClick={hasChildren ? toggle : undefined}
       >
         {hasChildren ? (
@@ -431,12 +484,23 @@ function NodeRow(props: RowProps) {
           <span className="inline-block w-[18px]" />
         )}
 
-        <span
-          className={readOnly || isConjunto ? '' : 'cursor-grab'}
-          {...(!readOnly && !isConjunto ? draggable.listeners : {})}
-        >
-          <BomNodeIcon type={node.node_type} />
-        </span>
+        {canReorder ? (
+          <button
+            type="button"
+            ref={setActivatorNodeRef}
+            className="cursor-grab touch-none rounded-sm p-0.5 focus:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            aria-label={`Reordenar ${displayName} (${siblingIndex + 1} de ${siblings}). Espaço para pegar, setas para mover.`}
+            onClick={(e) => e.stopPropagation()}
+            {...attributes}
+            {...listeners}
+          >
+            <BomNodeIcon type={node.node_type} />
+          </button>
+        ) : (
+          <span>
+            <BomNodeIcon type={node.node_type} />
+          </span>
+        )}
 
         <Tooltip>
           <TooltipTrigger asChild>
@@ -517,10 +581,16 @@ function NodeRow(props: RowProps) {
                 </DropdownMenuItem>
                 {!isConjunto && (
                   <>
-                    <DropdownMenuItem onClick={() => moveSibling(-1)}>
+                    <DropdownMenuItem
+                      disabled={siblingIndex === 0}
+                      onClick={() => onMoveNode(node, -1)}
+                    >
                       <ArrowUp className="h-3.5 w-3.5 mr-2" /> Mover para cima
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => moveSibling(1)}>
+                    <DropdownMenuItem
+                      disabled={siblingIndex >= siblings - 1}
+                      onClick={() => onMoveNode(node, 1)}
+                    >
                       <ArrowDown className="h-3.5 w-3.5 mr-2" /> Mover para baixo
                     </DropdownMenuItem>
                     <DropdownMenuItem
@@ -554,33 +624,39 @@ function NodeRow(props: RowProps) {
             style={{ left: `${depth * 18 + 13}px` }}
             aria-hidden="true"
           />
-          {assemblyChildren.map((c, i) => (
-            <NodeRow
-              key={c.id}
-              node={c}
-              depth={depth + 1}
-              expanded={expanded}
-              setExpanded={setExpanded}
-              matById={matById}
-              materials={materials}
-              categoriaOrder={categoriaOrder}
-              readOnly={readOnly}
-              showCumulative={showCumulative}
-              editingItems={editingItems}
-              onToggleItemEdit={onToggleItemEdit}
-              onOpenItemEdit={onOpenItemEdit}
-              drafts={drafts}
-              onAddDraft={onAddDraft}
-              onRemoveDraft={onRemoveDraft}
-              onAdd={onAdd}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              visible
-              search={search}
-              siblings={assemblyChildren.length}
-              siblingIndex={i}
-            />
-          ))}
+          <SortableContext
+            items={assemblyChildren.map((c) => c.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {assemblyChildren.map((c, i) => (
+              <NodeRow
+                key={c.id}
+                node={c}
+                depth={depth + 1}
+                expanded={expanded}
+                setExpanded={setExpanded}
+                matById={matById}
+                materials={materials}
+                categoriaOrder={categoriaOrder}
+                readOnly={readOnly}
+                showCumulative={showCumulative}
+                editingItems={editingItems}
+                onToggleItemEdit={onToggleItemEdit}
+                onOpenItemEdit={onOpenItemEdit}
+                drafts={drafts}
+                onAddDraft={onAddDraft}
+                onRemoveDraft={onRemoveDraft}
+                onAdd={onAdd}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                onMoveNode={onMoveNode}
+                visible
+                search={search}
+                siblings={assemblyChildren.length}
+                siblingIndex={i}
+              />
+            ))}
+          </SortableContext>
           {!isItem && (itemChildren.length > 0 || (drafts[node.id]?.length ?? 0) > 0) && (
             <ItemsByCategoryTable
               parentId={node.id}
