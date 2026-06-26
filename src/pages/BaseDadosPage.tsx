@@ -2575,7 +2575,7 @@ export default function BaseDadosPage() {
                     </div>
                     {canModifyBaseDados && (
                       <div role="cell" className="flex justify-end gap-1 py-1.5">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(m)}>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(m)} aria-label="Editar item">
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
                         <AlertDialog>
@@ -2584,6 +2584,7 @@ export default function BaseDadosPage() {
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7 text-destructive hover:text-destructive"
+                              aria-label="Excluir item"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>

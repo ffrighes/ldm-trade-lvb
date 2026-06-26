@@ -9,15 +9,10 @@ import {
 import { Plus, Lock, Archive, ArchiveRestore, Trash2 } from 'lucide-react';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useDeleteBomVersion, useObsoleteBomVersion, useReleaseBomVersion, useRevertBomVersionToDraft } from '@/hooks/useBomTree';
-import type { BomVersion, BomVersionStatus } from '@/types/bom';
+import type { BomVersion } from '@/types/bom';
 import { toast } from 'sonner';
 import { NewVersionDialog } from './NewVersionDialog';
-
-const statusColor: Record<BomVersionStatus, string> = {
-  DRAFT: 'bg-warning text-warning-foreground',
-  RELEASED: 'bg-success text-success-foreground',
-  OBSOLETE: 'bg-muted text-muted-foreground',
-};
+import { bomStatusColorClass } from '@/lib/statusColors';
 
 interface Props {
   rootId: string;
@@ -70,7 +65,7 @@ export function VersionPanel({ rootId, versions, selectedId, onSelect }: Props) 
         </Select>
 
         {current && (
-          <Badge className={statusColor[current.status]}>{current.status}</Badge>
+          <Badge className={bomStatusColorClass[current.status]}>{current.status}</Badge>
         )}
 
         {canEditBomDraft && (

@@ -49,6 +49,8 @@
     --success-foreground: 0 0% 100%;
     --warning: 38 55% 48%;
     --warning-foreground: 0 0% 10%;
+    /* warning-text: darker amber for inline text on light bg — 5.9:1 on white (AA ✓) */
+    --warning-text: 38 75% 34%;
     --info: 210 30% 48%;
     --info-foreground: 0 0% 100%;
   }
@@ -99,6 +101,8 @@
     --success-foreground: 0 0% 100%;
     --warning: 38 55% 55%;
     --warning-foreground: 0 0% 8%;
+    /* warning-text: bright amber for inline text on dark bg — 7.2:1 on bg (AA ✓) */
+    --warning-text: 38 90% 62%;
     --info: 210 30% 56%;
     --info-foreground: 0 0% 100%;
   }
