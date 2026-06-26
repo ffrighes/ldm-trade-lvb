@@ -436,19 +436,23 @@ function NodeRow(props: RowProps) {
           <TooltipTrigger asChild>
             <span
               tabIndex={0}
-              className={`flex min-w-0 flex-1 items-center focus:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-sm cursor-default ${isConjunto ? 'font-semibold' : 'font-medium'}`}
+              className={`flex min-w-0 flex-1 items-center gap-1.5 focus:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-sm cursor-default ${isConjunto ? 'font-semibold' : 'font-medium'}`}
             >
               {(() => {
                 const sep = ' — ';
                 const sepIdx = isItem ? displayName.lastIndexOf(sep) : -1;
-                return sepIdx >= 0 ? (
-                  <>
-                    <span className="truncate">{displayName.slice(0, sepIdx)}</span>
-                    <span className="shrink-0">{displayName.slice(sepIdx)}</span>
-                  </>
-                ) : (
-                  <span className="truncate">{displayName}</span>
-                );
+                if (sepIdx >= 0) {
+                  const spec = displayName.slice(sepIdx + sep.length);
+                  return (
+                    <>
+                      <span className="truncate">{displayName.slice(0, sepIdx)}</span>
+                      <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                        {spec}
+                      </span>
+                    </>
+                  );
+                }
+                return <span className="truncate">{displayName}</span>;
               })()}
             </span>
           </TooltipTrigger>
@@ -734,10 +738,10 @@ function ItemsByCategoryTable({
               <thead>
                 <tr className="border-b text-left text-xs font-normal text-muted-foreground">
                   <th className="py-2 px-2 font-normal w-10">#</th>
-                  <th className="py-2 px-2 font-normal">TAG</th>
+                  <th className="py-2 px-2 font-mono font-normal">TAG</th>
                   <th className="py-2 px-2 font-normal">Descrição</th>
-                  <th className="py-2 px-2 font-normal">Bitola</th>
-                  <th className="py-2 px-2 font-normal">ERP</th>
+                  <th className="py-2 px-2 font-mono font-normal">Bitola</th>
+                  <th className="py-2 px-2 font-mono font-normal">ERP</th>
                   <th className="py-2 px-2 font-normal text-right">Qtd</th>
                   <th className="py-2 px-2 font-normal">Un.</th>
                   <th className="py-2 px-2 font-normal">Notas</th>
@@ -791,12 +795,12 @@ function ItemsByCategoryTable({
                     return (
                       <tr key={it.id} className="border-b hover:bg-muted/30">
                         <td className="py-2 px-2 align-middle">{startIndex + idx + 1}</td>
-                        <td className="py-2 px-2 align-middle">{tag}</td>
+                        <td className="py-2 px-2 align-middle font-mono text-xs text-muted-foreground">{tag}</td>
                         <td className="py-2 px-2 align-middle max-w-[20rem]">
                           <span className="block truncate" title={descricao}>{descricao}</span>
                         </td>
-                        <td className="py-2 px-2 align-middle">{bitola}</td>
-                        <td className="py-2 px-2 align-middle">{erp}</td>
+                        <td className="py-2 px-2 align-middle font-mono text-xs text-muted-foreground">{bitola}</td>
+                        <td className="py-2 px-2 align-middle font-mono text-xs text-muted-foreground">{erp}</td>
                         <td className="py-2 px-2 align-middle text-right tabular-nums">{qty}</td>
                         <td className="py-2 px-2 align-middle">{unidade}</td>
                         <td className="py-2 px-2 align-middle max-w-[14rem]">
