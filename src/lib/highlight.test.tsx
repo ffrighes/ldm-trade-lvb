@@ -37,4 +37,19 @@ describe('highlightMatch', () => {
     expect(mark?.textContent).toBe('Conexão');
     expect(container.textContent).toBe('Conexão');
   });
+
+  it('matches "borboleta" against "Borboleta" (BomTree acceptance criterion)', () => {
+    const { container } = render(<>{highlightMatch('Borboleta 1/2"', 'borboleta')}</>);
+    const mark = container.querySelector('mark');
+    expect(mark).not.toBeNull();
+    expect(mark?.textContent).toBe('Borboleta');
+    expect(container.textContent).toBe('Borboleta 1/2"');
+  });
+
+  it('highlights mid-word accent match and preserves surrounding text', () => {
+    const { container } = render(<>{highlightMatch('Válvula de esfera', 'valvula de')}</>);
+    const mark = container.querySelector('mark');
+    expect(mark?.textContent).toBe('Válvula de');
+    expect(container.textContent).toBe('Válvula de esfera');
+  });
 });
