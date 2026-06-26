@@ -436,7 +436,7 @@ function NodeRow(props: RowProps) {
           <TooltipTrigger asChild>
             <span
               tabIndex={0}
-              className="font-medium flex min-w-0 flex-1 items-center focus:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-sm cursor-default"
+              className={`flex min-w-0 flex-1 items-center focus:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-sm cursor-default ${isConjunto ? 'font-semibold' : 'font-medium'}`}
             >
               {(() => {
                 const sep = ' — ';
@@ -464,7 +464,7 @@ function NodeRow(props: RowProps) {
           </Badge>
         )}
 
-        <Badge variant="secondary" className="ml-1 text-[10px]">
+        <Badge variant={isConjunto ? 'default' : 'outline'} className="ml-1 text-[10px]">
           {bomNodeTypeLabel(node.node_type)}
         </Badge>
 
@@ -537,7 +537,12 @@ function NodeRow(props: RowProps) {
       </div>
 
       {isOpen && (hasChildren || (!isItem && (drafts[node.id]?.length ?? 0) > 0)) && (
-        <div>
+        <div className="relative">
+          <div
+            className="absolute top-0 bottom-0 border-l border-muted/40 pointer-events-none"
+            style={{ left: `${depth * 18 + 13}px` }}
+            aria-hidden="true"
+          />
           {assemblyChildren.map((c, i) => (
             <NodeRow
               key={c.id}
