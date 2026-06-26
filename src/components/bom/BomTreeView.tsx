@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
@@ -47,6 +48,7 @@ import { normalizeForSearch } from '@/lib/normalizeSearch';
 import { highlightMatch } from '@/lib/highlight';
 import { useCategorias } from '@/hooks/useCategorias';
 import { computeBomNodeDisplay } from '@/lib/bomDisplayCount';
+import { BomBatchActions, type MoveTarget } from './BomBatchActions';
 
 type DraftEntry = { id: string; categoria: string };
 
@@ -103,6 +105,53 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
     collect(tree);
     setExpanded(ids);
   }, [tree?.id]);
+
+  // ------- multi-selection + batch actions -------
+  const selectable = !readOnly;
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const toggleSelect = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  const clearSelection = () => setSelected(new Set());
+
+  // Drop the selection when the version changes or editing is disabled.
+  useEffect(() => { setSelected(new Set()); }, [tree?.id, versionId]);
+  useEffect(() => { if (readOnly) setSelected(new Set()); }, [readOnly]);
+
+  /** Selected ids in tree (pre-order) sequence, excluding ids no longer present. */
+  const selectedIds = useMemo(() => {
+    const out: string[] = [];
+    const walk = (n: BomTreeNode) => {
+      if (selected.has(n.id)) out.push(n.id);
+      n.children.forEach(walk);
+    };
+    if (tree) walk(tree);
+    return out;
+  }, [selected, tree]);
+
+  /** Ids covered by the selection (each selected node plus its whole subtree). */
+  const selectionCover = useMemo(() => {
+    const cover = new Set<string>();
+    const collect = (n: BomTreeNode) => { cover.add(n.id); n.children.forEach(collect); };
+    for (const id of selected) { const n = nodeMap.get(id); if (n) collect(n); }
+    return cover;
+  }, [selected, nodeMap]);
+
+  /** Assemblies eligible as a move destination (not inside the selection). */
+  const moveTargets = useMemo(() => {
+    const out: MoveTarget[] = [];
+    const walk = (n: BomTreeNode, depth: number) => {
+      if (n.node_type === 'ITEM') return;
+      if (selectionCover.has(n.id)) return; // would move a node into its own subtree
+      out.push({ id: n.id, label: n.name ?? '(sem nome)', depth });
+      n.children.forEach((c) => walk(c, depth + 1));
+    };
+    if (tree) walk(tree, 0);
+    return out;
+  }, [tree, selectionCover]);
 
   const [showCumulative, setShowCumulative] = useState(false);
   const [openChildConjunto, setOpenChildConjunto] = useState(false);
@@ -303,6 +352,15 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
         </div>
       </div>
 
+      {selectable && (
+        <BomBatchActions
+          versionId={versionId}
+          selectedIds={selectedIds}
+          moveTargets={moveTargets}
+          onClear={clearSelection}
+        />
+      )}
+
       <TooltipProvider delayDuration={300}>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <div className="border rounded-md p-2 bg-card">
@@ -338,6 +396,9 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
                     search={search}
                     siblings={rootAssemblyChildren.length}
                     siblingIndex={i}
+                    selectable={selectable}
+                    selected={selected}
+                    onToggleSelect={toggleSelect}
                   />
                 ))}
               </SortableContext>
@@ -360,6 +421,9 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
                   onRemoveDraft={removeDraft}
                   onDelete={(n) => setConfirmDelete(n)}
                   search={search}
+                  selectable={selectable}
+                  selected={selected}
+                  onToggleSelect={toggleSelect}
                 />
               )}
             </>
@@ -417,6 +481,9 @@ interface RowProps {
   search: string;
   siblings: number;
   siblingIndex: number;
+  selectable: boolean;
+  selected: Set<string>;
+  onToggleSelect: (id: string) => void;
 }
 
 function NodeRow(props: RowProps) {
@@ -424,7 +491,7 @@ function NodeRow(props: RowProps) {
     node, depth, expanded, setExpanded, matById, materials, categoriaOrder,
     readOnly, showCumulative, editingItems, onToggleItemEdit, onOpenItemEdit,
     drafts, onAddDraft, onRemoveDraft, onAdd, onEdit, onDelete, onMoveNode, search,
-    siblings, siblingIndex,
+    siblings, siblingIndex, selectable, selected, onToggleSelect,
   } = props;
   const isOpen = expanded.has(node.id) || (search.trim().length > 0);
   const hasChildren = node.children.length > 0;
@@ -476,6 +543,15 @@ function NodeRow(props: RowProps) {
         style={{ paddingLeft: `${depth * 18 + 4}px` }}
         onClick={hasChildren ? toggle : undefined}
       >
+        {selectable && (
+          <span onClick={(e) => e.stopPropagation()} className="flex items-center pr-0.5">
+            <Checkbox
+              checked={selected.has(node.id)}
+              onCheckedChange={() => onToggleSelect(node.id)}
+              aria-label={`Selecionar ${displayName}`}
+            />
+          </span>
+        )}
         {hasChildren ? (
           <button onClick={(e) => { e.stopPropagation(); toggle(); }} className="p-0.5 hover:bg-muted rounded-none" aria-label="Expandir">
             {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
@@ -654,6 +730,9 @@ function NodeRow(props: RowProps) {
                 search={search}
                 siblings={assemblyChildren.length}
                 siblingIndex={i}
+                selectable={selectable}
+                selected={selected}
+                onToggleSelect={onToggleSelect}
               />
             ))}
           </SortableContext>
@@ -676,6 +755,9 @@ function NodeRow(props: RowProps) {
               onRemoveDraft={onRemoveDraft}
               onDelete={onDelete}
               search={search}
+              selectable={selectable}
+              selected={selected}
+              onToggleSelect={onToggleSelect}
             />
           )}
         </div>
@@ -702,6 +784,9 @@ interface ItemsTableProps {
   onRemoveDraft: (parentId: string, draftId: string) => void;
   onDelete: (n: BomTreeNode) => void;
   search?: string;
+  selectable: boolean;
+  selected: Set<string>;
+  onToggleSelect: (id: string) => void;
 }
 
 function parseBitolaValue(b: string): number {
@@ -723,7 +808,7 @@ function parseBitolaValue(b: string): number {
 function ItemsByCategoryTable({
   parentId, versionId, items, drafts, depth, matById, materials, categoriaOrder,
   readOnly, showCumulative, editingItems, onToggleItemEdit, onOpenItemEdit, onAddDraft, onRemoveDraft, onDelete,
-  search = '',
+  search = '', selectable, selected, onToggleSelect,
 }: ItemsTableProps) {
   const duplicate = useDuplicateBomSubtree();
 
@@ -786,7 +871,7 @@ function ItemsByCategoryTable({
     return map;
   }, [grouped]);
 
-  const colCount = readOnly ? 8 : 9;
+  const colCount = 8 + (readOnly ? 0 : 1) + (selectable ? 1 : 0);
 
   return (
     <div style={{ paddingLeft: `${depth * 18 + 4}px` }} className="space-y-3 py-2">
@@ -823,6 +908,7 @@ function ItemsByCategoryTable({
             <table className="w-full text-sm border-collapse">
               <thead>
                 <tr className="border-b text-left text-xs font-normal text-muted-foreground">
+                  {selectable && <th className="py-2 px-2 font-normal w-8" aria-label="Selecionar"></th>}
                   <th className="py-2 px-2 font-normal w-10">#</th>
                   <th className="py-2 px-2 font-mono font-normal">TAG</th>
                   <th className="py-2 px-2 font-normal">Descrição</th>
@@ -880,6 +966,15 @@ function ItemsByCategoryTable({
                   if (!isEditing) {
                     return (
                       <tr key={it.id} className="border-b hover:bg-muted/30">
+                        {selectable && (
+                          <td className="py-2 px-2 align-middle">
+                            <Checkbox
+                              checked={selected.has(it.id)}
+                              onCheckedChange={() => onToggleSelect(it.id)}
+                              aria-label={`Selecionar ${descricao}`}
+                            />
+                          </td>
+                        )}
                         <td className="py-2 px-2 align-middle">{startIndex + idx + 1}</td>
                         <td className="py-2 px-2 align-middle font-mono text-xs text-muted-foreground">{highlightMatch(tag, search)}</td>
                         <td className="py-2 px-2 align-middle max-w-[20rem]">
