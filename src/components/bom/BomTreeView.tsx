@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -248,6 +249,7 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
         </div>
       </div>
 
+      <TooltipProvider delayDuration={300}>
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
         <div className="border rounded-md p-2 bg-card">
           {hasContent ? (
@@ -307,6 +309,7 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
           )}
         </div>
       </DndContext>
+      </TooltipProvider>
 
       <CreateConjuntoDialog
         open={openChildConjunto}
@@ -429,7 +432,30 @@ function NodeRow(props: RowProps) {
           <BomNodeIcon type={node.node_type} />
         </span>
 
-        <span className="font-medium truncate" title={displayName}>{displayName}</span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span
+              tabIndex={0}
+              className="font-medium flex min-w-0 flex-1 items-center focus:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-sm cursor-default"
+            >
+              {(() => {
+                const sep = ' — ';
+                const sepIdx = isItem ? displayName.lastIndexOf(sep) : -1;
+                return sepIdx >= 0 ? (
+                  <>
+                    <span className="truncate">{displayName.slice(0, sepIdx)}</span>
+                    <span className="shrink-0">{displayName.slice(sepIdx)}</span>
+                  </>
+                ) : (
+                  <span className="truncate">{displayName}</span>
+                );
+              })()}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-xs break-words">
+            {displayName}
+          </TooltipContent>
+        </Tooltip>
 
         {!isConjunto && qty != null && (
           <Badge variant="outline" className="ml-2 font-mono text-xs"
