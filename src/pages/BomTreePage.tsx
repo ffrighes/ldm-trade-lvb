@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Plus, Copy, CopyPlus, FileText, FileSpreadsheet, Star, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Copy, CopyPlus, FileText, FileSpreadsheet, Star, Trash2, MoreVertical, Pencil, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,9 +10,11 @@ import {
   useBomRoots, useBomVersions, useBomNodes, buildBomTree,
   useBomRootUsages, useAddChildUsage, useRemoveChildUsage,
   useStandardCatalog, useSetBomRootQuantityOptimistic, useSetChildUsageQuantity,
+  useUpdateBomRoot,
 } from '@/hooks/useBomTree';
 import { usePermissions } from '@/hooks/usePermissions';
 import { CreateConjuntoDialog } from '@/components/bom/CreateConjuntoDialog';
+import { EditConjuntoDialog } from '@/components/bom/EditConjuntoDialog';
 import { CloneFromProjectDialog } from '@/components/bom/CloneFromProjectDialog';
 import { CopyConjuntoDialog } from '@/components/bom/CopyConjuntoDialog';
 import { ExportXlsxDialog } from '@/components/bom/ExportXlsxDialog';
@@ -31,6 +33,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { exportConjuntoXlsx } from '@/lib/exportConjuntoXlsx';
@@ -58,6 +77,9 @@ export default function BomTreePage() {
   const [openCatalog, setOpenCatalog] = useState(false);
   const [exportPdfDialogOpen, setExportPdfDialogOpen] = useState(false);
   const [includeDirectItems, setIncludeDirectItems] = useState(false);
+  const [editChildId, setEditChildId] = useState<string | null>(null);
+  const [detachChildId, setDetachChildId] = useState<string | null>(null);
+  const [removeUsageId, setRemoveUsageId] = useState<string | null>(null);
   const [xlsxDialogOpen, setXlsxDialogOpen] = useState(false);
   const [xlsxDialogData, setXlsxDialogData] = useState<{
     tree: BomTreeNode;
@@ -220,6 +242,9 @@ export default function BomTreePage() {
   const removeChildUsage = useRemoveChildUsage();
   const setChildRootQty = useSetBomRootQuantityOptimistic();
   const setChildUsageQty = useSetChildUsageQuantity();
+  const detachChild = useUpdateBomRoot();
+  const { data: editChildVersions = [] } = useBomVersions(editChildId ?? undefined);
+  const editChildHasDraft = editChildVersions.some((v) => v.status === 'DRAFT');
 
   // Inline quantity editing is blocked without edit permission or on an
   // OBSOLETE Conjunto (its version was retired and must not be restructured).
@@ -458,7 +483,7 @@ export default function BomTreePage() {
                   const suffix = extractSuffix(child.name, childListPrefix);
                   const hasSuffix = childListPrefix && suffix !== child.name;
                   return (
-                    <li key={child.id} className="flex items-center gap-2">
+                    <li key={child.id} className="flex items-center gap-2 group">
                       <button
                         type="button"
                         onClick={() => setSelection(child.id, undefined)}
@@ -490,6 +515,43 @@ export default function BomTreePage() {
                           }
                         />
                       )}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+                            onClick={(e) => e.stopPropagation()}
+                            aria-label={`Ações para ${child.codigo}`}
+                          >
+                            <MoreVertical className="h-3.5 w-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenuItem onClick={() => setSelection(child.id, undefined)}>
+                            <ExternalLink className="h-3.5 w-3.5 mr-2" />
+                            Abrir
+                          </DropdownMenuItem>
+                          {canEditBomDraft && (
+                            <DropdownMenuItem onClick={() => setEditChildId(child.id)}>
+                              <Pencil className="h-3.5 w-3.5 mr-2" />
+                              Editar
+                            </DropdownMenuItem>
+                          )}
+                          {canEditBomDraft && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => setDetachChildId(child.id)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5 mr-2" />
+                                Remover
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </li>
                   );
                 })}
@@ -499,7 +561,7 @@ export default function BomTreePage() {
                   const suffix = extractSuffix(child.name, childListPrefix);
                   const hasSuffix = childListPrefix && suffix !== child.name;
                   return (
-                    <li key={edge.id} className="flex items-center gap-2">
+                    <li key={edge.id} className="flex items-center gap-2 group">
                       <button
                         type="button"
                         className="flex-1 min-w-0 text-left px-3 py-2 rounded-md border bg-card/40 opacity-70 hover:opacity-100 hover:bg-muted transition-all flex items-center gap-3"
@@ -533,17 +595,28 @@ export default function BomTreePage() {
                         }
                       />
                       {canEditBomDraft && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-                          title="Remover referência do catálogo"
-                          onClick={() =>
-                            removeChildUsage.mutate({ usageId: edge.id, parentRootId: currentRoot.id })
-                          }
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+                              onClick={(e) => e.stopPropagation()}
+                              aria-label={`Ações para ${child.codigo}`}
+                            >
+                              <MoreVertical className="h-3.5 w-3.5" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => setRemoveUsageId(edge.id)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5 mr-2" />
+                              Remover referência
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       )}
                     </li>
                   );
@@ -605,6 +678,109 @@ export default function BomTreePage() {
           }}
         />
       )}
+
+      {/* Edit child conjunto dialog */}
+      {(() => {
+        const child = childRoots.find((c) => c.id === editChildId);
+        return (
+          <EditConjuntoDialog
+            open={!!editChildId}
+            onOpenChange={(o) => { if (!o) setEditChildId(null); }}
+            projectId={projetoId ?? ''}
+            rootId={editChildId}
+            codigo={child?.codigo ?? ''}
+            currentName={child?.name ?? ''}
+            currentParentId={child?.parent_id ?? null}
+            currentQuantityInParent={child?.quantity_in_parent ?? 1}
+            isDraft={editChildHasDraft}
+            allRoots={roots}
+          />
+        );
+      })()}
+
+      {/* Detach child root confirmation */}
+      {(() => {
+        const child = childRoots.find((c) => c.id === detachChildId);
+        return (
+          <AlertDialog
+            open={!!detachChildId}
+            onOpenChange={(o) => { if (!o) setDetachChildId(null); }}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Remover filho do Conjunto?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  O Conjunto <strong>{child?.codigo}</strong> será desvinculado deste pai e
+                  passará a ser um Conjunto raiz. Nenhum dado será excluído.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={async () => {
+                    if (!child || !projetoId) return;
+                    try {
+                      await detachChild.mutateAsync({
+                        rootId: child.id,
+                        projectId: projetoId,
+                        name: child.name,
+                        parentId: null,
+                      });
+                      toast.success(`${child.codigo} desvinculado`);
+                    } catch (e) {
+                      toast.error(e instanceof Error ? e.message : 'Erro ao remover');
+                    } finally {
+                      setDetachChildId(null);
+                    }
+                  }}
+                >
+                  Remover
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        );
+      })()}
+
+      {/* Remove catalog usage confirmation */}
+      {(() => {
+        const edge = usageEdges.find((e) => e.id === removeUsageId);
+        const child = edge ? catalogMap.get(edge.child_root_id) : undefined;
+        return (
+          <AlertDialog
+            open={!!removeUsageId}
+            onOpenChange={(o) => { if (!o) setRemoveUsageId(null); }}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Remover referência do catálogo?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  A referência ao template <strong>{child?.codigo}</strong> será removida deste
+                  Conjunto. O template não será excluído do catálogo.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => {
+                    if (!edge || !currentRoot) return;
+                    removeChildUsage.mutate(
+                      { usageId: edge.id, parentRootId: currentRoot.id },
+                      {
+                        onError: (err) =>
+                          toast.error('Erro ao remover: ' + (err instanceof Error ? err.message : String(err))),
+                      },
+                    );
+                    setRemoveUsageId(null);
+                  }}
+                >
+                  Remover
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        );
+      })()}
 
       <Dialog open={exportPdfDialogOpen} onOpenChange={setExportPdfDialogOpen}>
         <DialogContent className="sm:max-w-md">
