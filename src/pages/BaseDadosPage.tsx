@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, ChevronUp, Upload, Download, PlusCircle, FolderPen, Tags, X, AlertTriangle, Info, Database, Copy, ArrowRight } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, ChevronUp, Upload, Download, PlusCircle, FolderPen, Tags, X, AlertTriangle, Info, Database, Copy, ArrowRight, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -45,6 +45,7 @@ import { useCategorias, useAddCategoria, useDeleteCategoria, useRenameCategoria 
 import { useFornecedores } from "@/hooks/useFornecedores";
 import { FornecedorPicker } from "@/components/orcamentos/FornecedorPicker";
 import { useBaseDadosUiState } from "@/hooks/useBaseDadosUiState";
+import { findDuplicateMaterial } from "@/lib/materialDuplicate";
 import { Badge } from "@/components/ui/badge";
 import { useVirtualizer, defaultRangeExtractor } from "@tanstack/react-virtual";
 import * as XLSX from "xlsx";
@@ -278,7 +279,11 @@ export default function BaseDadosPage() {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ descricao: "", bitola: "", unidade: "m", erp: "", custo: "", notas: "", categoria: "", fornecedor_id: null as string | null });
-  const [custoInvalid, setCustoInvalid] = useState(false);
+  const [errors, setErrors] = useState<{ descricao?: string; bitola?: string; custo?: string }>({});
+  const [touched, setTouched] = useState<{ descricao?: boolean; bitola?: boolean; custo?: boolean }>({});
+  const descricaoInputRef = useRef<HTMLInputElement>(null);
+  const bitolaInputRef = useRef<HTMLInputElement>(null);
+  const custoInputRef = useRef<HTMLInputElement>(null);
   const [newFamilyCategoria, setNewFamilyCategoria] = useState<string>("");
   const [editingFamilyCategoria, setEditingFamilyCategoria] = useState<string>("");
   const [importing, setImporting] = useState(false);
@@ -960,44 +965,54 @@ export default function BaseDadosPage() {
     ? "grid grid-cols-[2.5rem_2rem_minmax(0,1fr)_4rem_11rem_7rem_minmax(0,1.6fr)_7rem]"
     : "grid grid-cols-[2rem_minmax(0,1fr)_4rem_11rem_7rem_minmax(0,1.6fr)]";
 
+  const computeFormErrors = (f: typeof form): { descricao?: string; bitola?: string; custo?: string } => {
+    const next: { descricao?: string; bitola?: string; custo?: string } = {};
+    if (!f.descricao.trim()) next.descricao = "Informe a descrição (família)";
+    if (!f.bitola.trim()) {
+      next.bitola = "Informe a bitola";
+    } else if (findDuplicateMaterial(materials, f.descricao, f.bitola, editingId)) {
+      next.bitola = `Já existe um item ${f.bitola.trim()} nesta família`;
+    }
+    const custoTrimmed = f.custo.trim();
+    if (custoTrimmed !== "" && parseBRLInput(custoTrimmed) === null) {
+      next.custo = "Valor de custo inválido";
+    }
+    return next;
+  };
+
   const handleSave = async () => {
-    const custoRaw = form.custo.trim();
-    const custo = custoRaw === "" ? 0 : parseBRLInput(custoRaw);
-    if (custo === null) {
-      setCustoInvalid(true);
-      toast.error("Valor de custo inválido");
+    const formErrors = computeFormErrors(form);
+    setErrors(formErrors);
+    setTouched({ descricao: true, bitola: true, custo: true });
+
+    if (formErrors.descricao) {
+      descricaoInputRef.current?.focus();
       return;
     }
-    if (!form.descricao.trim() || !form.bitola.trim()) {
-      toast.error("Preencha todos os campos obrigatórios");
+    if (formErrors.bitola) {
+      bitolaInputRef.current?.focus();
+      return;
+    }
+    if (formErrors.custo) {
+      custoInputRef.current?.focus();
       return;
     }
 
-    // Duplicate detection before persisting
+    const custoRaw = form.custo.trim();
+    const custo = custoRaw === "" ? 0 : (parseBRLInput(custoRaw) as number);
+
+    // Checagem de duplicidade de ERP (condição separada da chave família+bitola)
     const normalizeErp = (s: string) => s.replace(/\s+/g, "").toLowerCase();
     const erpInput = normalizeErp(form.erp.trim());
-    const descInput = form.descricao.trim().toLowerCase();
-    const bitolaInput = form.bitola.trim().toLowerCase();
-
-    for (const m of materials) {
-      if (m.id === editingId) continue; // skip self when editing
-
-      if (erpInput) {
+    if (erpInput) {
+      const erpConflict = materials.find((m) => {
+        if (m.id === editingId) return false;
         const existingErp = normalizeErp(((m as any).erp ?? "").toString());
-        if (existingErp && existingErp === erpInput) {
-          toast.error(
-            `ERP "${form.erp.trim()}" já está cadastrado em "${m.descricao} — ${m.bitola}". Corrija o código antes de salvar.`,
-          );
-          return;
-        }
-      }
-
-      if (
-        m.descricao.trim().toLowerCase() === descInput &&
-        m.bitola.trim().toLowerCase() === bitolaInput
-      ) {
+        return existingErp && existingErp === erpInput;
+      });
+      if (erpConflict) {
         toast.error(
-          `A combinação família "${m.descricao}" + bitola "${m.bitola}" já existe na base. Edite o item existente.`,
+          `ERP "${form.erp.trim()}" já está cadastrado em "${erpConflict.descricao} — ${erpConflict.bitola}". Corrija o código antes de salvar.`,
         );
         return;
       }
@@ -1034,7 +1049,11 @@ export default function BaseDadosPage() {
       setOpen(false);
     } catch (e: any) {
       if (e.message?.includes("duplicate") || e.code === "23505") {
-        toast.error("Este item já existe na base");
+        setErrors((prev) => ({
+          ...prev,
+          bitola: `A combinação família "${form.descricao}" + bitola "${form.bitola}" já existe na base.`,
+        }));
+        bitolaInputRef.current?.focus();
       } else {
         toast.error("Erro ao salvar item");
       }
@@ -1053,7 +1072,8 @@ export default function BaseDadosPage() {
       categoria: (m as any).categoria || "",
       fornecedor_id: (m as any).fornecedor_id ?? null,
     });
-    setCustoInvalid(false);
+    setErrors({});
+    setTouched({});
     setOpen(true);
   };
 
@@ -1161,7 +1181,8 @@ export default function BaseDadosPage() {
       categoria: categoria ?? inheritedCategoria,
       fornecedor_id: null,
     });
-    setCustoInvalid(false);
+    setErrors({});
+    setTouched({});
     setOpen(true);
   };
 
@@ -1896,12 +1917,80 @@ export default function BaseDadosPage() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
-              <Label>Descrição (Família) *</Label>
-              <Input value={form.descricao} onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))} />
+              <Label htmlFor="material-descricao">Descrição (Família) *</Label>
+              <Input
+                id="material-descricao"
+                ref={descricaoInputRef}
+                value={form.descricao}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  const next = { ...form, descricao: value };
+                  setForm(next);
+                  if (touched.descricao || touched.bitola) {
+                    const fe = computeFormErrors(next);
+                    setErrors((prev) => ({
+                      ...prev,
+                      ...(touched.descricao ? { descricao: fe.descricao } : {}),
+                      ...(touched.bitola ? { bitola: fe.bitola } : {}),
+                    }));
+                  }
+                }}
+                onBlur={() => {
+                  setTouched((t) => ({ ...t, descricao: true }));
+                  const fe = computeFormErrors(form);
+                  setErrors((prev) => ({
+                    ...prev,
+                    descricao: fe.descricao,
+                    bitola: touched.bitola ? fe.bitola : prev.bitola,
+                  }));
+                }}
+                aria-invalid={!!errors.descricao}
+                aria-describedby={errors.descricao ? "material-descricao-error" : undefined}
+                className={cn(errors.descricao && "border-destructive focus-visible:ring-destructive")}
+              />
+              {errors.descricao && (
+                <p id="material-descricao-error" className="mt-1 text-sm text-destructive">
+                  {errors.descricao}
+                </p>
+              )}
             </div>
             <div>
-              <Label>Ø (Bitola) *</Label>
-              <Input value={form.bitola} onChange={(e) => setForm((f) => ({ ...f, bitola: e.target.value }))} />
+              <Label htmlFor="material-bitola">Ø (Bitola) *</Label>
+              <Input
+                id="material-bitola"
+                ref={bitolaInputRef}
+                value={form.bitola}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  const next = { ...form, bitola: value };
+                  setForm(next);
+                  if (touched.bitola || touched.descricao) {
+                    const fe = computeFormErrors(next);
+                    setErrors((prev) => ({
+                      ...prev,
+                      ...(touched.bitola ? { bitola: fe.bitola } : {}),
+                      ...(touched.descricao ? { descricao: fe.descricao } : {}),
+                    }));
+                  }
+                }}
+                onBlur={() => {
+                  setTouched((t) => ({ ...t, bitola: true }));
+                  const fe = computeFormErrors(form);
+                  setErrors((prev) => ({
+                    ...prev,
+                    bitola: fe.bitola,
+                    descricao: touched.descricao ? fe.descricao : prev.descricao,
+                  }));
+                }}
+                aria-invalid={!!errors.bitola}
+                aria-describedby={errors.bitola ? "material-bitola-error" : undefined}
+                className={cn(errors.bitola && "border-destructive focus-visible:ring-destructive")}
+              />
+              {errors.bitola && (
+                <p id="material-bitola-error" className="mt-1 text-sm text-destructive">
+                  {errors.bitola}
+                </p>
+              )}
             </div>
             {/* CORRIGIDO: grid-cols-5 para dar mais espaço ao campo ERP */}
             <div className="grid grid-cols-5 gap-4">
@@ -1933,32 +2022,39 @@ export default function BaseDadosPage() {
                     R$
                   </span>
                   <Input
+                    ref={custoInputRef}
                     value={form.custo}
                     onChange={(e) => {
                       setForm((f) => ({ ...f, custo: e.target.value }));
-                      if (custoInvalid) setCustoInvalid(false);
+                      if (errors.custo) setErrors((prev) => ({ ...prev, custo: undefined }));
                     }}
                     onBlur={() => {
+                      setTouched((t) => ({ ...t, custo: true }));
                       const trimmed = form.custo.trim();
                       if (trimmed === "") {
-                        setCustoInvalid(false);
+                        setErrors((prev) => ({ ...prev, custo: undefined }));
                         return;
                       }
                       const parsed = parseBRLInput(trimmed);
                       if (parsed === null) {
-                        setCustoInvalid(true);
+                        setErrors((prev) => ({ ...prev, custo: "Valor de custo inválido" }));
                       } else {
-                        setCustoInvalid(false);
+                        setErrors((prev) => ({ ...prev, custo: undefined }));
                         setForm((f) => ({ ...f, custo: formatCustoInput(parsed) }));
                       }
                     }}
                     inputMode="decimal"
-                    aria-invalid={custoInvalid}
+                    aria-invalid={!!errors.custo}
+                    aria-describedby={errors.custo ? "material-custo-error" : undefined}
                     placeholder="0,00"
-                    className={cn("pl-8 text-right font-mono", custoInvalid && "border-destructive focus-visible:ring-destructive")}
+                    className={cn("pl-8 text-right font-mono", errors.custo && "border-destructive focus-visible:ring-destructive")}
                   />
                 </div>
-                {custoInvalid && <p className="mt-1 text-xs text-destructive">Valor inválido</p>}
+                {errors.custo && (
+                  <p id="material-custo-error" className="mt-1 text-sm text-destructive">
+                    {errors.custo}
+                  </p>
+                )}
               </div>
             </div>
             <div>
@@ -1997,10 +2093,15 @@ export default function BaseDadosPage() {
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline">Cancelar</Button>
+              <Button variant="outline" disabled={addMaterial.isPending || updateMaterial.isPending}>
+                Cancelar
+              </Button>
             </DialogClose>
-            <Button onClick={handleSave} disabled={addMaterial.isPending || updateMaterial.isPending || custoInvalid}>
-              Salvar
+            <Button onClick={handleSave} disabled={addMaterial.isPending || updateMaterial.isPending}>
+              {(addMaterial.isPending || updateMaterial.isPending) && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              {addMaterial.isPending || updateMaterial.isPending ? "Salvando…" : "Salvar"}
             </Button>
           </DialogFooter>
         </DialogContent>
