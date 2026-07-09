@@ -22,6 +22,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { FornecedorPicker } from '@/components/orcamentos/FornecedorPicker';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -871,7 +872,7 @@ function ItemsByCategoryTable({
     return map;
   }, [grouped]);
 
-  const colCount = 8 + (readOnly ? 0 : 1) + (selectable ? 1 : 0);
+  const colCount = 9 + (readOnly ? 0 : 1) + (selectable ? 1 : 0);
 
   return (
     <div style={{ paddingLeft: `${depth * 18 + 4}px` }} className="space-y-3 py-2">
@@ -914,6 +915,7 @@ function ItemsByCategoryTable({
                   <th className="py-2 px-2 font-normal">Descrição</th>
                   <th className="py-2 px-2 font-mono font-normal">Bitola</th>
                   <th className="py-2 px-2 font-mono font-normal">ERP</th>
+                  <th className="py-2 px-2 font-normal">Fornecedor</th>
                   <th className="py-2 px-2 font-normal text-right">Qtd</th>
                   <th className="py-2 px-2 font-normal">Un.</th>
                   <th className="py-2 px-2 font-normal">Notas</th>
@@ -982,6 +984,13 @@ function ItemsByCategoryTable({
                         </td>
                         <td className="py-2 px-2 align-middle font-mono text-xs text-muted-foreground">{highlightMatch(bitola, search)}</td>
                         <td className="py-2 px-2 align-middle font-mono text-xs text-muted-foreground">{erp}</td>
+                        <td className="py-2 px-2 align-middle max-w-[200px]">
+                          {it.fornecedor?.nome ? (
+                            <span className="block truncate" title={it.fornecedor.nome}>{it.fornecedor.nome}</span>
+                          ) : (
+                            <span className="text-muted-foreground">–</span>
+                          )}
+                        </td>
                         <td className="py-2 px-2 align-middle text-right tabular-nums">{qty}</td>
                         <td className="py-2 px-2 align-middle">{unidade}</td>
                         <td className="py-2 px-2 align-middle max-w-[14rem]">
@@ -1079,6 +1088,7 @@ function ItemEditRow({ item, index, materials, extraActions, onDone }: ItemEditR
     return mat?.bitola ?? '';
   });
   const [materialId, setMaterialId] = useState<string | null>(item.material_id);
+  const [fornecedorId, setFornecedorId] = useState<string | null>(item.fornecedor_id);
   const [quantity, setQuantity] = useState<string>(item.quantity != null ? String(item.quantity) : '1');
   const [notes, setNotes] = useState<string>(() => {
     if (item.notes && item.notes.trim()) return item.notes;
@@ -1135,6 +1145,8 @@ function ItemEditRow({ item, index, materials, extraActions, onDone }: ItemEditR
         notes: trimmedNotes || null,
         clearNotes: trimmedNotes === '',
         materialId: materialId !== item.material_id ? materialId : null,
+        fornecedorId: fornecedorId !== item.fornecedor_id ? fornecedorId : undefined,
+        clearFornecedor: item.fornecedor_id != null && fornecedorId === null,
       });
       return true;
     } catch (e) {
@@ -1216,6 +1228,11 @@ function ItemEditRow({ item, index, materials, extraActions, onDone }: ItemEditR
           </div>
         </div>
 
+        <div className="col-span-2 sm:col-span-3 lg:col-span-3">
+          <Label className="text-xs font-medium text-foreground/80">Fornecedor</Label>
+          <FornecedorPicker value={fornecedorId} onChange={setFornecedorId} nullable />
+        </div>
+
         <div className="col-span-1 sm:col-span-2 lg:col-span-2">
           <Label className="text-xs font-medium text-foreground/80">Qtd *</Label>
           <Input
@@ -1234,7 +1251,7 @@ function ItemEditRow({ item, index, materials, extraActions, onDone }: ItemEditR
           </div>
         </div>
 
-        <div className="col-span-2 sm:col-span-6 lg:col-span-8">
+        <div className="col-span-2 sm:col-span-6 lg:col-span-5">
           <Label className="text-xs font-medium text-foreground/80">Notas</Label>
           <Input
             value={notes}
@@ -1265,6 +1282,7 @@ function NewItemDraftRow({
   const [descricao, setDescricao] = useState('');
   const [bitola, setBitola] = useState('');
   const [materialId, setMaterialId] = useState<string | null>(null);
+  const [fornecedorId, setFornecedorId] = useState<string | null>(null);
   const [quantity, setQuantity] = useState('1');
   const [notes, setNotes] = useState('');
 
@@ -1316,6 +1334,7 @@ function NewItemDraftRow({
         materialId,
         quantity: qty,
         notes: trimmedNotes || null,
+        fornecedorId: fornecedorId ?? undefined,
       });
       toast.success('Item adicionado');
       return true;
@@ -1405,6 +1424,11 @@ function NewItemDraftRow({
           </div>
         </div>
 
+        <div className="col-span-2 sm:col-span-3 lg:col-span-3">
+          <Label className="text-xs font-medium text-foreground/80">Fornecedor</Label>
+          <FornecedorPicker value={fornecedorId} onChange={setFornecedorId} nullable />
+        </div>
+
         <div className="col-span-1 sm:col-span-2 lg:col-span-2">
           <Label className="text-xs font-medium text-foreground/80">Qtd *</Label>
           <Input
@@ -1423,7 +1447,7 @@ function NewItemDraftRow({
           </div>
         </div>
 
-        <div className="col-span-2 sm:col-span-6 lg:col-span-8">
+        <div className="col-span-2 sm:col-span-6 lg:col-span-5">
           <Label className="text-xs font-medium text-foreground/80">Notas</Label>
           <Input
             value={notes}

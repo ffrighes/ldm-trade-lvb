@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { normalizeForSearch } from "@/lib/normalizeSearch";
 import { Button } from "@/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -44,7 +45,11 @@ export function SearchableSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="p-0" style={{ width: "var(--radix-popover-trigger-width)" }} align="start">
-        <Command>
+        <Command
+          filter={(value, search) =>
+            normalizeForSearch(value).includes(normalizeForSearch(search)) ? 1 : 0
+          }
+        >
           <CommandInput placeholder={searchPlaceholder} />
           <CommandList>
             <CommandEmpty>{emptyMessage}</CommandEmpty>
