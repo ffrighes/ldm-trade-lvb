@@ -14,32 +14,43 @@ import {
 } from '@/components/ui/dialog';
 import { useFornecedores, useAddFornecedor } from '@/hooks/useFornecedores';
 
+const SEM_FORNECEDOR_LABEL = '— Sem fornecedor —';
+
 interface FornecedorPickerProps {
   value: string | null; // fornecedor_id
   onChange: (id: string | null) => void;
   disabled?: boolean;
   /** Permite criar fornecedor inline (gated por permissão pelo chamador). */
   canCreate?: boolean;
+  /** Exibe a opção "— Sem fornecedor —" para permitir limpar a seleção. */
+  nullable?: boolean;
 }
 
 /**
  * Seleção de fornecedor a partir da tabela mestre `fornecedores`, com criação
  * inline opcional. Usa o mesmo SearchableSelect da Estrutura de Produto.
  */
-export function FornecedorPicker({ value, onChange, disabled, canCreate = true }: FornecedorPickerProps) {
+export function FornecedorPicker({ value, onChange, disabled, canCreate = true, nullable = false }: FornecedorPickerProps) {
   const { data: fornecedores = [] } = useFornecedores();
   const addFornecedor = useAddFornecedor();
 
   const [open, setOpen] = useState(false);
   const [nome, setNome] = useState('');
 
-  const names = useMemo(() => fornecedores.map((f) => f.nome).sort((a, b) => a.localeCompare(b)), [fornecedores]);
-  const selectedName = useMemo(
-    () => fornecedores.find((f) => f.id === value)?.nome ?? '',
-    [fornecedores, value],
-  );
+  const names = useMemo(() => {
+    const sorted = fornecedores.map((f) => f.nome).sort((a, b) => a.localeCompare(b));
+    return nullable ? [SEM_FORNECEDOR_LABEL, ...sorted] : sorted;
+  }, [fornecedores, nullable]);
+  const selectedName = useMemo(() => {
+    if (value == null) return nullable ? SEM_FORNECEDOR_LABEL : '';
+    return fornecedores.find((f) => f.id === value)?.nome ?? '';
+  }, [fornecedores, value, nullable]);
 
   const handleSelect = (name: string) => {
+    if (nullable && (name === SEM_FORNECEDOR_LABEL || name === '')) {
+      onChange(null);
+      return;
+    }
     const f = fornecedores.find((x) => x.nome === name);
     onChange(f?.id ?? null);
   };

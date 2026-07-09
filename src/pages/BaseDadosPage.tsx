@@ -42,6 +42,8 @@ import { formatBRL, parseBRL } from "@/lib/formatCurrency";
 import { cn } from "@/lib/utils";
 import { SEM_CATEGORIA_LABEL } from "@/lib/categorias";
 import { useCategorias, useAddCategoria, useDeleteCategoria, useRenameCategoria } from "@/hooks/useCategorias";
+import { useFornecedores } from "@/hooks/useFornecedores";
+import { FornecedorPicker } from "@/components/orcamentos/FornecedorPicker";
 import { useBaseDadosUiState } from "@/hooks/useBaseDadosUiState";
 import { Badge } from "@/components/ui/badge";
 import { useVirtualizer, defaultRangeExtractor } from "@tanstack/react-virtual";
@@ -85,6 +87,8 @@ type ImportMaterial = {
   custo: number;
   notas: string;
   categoria: string | null;
+  fornecedorNome: string | null;
+  fornecedor_id: string | null;
 };
 
 /** Uma alteração de campo detectada entre o item da base e o item do arquivo. */
@@ -107,6 +111,7 @@ type ImportPreview = {
   avisos: string[];
   toWrite: ImportMaterial[];
   novasCategorias: string[];
+  novosFornecedores: string[];
   removeCount: number;
 };
 
@@ -132,11 +137,12 @@ function parseImportCusto(raw: unknown): number | null {
  * retorna a lista de campos que mudariam num upsert. A chave (família+bitola)
  * já é considerada igual; só comparamos os campos atualizáveis.
  */
-function diffMaterial(existing: any, m: ImportMaterial): FieldChange[] {
+function diffMaterial(existing: any, m: ImportMaterial, fornecedorNomeById: Map<string, string>): FieldChange[] {
   const changes: FieldChange[] = [];
   const exErp = ((existing.erp ?? "") as string).toString().trim();
   const exNotas = ((existing.notas ?? "") as string).toString().trim();
   const exCat = (existing.categoria ?? null) as string | null;
+  const exFornecedorNome = existing.fornecedor_id ? fornecedorNomeById.get(existing.fornecedor_id) ?? null : null;
   const fmt = (v: string | null) => (v == null || v === "" ? "—" : v);
 
   if ((existing.unidade ?? "") !== m.unidade) {
@@ -153,6 +159,9 @@ function diffMaterial(existing: any, m: ImportMaterial): FieldChange[] {
   }
   if ((exCat ?? "") !== (m.categoria ?? "")) {
     changes.push({ field: "Categoria", from: fmt(exCat), to: fmt(m.categoria) });
+  }
+  if ((exFornecedorNome ?? "") !== (m.fornecedorNome ?? "")) {
+    changes.push({ field: "Fornecedor", from: fmt(exFornecedorNome), to: fmt(m.fornecedorNome) });
   }
   return changes;
 }
@@ -255,6 +264,7 @@ export default function BaseDadosPage() {
   const addCategoria = useAddCategoria();
   const renameCategoria = useRenameCategoria();
   const deleteCategoria = useDeleteCategoria();
+  const { data: fornecedores = [] } = useFornecedores();
 
   const {
     initialSearch,
@@ -284,7 +294,7 @@ export default function BaseDadosPage() {
 
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ descricao: "", bitola: "", unidade: "m", erp: "", custo: "", notas: "", categoria: "" });
+  const [form, setForm] = useState({ descricao: "", bitola: "", unidade: "m", erp: "", custo: "", notas: "", categoria: "", fornecedor_id: null as string | null });
   const [newFamilyCategoria, setNewFamilyCategoria] = useState<string>("");
   const [editingFamilyCategoria, setEditingFamilyCategoria] = useState<string>("");
   const [importing, setImporting] = useState(false);
@@ -313,6 +323,7 @@ export default function BaseDadosPage() {
   const [batchDeleteConfirmOpen, setBatchDeleteConfirmOpen] = useState(false);
   const [batchDeleteSaving, setBatchDeleteSaving] = useState(false);
   const [bitolaSort, setBitolaSort] = useState<{ col: 'bitola' | 'erp' | 'custo'; dir: 'asc' | 'desc' }>({ col: 'bitola', dir: 'asc' });
+  const [fornecedorFilter, setFornecedorFilter] = useState<string>("all");
   const [editingCell, setEditingCell] = useState<{ id: string; field: 'custo' | 'erp' } | null>(null);
   const queryClient = useQueryClient();
 
@@ -407,6 +418,8 @@ export default function BaseDadosPage() {
       notas: "notas",
       Categoria: "categoria",
       categoria: "categoria",
+      Fornecedor: "fornecedor",
+      fornecedor: "fornecedor",
     };
 
     const erros: ImportError[] = [];
@@ -446,6 +459,7 @@ export default function BaseDadosPage() {
 
       const unRaw = String(mapped.unidade || "un").trim();
       const catRaw = String(mapped.categoria || "").trim();
+      const fornecedorRaw = String(mapped.fornecedor || "").trim();
       valids.push({
         descricao,
         bitola,
@@ -454,6 +468,8 @@ export default function BaseDadosPage() {
         custo,
         notas: String(mapped.notas || "").trim(),
         categoria: catRaw || null,
+        fornecedorNome: fornecedorRaw || null,
+        fornecedor_id: null,
       });
     });
 
@@ -471,7 +487,10 @@ export default function BaseDadosPage() {
       }
       deduped.set(key, m);
     }
-    const uniqueMaterials = [...deduped.values()];
+    const uniqueMaterials = [...deduped.values()].map((m) => ({
+      ...m,
+      fornecedor_id: m.fornecedorNome ? fornecedorIdByNomeExato.get(m.fornecedorNome) ?? null : null,
+    }));
 
     // Avisos: ERPs duplicados (no arquivo e contra a base). Não bloqueiam a
     // gravação — o upsert prossegue —, mas são sinalizados ao usuário.
@@ -524,7 +543,7 @@ export default function BaseDadosPage() {
           }
           continue;
         }
-        const changes = diffMaterial(existing, m);
+        const changes = diffMaterial(existing, m, fornecedorNomeById);
         if (changes.length > 0) atualizacoes.push({ material: m, changes });
         else inalterados++;
       }
@@ -541,6 +560,14 @@ export default function BaseDadosPage() {
       ),
     ];
 
+    const novosFornecedores = [
+      ...new Set(
+        uniqueMaterials
+          .map((m) => m.fornecedorNome)
+          .filter((n): n is string => !!n && !fornecedorIdByNomeExato.has(n)),
+      ),
+    ];
+
     return {
       clearBefore,
       novos,
@@ -550,6 +577,7 @@ export default function BaseDadosPage() {
       avisos,
       toWrite: uniqueMaterials,
       novasCategorias,
+      novosFornecedores,
       removeCount: clearBefore ? materials.length : 0,
     };
   };
@@ -599,7 +627,7 @@ export default function BaseDadosPage() {
    */
   const handleConfirmImport = async () => {
     if (!importPreview) return;
-    const { toWrite, novasCategorias, clearBefore } = importPreview;
+    const { toWrite, novasCategorias, novosFornecedores, clearBefore } = importPreview;
 
     setImporting(true);
     try {
@@ -610,6 +638,26 @@ export default function BaseDadosPage() {
         if (catError) throw catError;
         queryClient.invalidateQueries({ queryKey: ["material_categorias"] });
       }
+
+      // Cria os fornecedores ainda não cadastrados antes de gravar os
+      // materiais, para poder resolver fornecedorNome → fornecedor_id.
+      const fornecedorIdByNome = new Map(fornecedorIdByNomeExato);
+      if (novosFornecedores.length > 0) {
+        const { data: createdFornecedores, error: fornError } = await supabase
+          .from("fornecedores" as never)
+          .upsert(novosFornecedores.map((nome) => ({ nome })) as never, { onConflict: "nome" })
+          .select();
+        if (fornError) throw fornError;
+        (createdFornecedores as unknown as { id: string; nome: string }[] | null)?.forEach((f) =>
+          fornecedorIdByNome.set(f.nome, f.id),
+        );
+        queryClient.invalidateQueries({ queryKey: ["fornecedores"] });
+      }
+
+      const toWriteResolved = toWrite.map(({ fornecedorNome, ...m }) => ({
+        ...m,
+        fornecedor_id: fornecedorNome ? fornecedorIdByNome.get(fornecedorNome) ?? null : null,
+      }));
 
       if (clearBefore) {
         const { error: itemsError } = await supabase
@@ -626,15 +674,20 @@ export default function BaseDadosPage() {
 
       const batchSize = 100;
       let inserted = 0;
-      for (let i = 0; i < toWrite.length; i += batchSize) {
-        const batch = toWrite.slice(i, i + batchSize);
+      for (let i = 0; i < toWriteResolved.length; i += batchSize) {
+        const batch = toWriteResolved.slice(i, i + batchSize);
         const { error } = await supabase.from("materials").upsert(batch as any[], { onConflict: "descricao,bitola" });
         if (error) throw error;
         inserted += batch.length;
       }
 
       queryClient.invalidateQueries({ queryKey: ["materials"] });
-      toast.success(`${inserted} itens importados com sucesso`);
+      toast.success(
+        `${inserted} itens importados com sucesso` +
+          (novosFornecedores.length > 0
+            ? ` (${novosFornecedores.length} ${novosFornecedores.length === 1 ? "fornecedor criado" : "fornecedores criados"})`
+            : ""),
+      );
       setImportPreview(null);
       setImportFile(null);
       setImportClearBefore(false);
@@ -682,6 +735,20 @@ export default function BaseDadosPage() {
     sem_categoria: materials.filter(m => !(m as any).categoria).length,
   }), [materials]);
 
+  const fornecedorNomeById = useMemo(() => {
+    const map = new Map<string, string>();
+    fornecedores.forEach((f) => map.set(f.id, f.nome));
+    return map;
+  }, [fornecedores]);
+
+  // Chave exata (trim, case-sensitive) para resolver nomes vindos do XLSX
+  // sem criar duplicatas por diferença de maiúsculas/minúsculas.
+  const fornecedorIdByNomeExato = useMemo(() => {
+    const map = new Map<string, string>();
+    fornecedores.forEach((f) => map.set(f.nome.trim(), f.id));
+    return map;
+  }, [fornecedores]);
+
   const familyCategoria = useMemo(() => {
     const map = new Map<string, string | null>();
     materials.forEach((m) => {
@@ -706,6 +773,14 @@ export default function BaseDadosPage() {
         if (qualityFilters.has('sem_erp') && (m as any).erp?.toString().trim()) return false;
         if (qualityFilters.has('sem_custo') && m.custo > 0) return false;
         if (qualityFilters.has('sem_categoria') && (m as any).categoria) return false;
+        if (fornecedorFilter !== "all") {
+          const fid = (m as any).fornecedor_id ?? null;
+          if (fornecedorFilter === "__none__") {
+            if (fid) return false;
+          } else if (fid !== fornecedorFilter) {
+            return false;
+          }
+        }
         if (search.debounced) {
           const s = normalizeForSearch(search.debounced);
           return (
@@ -716,7 +791,7 @@ export default function BaseDadosPage() {
         }
         return true;
       }),
-    [materials, search.debounced, descFilter, categoriaFilter, qualityFilters],
+    [materials, search.debounced, descFilter, categoriaFilter, qualityFilters, fornecedorFilter],
   );
 
   const grouped = useMemo(() => {
@@ -950,6 +1025,7 @@ export default function BaseDadosPage() {
           custo,
           notas: form.notas,
           categoria,
+          fornecedor_id: form.fornecedor_id,
         });
         toast.success("Item atualizado");
       } else {
@@ -961,6 +1037,7 @@ export default function BaseDadosPage() {
           custo,
           notas: form.notas,
           categoria,
+          fornecedor_id: form.fornecedor_id,
         });
         toast.success("Item adicionado");
       }
@@ -984,6 +1061,7 @@ export default function BaseDadosPage() {
       custo: m.custo.toString(),
       notas: (m as any).notas || "",
       categoria: (m as any).categoria || "",
+      fornecedor_id: (m as any).fornecedor_id ?? null,
     });
     setOpen(true);
   };
@@ -1090,6 +1168,7 @@ export default function BaseDadosPage() {
       custo: "",
       notas: "",
       categoria: categoria ?? inheritedCategoria,
+      fornecedor_id: null,
     });
     setOpen(true);
   };
@@ -1250,6 +1329,7 @@ export default function BaseDadosPage() {
         ERP: m.erp,
         Custo: m.custo,
         Notas: m.notas,
+        Fornecedor: ((m as any).fornecedor_id && fornecedorNomeById.get((m as any).fornecedor_id)) || "",
       }));
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
@@ -1292,6 +1372,7 @@ export default function BaseDadosPage() {
                     ERP: m.erp,
                     Custo: m.custo,
                     Notas: m.notas,
+                    Fornecedor: ((m as any).fornecedor_id && fornecedorNomeById.get((m as any).fornecedor_id)) || "",
                   }));
                   const ws = XLSX.utils.json_to_sheet(exportData);
                   const wb = XLSX.utils.book_new();
@@ -1877,6 +1958,16 @@ export default function BaseDadosPage() {
               </Select>
             </div>
             <div>
+              <Label htmlFor="material-fornecedor">Fornecedor</Label>
+              <div id="material-fornecedor" className="mt-2">
+                <FornecedorPicker
+                  value={form.fornecedor_id}
+                  onChange={(id) => setForm((f) => ({ ...f, fornecedor_id: id }))}
+                  nullable
+                />
+              </div>
+            </div>
+            <div>
               <Label>Notas</Label>
               <Textarea
                 value={form.notas}
@@ -2048,6 +2139,18 @@ export default function BaseDadosPage() {
                   ))}
                 </SelectContent>
               </Select>
+              <Select value={fornecedorFilter} onValueChange={setFornecedorFilter}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Filtrar fornecedor" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os fornecedores</SelectItem>
+                  {fornecedores.map((f) => (
+                    <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
+                  ))}
+                  <SelectItem value="__none__">Sem fornecedor</SelectItem>
+                </SelectContent>
+              </Select>
               {/* Filtros de qualidade */}
               <div className="flex flex-wrap gap-3 items-center">
                 {(
@@ -2098,7 +2201,7 @@ export default function BaseDadosPage() {
             </div>
 
             {/* Chips de filtros ativos */}
-            {(categoriaFilter !== "all" || descFilter !== "all" || qualityFilters.size > 0) && (
+            {(categoriaFilter !== "all" || descFilter !== "all" || fornecedorFilter !== "all" || qualityFilters.size > 0) && (
               <div className="flex flex-wrap gap-2 items-center mt-2 pt-2 border-t">
                 {categoriaFilter !== "all" && (
                   <Badge variant="secondary" className="flex items-center gap-1 pr-1">
@@ -2119,6 +2222,21 @@ export default function BaseDadosPage() {
                       onClick={() => setDescFilter("all")}
                       className="ml-1 rounded-sm hover:bg-muted p-0.5"
                       aria-label="Remover filtro de família"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+                {fornecedorFilter !== "all" && (
+                  <Badge variant="secondary" className="flex items-center gap-1 pr-1">
+                    <span>
+                      Fornecedor:{" "}
+                      {fornecedorFilter === "__none__" ? "Sem fornecedor" : fornecedorNomeById.get(fornecedorFilter) ?? fornecedorFilter}
+                    </span>
+                    <button
+                      onClick={() => setFornecedorFilter("all")}
+                      className="ml-1 rounded-sm hover:bg-muted p-0.5"
+                      aria-label="Remover filtro de fornecedor"
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -2146,7 +2264,7 @@ export default function BaseDadosPage() {
                   variant="ghost"
                   size="sm"
                   className="h-6 px-2 text-xs text-muted-foreground"
-                  onClick={() => { setCategoriaFilter("all"); setDescFilter("all"); setQualityFilters(new Set()); }}
+                  onClick={() => { setCategoriaFilter("all"); setDescFilter("all"); setFornecedorFilter("all"); setQualityFilters(new Set()); }}
                 >
                   Limpar filtros
                 </Button>
@@ -2233,6 +2351,7 @@ export default function BaseDadosPage() {
                   search.setInput("");
                   setCategoriaFilter("all");
                   setDescFilter("all");
+                  setFornecedorFilter("all");
                   setQualityFilters(new Set());
                 }}
               >
@@ -2570,8 +2689,20 @@ export default function BaseDadosPage() {
                         </div>
                       )}
                     </div>
-                    <div role="cell" className="text-sm text-muted-foreground py-1.5 px-1 truncate">
-                      {(m as any).notas || "-"}
+                    <div role="cell" className="flex items-center gap-1.5 text-sm text-muted-foreground py-1.5 px-1 truncate">
+                      {(m as any).fornecedor_id && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge variant="outline" className="shrink-0 text-xs font-normal max-w-[6rem] truncate align-middle">
+                              {fornecedorNomeById.get((m as any).fornecedor_id) ?? "Fornecedor"}
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            Fornecedor: {fornecedorNomeById.get((m as any).fornecedor_id) ?? "—"}
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                      <span className="truncate">{(m as any).notas || "-"}</span>
                     </div>
                     {canModifyBaseDados && (
                       <div role="cell" className="flex justify-end gap-1 py-1.5">
