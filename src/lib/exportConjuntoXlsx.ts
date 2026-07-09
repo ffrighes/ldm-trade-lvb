@@ -23,6 +23,7 @@ interface ConsolidatedRow {
   quantidade: number;
   categoria: string | null;
   notes: string;
+  fornecedor: string | null;
 }
 
 function consolidateItemsForXlsx(rows: ItemRow[]): ConsolidatedRow[] {
@@ -46,6 +47,7 @@ function consolidateItemsForXlsx(rows: ItemRow[]): ConsolidatedRow[] {
         categoria: r.categoria ?? null,
         notes: '',
         notesSet,
+        fornecedor: r.fornecedor ?? null,
       });
     }
   }
@@ -262,13 +264,13 @@ function buildConsolidatedSheet(
 
   if (filteredItems.length === 0) {
     const ws = XLSX.utils.aoa_to_sheet([
-      ['#', 'Descrição', 'Bitola', 'Qtd', 'Un.', 'ERP', 'Notas'],
-      ['Nenhum item corresponde aos filtros selecionados.', '', '', '', '', '', ''],
+      ['#', 'Descrição', 'Bitola', 'Qtd', 'Un.', 'ERP', 'Fornecedor', 'Notas'],
+      ['Nenhum item corresponde aos filtros selecionados.', '', '', '', '', '', '', ''],
     ]);
     ws['!cols'] = [
-      { wch: 5 }, { wch: 55 }, { wch: 14 }, { wch: 10 }, { wch: 6 }, { wch: 14 }, { wch: 40 },
+      { wch: 5 }, { wch: 55 }, { wch: 14 }, { wch: 10 }, { wch: 6 }, { wch: 14 }, { wch: 22 }, { wch: 40 },
     ];
-    ws['!merges'] = [{ s: { r: 1, c: 0 }, e: { r: 1, c: 6 } }];
+    ws['!merges'] = [{ s: { r: 1, c: 0 }, e: { r: 1, c: 7 } }];
     return ws;
   }
 
@@ -292,7 +294,7 @@ function buildConsolidatedSheet(
     });
   });
 
-  const header = ['#', 'Descrição', 'Bitola', 'Qtd', 'Un.', 'ERP', 'Notas'];
+  const header = ['#', 'Descrição', 'Bitola', 'Qtd', 'Un.', 'ERP', 'Fornecedor', 'Notas'];
   const body = consolidated.map((r, i) => {
     const qtyValue = Number.isInteger(r.quantidade)
       ? r.quantidade
@@ -304,6 +306,7 @@ function buildConsolidatedSheet(
       qtyValue,
       r.unidade || '',
       r.erp || '',
+      r.fornecedor || '-',
       r.notes || '',
     ];
   });
@@ -317,10 +320,11 @@ function buildConsolidatedSheet(
     { wch: 10 },  // Qtd
     { wch: 6 },   // Un.
     { wch: 14 },  // ERP
+    { wch: 22 },  // Fornecedor
     { wch: 40 },  // Notas
   ];
 
-  ws['!autofilter'] = { ref: `A1:G${body.length + 1}` };
+  ws['!autofilter'] = { ref: `A1:H${body.length + 1}` };
 
   // Freeze header row
   ws['!views'] = [{ state: 'frozen', ySplit: 1 }];
