@@ -38,7 +38,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from "sonner";
-import { formatBRL, parseBRL } from "@/lib/formatCurrency";
+import { formatBRL, formatCustoInput, parseBRLInput } from "@/lib/formatCurrency";
 import { cn } from "@/lib/utils";
 import { SEM_CATEGORIA_LABEL } from "@/lib/categorias";
 import { useCategorias, useAddCategoria, useDeleteCategoria, useRenameCategoria } from "@/hooks/useCategorias";
@@ -58,21 +58,6 @@ function parseBitolaValue(bitola: string): number {
   if (fraction) return parseInt(fraction[1]) / parseInt(fraction[2]);
   const num = parseFloat(s.replace(",", "."));
   return isNaN(num) ? Infinity : num;
-}
-
-/**
- * Normaliza um custo digitado em formato pt-BR (vírgula decimal, ponto de
- * milhar) para número. Reaproveita a convenção de `parseBRL` e adiciona
- * validação estrita: retorna `null` para entradas inválidas ou negativas.
- */
-function parseCustoInput(raw: string): number | null {
-  const trimmed = raw.trim();
-  if (trimmed === "") return null;
-  const cleaned = trimmed.replace(/[R$\s.]/g, "").replace(",", ".");
-  if (!/^\d+(\.\d+)?$/.test(cleaned)) return null;
-  const num = parseFloat(cleaned);
-  if (!isFinite(num) || num < 0) return null;
-  return num;
 }
 
 /**
@@ -126,10 +111,7 @@ function parseImportCusto(raw: unknown): number | null {
   if (typeof raw === "number") return isFinite(raw) && raw >= 0 ? raw : null;
   const s = String(raw).trim();
   if (s === "") return 0;
-  const cleaned = s.replace(/[R$\s.]/g, "").replace(",", ".");
-  if (!/^\d+(\.\d+)?$/.test(cleaned)) return null;
-  const n = parseFloat(cleaned);
-  return isFinite(n) && n >= 0 ? n : null;
+  return parseBRLInput(s);
 }
 
 /**
@@ -201,7 +183,8 @@ function InlineEditCell({
   const commit = () => {
     if (settled.current) return;
     if (kind === "custo") {
-      const parsed = parseCustoInput(value);
+      const trimmed = value.trim();
+      const parsed = trimmed === "" ? null : parseBRLInput(trimmed);
       if (parsed === null) {
         setError(true);
         inputRef.current?.focus();
@@ -295,6 +278,7 @@ export default function BaseDadosPage() {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ descricao: "", bitola: "", unidade: "m", erp: "", custo: "", notas: "", categoria: "", fornecedor_id: null as string | null });
+  const [custoInvalid, setCustoInvalid] = useState(false);
   const [newFamilyCategoria, setNewFamilyCategoria] = useState<string>("");
   const [editingFamilyCategoria, setEditingFamilyCategoria] = useState<string>("");
   const [importing, setImporting] = useState(false);
@@ -977,7 +961,13 @@ export default function BaseDadosPage() {
     : "grid grid-cols-[2rem_minmax(0,1fr)_4rem_11rem_7rem_minmax(0,1.6fr)]";
 
   const handleSave = async () => {
-    const custo = parseBRL(form.custo);
+    const custoRaw = form.custo.trim();
+    const custo = custoRaw === "" ? 0 : parseBRLInput(custoRaw);
+    if (custo === null) {
+      setCustoInvalid(true);
+      toast.error("Valor de custo inválido");
+      return;
+    }
     if (!form.descricao.trim() || !form.bitola.trim()) {
       toast.error("Preencha todos os campos obrigatórios");
       return;
@@ -1058,11 +1048,12 @@ export default function BaseDadosPage() {
       bitola: m.bitola,
       unidade: m.unidade,
       erp: (m as any).erp || "",
-      custo: m.custo.toString(),
+      custo: formatCustoInput(m.custo),
       notas: (m as any).notas || "",
       categoria: (m as any).categoria || "",
       fornecedor_id: (m as any).fornecedor_id ?? null,
     });
+    setCustoInvalid(false);
     setOpen(true);
   };
 
@@ -1170,6 +1161,7 @@ export default function BaseDadosPage() {
       categoria: categoria ?? inheritedCategoria,
       fornecedor_id: null,
     });
+    setCustoInvalid(false);
     setOpen(true);
   };
 
@@ -1936,11 +1928,37 @@ export default function BaseDadosPage() {
               </div>
               <div className="col-span-2">
                 <Label>Custo (R$)</Label>
-                <Input
-                  value={form.custo}
-                  onChange={(e) => setForm((f) => ({ ...f, custo: e.target.value }))}
-                  placeholder="0,00"
-                />
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                    R$
+                  </span>
+                  <Input
+                    value={form.custo}
+                    onChange={(e) => {
+                      setForm((f) => ({ ...f, custo: e.target.value }));
+                      if (custoInvalid) setCustoInvalid(false);
+                    }}
+                    onBlur={() => {
+                      const trimmed = form.custo.trim();
+                      if (trimmed === "") {
+                        setCustoInvalid(false);
+                        return;
+                      }
+                      const parsed = parseBRLInput(trimmed);
+                      if (parsed === null) {
+                        setCustoInvalid(true);
+                      } else {
+                        setCustoInvalid(false);
+                        setForm((f) => ({ ...f, custo: formatCustoInput(parsed) }));
+                      }
+                    }}
+                    inputMode="decimal"
+                    aria-invalid={custoInvalid}
+                    placeholder="0,00"
+                    className={cn("pl-8 text-right font-mono", custoInvalid && "border-destructive focus-visible:ring-destructive")}
+                  />
+                </div>
+                {custoInvalid && <p className="mt-1 text-xs text-destructive">Valor inválido</p>}
               </div>
             </div>
             <div>
@@ -1981,7 +1999,7 @@ export default function BaseDadosPage() {
             <DialogClose asChild>
               <Button variant="outline">Cancelar</Button>
             </DialogClose>
-            <Button onClick={handleSave} disabled={addMaterial.isPending || updateMaterial.isPending}>
+            <Button onClick={handleSave} disabled={addMaterial.isPending || updateMaterial.isPending || custoInvalid}>
               Salvar
             </Button>
           </DialogFooter>
@@ -2648,7 +2666,7 @@ export default function BaseDadosPage() {
                         <InlineEditCell
                           kind="custo"
                           align="right"
-                          initialValue={m.custo ? String(m.custo).replace('.', ',') : ''}
+                          initialValue={m.custo ? formatCustoInput(m.custo) : ''}
                           onSave={(val) => commitInlineEdit(m, 'custo', val)}
                           onCancel={() => setEditingCell(null)}
                         />
