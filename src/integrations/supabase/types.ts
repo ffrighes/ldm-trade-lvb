@@ -151,6 +151,7 @@ export type Database = {
         Row: {
           cloned_from_node_id: string | null
           created_at: string
+          fornecedor_id: string | null
           id: string
           material_id: string | null
           name: string | null
@@ -165,6 +166,7 @@ export type Database = {
         Insert: {
           cloned_from_node_id?: string | null
           created_at?: string
+          fornecedor_id?: string | null
           id?: string
           material_id?: string | null
           name?: string | null
@@ -179,6 +181,7 @@ export type Database = {
         Update: {
           cloned_from_node_id?: string | null
           created_at?: string
+          fornecedor_id?: string | null
           id?: string
           material_id?: string | null
           name?: string | null
@@ -191,6 +194,13 @@ export type Database = {
           version_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "bom_node_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "bom_node_material_id_fkey"
             columns: ["material_id"]

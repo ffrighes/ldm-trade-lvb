@@ -52,6 +52,7 @@ export interface BomNode {
   parent_id: string | null;
   node_type: BomNodeType;
   material_id: string | null;
+  fornecedor_id: string | null;
   name: string | null;
   quantity: number | null;
   position: number;
