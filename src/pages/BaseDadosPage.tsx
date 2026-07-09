@@ -35,6 +35,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FamilyCombobox } from "@/components/ui/family-combobox";
 import { Textarea } from "@/components/ui/textarea";
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from "sonner";
@@ -281,7 +282,8 @@ export default function BaseDadosPage() {
   const [form, setForm] = useState({ descricao: "", bitola: "", unidade: "m", erp: "", custo: "", notas: "", categoria: "", fornecedor_id: null as string | null });
   const [errors, setErrors] = useState<{ descricao?: string; bitola?: string; custo?: string }>({});
   const [touched, setTouched] = useState<{ descricao?: boolean; bitola?: boolean; custo?: boolean }>({});
-  const descricaoInputRef = useRef<HTMLInputElement>(null);
+  const descricaoInputRef = useRef<HTMLButtonElement>(null);
+  const [originalDescricao, setOriginalDescricao] = useState<string>("");
   const bitolaInputRef = useRef<HTMLInputElement>(null);
   const custoInputRef = useRef<HTMLInputElement>(null);
   const [newFamilyCategoria, setNewFamilyCategoria] = useState<string>("");
@@ -1062,6 +1064,7 @@ export default function BaseDadosPage() {
 
   const openEdit = (m: (typeof materials)[0]) => {
     setEditingId(m.id);
+    setOriginalDescricao(m.descricao);
     setForm({
       descricao: m.descricao,
       bitola: m.bitola,
@@ -1170,6 +1173,7 @@ export default function BaseDadosPage() {
 
   const openNew = (familiaDescricao?: string, categoria?: string) => {
     setEditingId(null);
+    setOriginalDescricao("");
     const inheritedCategoria = familiaDescricao ? familyCategoria.get(familiaDescricao) || "" : "";
     setForm({
       descricao: familiaDescricao ?? "",
@@ -1918,22 +1922,25 @@ export default function BaseDadosPage() {
           <div className="space-y-4 py-4">
             <div>
               <Label htmlFor="material-descricao">Descrição (Família) *</Label>
-              <Input
+              <FamilyCombobox
                 id="material-descricao"
                 ref={descricaoInputRef}
                 value={form.descricao}
-                onChange={(e) => {
-                  const value = e.target.value;
+                families={descriptions}
+                onValueChange={(value) => {
                   const next = { ...form, descricao: value };
-                  setForm(next);
-                  if (touched.descricao || touched.bitola) {
-                    const fe = computeFormErrors(next);
-                    setErrors((prev) => ({
-                      ...prev,
-                      ...(touched.descricao ? { descricao: fe.descricao } : {}),
-                      ...(touched.bitola ? { bitola: fe.bitola } : {}),
-                    }));
+                  if (!form.categoria) {
+                    const inherited = familyCategoria.get(value);
+                    if (inherited) next.categoria = inherited;
                   }
+                  setForm(next);
+                  setTouched((t) => ({ ...t, descricao: true }));
+                  const fe = computeFormErrors(next);
+                  setErrors((prev) => ({
+                    ...prev,
+                    descricao: fe.descricao,
+                    bitola: touched.bitola ? fe.bitola : prev.bitola,
+                  }));
                 }}
                 onBlur={() => {
                   setTouched((t) => ({ ...t, descricao: true }));
@@ -1952,6 +1959,15 @@ export default function BaseDadosPage() {
                 <p id="material-descricao-error" className="mt-1 text-sm text-destructive">
                   {errors.descricao}
                 </p>
+              )}
+              {editingId && originalDescricao && form.descricao && form.descricao !== originalDescricao && (
+                <div className="mt-2 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>
+                    Este item será movido da família "<strong>{originalDescricao}</strong>" para "
+                    <strong>{form.descricao}</strong>".
+                  </span>
+                </div>
               )}
             </div>
             <div>
