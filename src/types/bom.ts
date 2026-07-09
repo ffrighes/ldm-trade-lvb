@@ -53,6 +53,8 @@ export interface BomNode {
   node_type: BomNodeType;
   material_id: string | null;
   fornecedor_id: string | null;
+  /** Embed do PostgREST (select aninhado); null quando não vinculado. */
+  fornecedor?: { id: string; nome: string } | null;
   name: string | null;
   quantity: number | null;
   position: number;

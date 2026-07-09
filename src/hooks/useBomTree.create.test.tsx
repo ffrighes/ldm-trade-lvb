@@ -123,6 +123,7 @@ describe('product structure creation', () => {
       p_quantity: 2,
       p_position: null,
       p_notes: null,
+      p_fornecedor_id: null,
     });
     expect(result.current.data).toBe('sub-id');
   });
@@ -151,6 +152,7 @@ describe('product structure creation', () => {
       p_quantity: 5,
       p_position: 0,
       p_notes: 'observação',
+      p_fornecedor_id: null,
     });
   });
 
