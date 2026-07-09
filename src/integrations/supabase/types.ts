@@ -570,6 +570,7 @@ export type Database = {
           custo: number
           descricao: string
           erp: string
+          fornecedor_id: string | null
           id: string
           notas: string
           sch: string
@@ -582,6 +583,7 @@ export type Database = {
           custo?: number
           descricao: string
           erp?: string
+          fornecedor_id?: string | null
           id?: string
           notas?: string
           sch?: string
@@ -594,12 +596,21 @@ export type Database = {
           custo?: number
           descricao?: string
           erp?: string
+          fornecedor_id?: string | null
           id?: string
           notas?: string
           sch?: string
           unidade?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "materials_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       orcamento_itens: {
         Row: {
