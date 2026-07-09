@@ -80,6 +80,7 @@ export interface ItemRow {
   quantidade: number;
   notes: string | null;
   categoria: string | null;
+  fornecedor: string | null;
 }
 
 /** Collect all ITEM nodes from a subtree. baseCumulative normalises quantities (e.g. qty per subconjunto unit). */
@@ -101,6 +102,7 @@ export function collectItems(
       quantidade: node.cumulativeQuantity / baseCumulative,
       notes: (node.notes && node.notes.trim()) ? node.notes : (mat?.notas ?? null),
       categoria: mat?.categoria ?? null,
+      fornecedor: node.fornecedor?.nome ?? null,
     });
   }
   for (const child of node.children) {
@@ -128,6 +130,7 @@ function collectDirectItems(
         quantidade: c.cumulativeQuantity,
         notes: (c.notes && c.notes.trim()) ? c.notes : (mat?.notas ?? null),
         categoria: mat?.categoria ?? null,
+        fornecedor: c.fornecedor?.nome ?? null,
       };
     });
 }
@@ -228,7 +231,7 @@ function collectAllSubconjuntos(node: BomTreeNode, breadcrumb: string[]): Subcon
 
 // ---- Table style constants ----
 
-/** 7-column consolidated table: # | Descrição | Bitola | Qtd. | Un. | ERP | Notas */
+/** 8-column consolidated table: # | Descrição | Bitola | Qtd. | Un. | ERP | Fornecedor | Notas */
 const CONSOLIDATED_TABLE_STYLES = {
   styles: { fontSize: 9, cellPadding: 4, overflow: 'linebreak' as const },
   headStyles: { fillColor: [40, 40, 40] as [number, number, number], textColor: 255 },
@@ -240,12 +243,13 @@ const CONSOLIDATED_TABLE_STYLES = {
     3: { cellWidth: 50, halign: 'center' as const, overflow: 'visible' as const },
     4: { cellWidth: 40, halign: 'center' as const, overflow: 'visible' as const },
     5: { cellWidth: 90, halign: 'center' as const, overflow: 'visible' as const },
-    6: { cellWidth: 130 },
+    6: { cellWidth: 80, halign: 'center' as const, overflow: 'visible' as const },
+    7: { cellWidth: 110 },
   },
   margin: { top: MARGIN_TOP, bottom: MARGIN_BOTTOM, left: MARGIN_LEFT, right: MARGIN_RIGHT },
 };
 
-/** 8-column detail table: # | TAG | Descrição | Bitola | Qtd | Un. | ERP | Notas */
+/** 9-column detail table: # | TAG | Descrição | Bitola | Qtd | Un. | ERP | Fornecedor | Notas */
 const DETAIL_TABLE_STYLES = {
   styles: { fontSize: 9, cellPadding: 3, overflow: 'linebreak' as const },
   headStyles: { fillColor: [40, 40, 40] as [number, number, number], textColor: 255 },
@@ -258,7 +262,8 @@ const DETAIL_TABLE_STYLES = {
     4: { cellWidth: 45, halign: 'center' as const, overflow: 'visible' as const },
     5: { cellWidth: 38, halign: 'center' as const, overflow: 'visible' as const },
     6: { cellWidth: 90, halign: 'center' as const, overflow: 'visible' as const },
-    7: { cellWidth: 120 },
+    7: { cellWidth: 70, halign: 'center' as const, overflow: 'visible' as const },
+    8: { cellWidth: 100 },
   },
   margin: { top: MARGIN_TOP, bottom: MARGIN_BOTTOM, left: MARGIN_LEFT, right: MARGIN_RIGHT },
 };
@@ -266,34 +271,6 @@ const DETAIL_TABLE_STYLES = {
 // ---- Table body builders ----
 
 function buildConsolidatedBody(groups: CategoryGroup[]): BodyCell[][] {
-  const body: BodyCell[][] = [];
-  let rowNum = 0;
-  for (const group of groups) {
-    const catLabel = group.label ?? 'Sem categoria';
-    body.push([
-      {
-        content: catLabel,
-        colSpan: 7,
-        styles: { fontStyle: 'bold', fillColor: [220, 220, 220], textColor: 40 },
-      },
-    ]);
-    for (const item of group.items) {
-      rowNum++;
-      body.push([
-        String(rowNum),
-        item.descricao,
-        item.bitola || '—',
-        formatQty(item.quantidade),
-        item.unidade || '—',
-        item.erp || '—',
-        item.notes || '',
-      ]);
-    }
-  }
-  return body;
-}
-
-function buildDetailBody(groups: CategoryGroup[]): BodyCell[][] {
   const body: BodyCell[][] = [];
   let rowNum = 0;
   for (const group of groups) {
@@ -309,12 +286,42 @@ function buildDetailBody(groups: CategoryGroup[]): BodyCell[][] {
       rowNum++;
       body.push([
         String(rowNum),
+        item.descricao,
+        item.bitola || '—',
+        formatQty(item.quantidade),
+        item.unidade || '—',
+        item.erp || '—',
+        item.fornecedor || '-',
+        item.notes || '',
+      ]);
+    }
+  }
+  return body;
+}
+
+function buildDetailBody(groups: CategoryGroup[]): BodyCell[][] {
+  const body: BodyCell[][] = [];
+  let rowNum = 0;
+  for (const group of groups) {
+    const catLabel = group.label ?? 'Sem categoria';
+    body.push([
+      {
+        content: catLabel,
+        colSpan: 9,
+        styles: { fontStyle: 'bold', fillColor: [220, 220, 220], textColor: 40 },
+      },
+    ]);
+    for (const item of group.items) {
+      rowNum++;
+      body.push([
+        String(rowNum),
         item.tag || '—',
         item.descricao,
         item.bitola || '—',
         formatQty(item.quantidade),
         item.unidade || '—',
         item.erp || '—',
+        item.fornecedor || '-',
         item.notes || '',
       ]);
     }
@@ -468,7 +475,7 @@ function renderConsolidatedPage(
   const body = buildConsolidatedBody(groups);
   autoTable(doc, {
     startY: y + 4,
-    head: [['#', 'Descrição', 'Bitola', 'Qtd.', 'Un.', 'ERP', 'Notas']],
+    head: [['#', 'Descrição', 'Bitola', 'Qtd.', 'Un.', 'ERP', 'Fornecedor', 'Notas']],
     body: body as Parameters<typeof autoTable>[1]['body'],
     ...CONSOLIDATED_TABLE_STYLES,
     didDrawPage: () => drawHeaderFooter(doc, generatedAt),
@@ -545,7 +552,7 @@ function renderDirectItemsPage(
   const body = buildDetailBody(groups);
   autoTable(doc, {
     startY: y,
-    head: [['#', 'TAG', 'Descrição', 'Bitola', 'Qtd', 'Un.', 'ERP', 'Notas']],
+    head: [['#', 'TAG', 'Descrição', 'Bitola', 'Qtd', 'Un.', 'ERP', 'Fornecedor', 'Notas']],
     body: body as Parameters<typeof autoTable>[1]['body'],
     ...DETAIL_TABLE_STYLES,
     didDrawPage: () => drawHeaderFooter(doc, generatedAt),
@@ -621,7 +628,7 @@ function renderSubconjuntoPage(
   let pageIdx = 0;
   autoTable(doc, {
     startY: y,
-    head: [['#', 'TAG', 'Descrição', 'Bitola', 'Qtd', 'Un.', 'ERP', 'Notas']],
+    head: [['#', 'TAG', 'Descrição', 'Bitola', 'Qtd', 'Un.', 'ERP', 'Fornecedor', 'Notas']],
     body: body as Parameters<typeof autoTable>[1]['body'],
     ...DETAIL_TABLE_STYLES,
     showHead: 'everyPage',
