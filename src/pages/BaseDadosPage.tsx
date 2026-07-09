@@ -286,6 +286,9 @@ export default function BaseDadosPage() {
   const [originalDescricao, setOriginalDescricao] = useState<string>("");
   const bitolaInputRef = useRef<HTMLInputElement>(null);
   const custoInputRef = useRef<HTMLInputElement>(null);
+  const [itemFocusTarget, setItemFocusTarget] = useState<"descricao" | "bitola">("descricao");
+  const itemFormSnapshotRef = useRef(form);
+  const [discardChangesOpen, setDiscardChangesOpen] = useState(false);
   const [newFamilyCategoria, setNewFamilyCategoria] = useState<string>("");
   const [editingFamilyCategoria, setEditingFamilyCategoria] = useState<string>("");
   const [importing, setImporting] = useState(false);
@@ -1062,10 +1065,42 @@ export default function BaseDadosPage() {
     }
   };
 
+  const isItemFormDirty = () => JSON.stringify(form) !== JSON.stringify(itemFormSnapshotRef.current);
+
+  const handleItemDialogOpenChange = (next: boolean) => {
+    if (!next && open && isItemFormDirty()) {
+      setDiscardChangesOpen(true);
+      return;
+    }
+    setOpen(next);
+  };
+
+  const handleDiscardChanges = () => {
+    setDiscardChangesOpen(false);
+    setOpen(false);
+  };
+
+  const handleItemDialogKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const isPending = addMaterial.isPending || updateMaterial.isPending;
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      e.preventDefault();
+      if (!isPending) handleSave();
+      return;
+    }
+    if (e.key === "Enter" && !e.shiftKey) {
+      const target = e.target as HTMLElement;
+      if (target.tagName === "TEXTAREA") return;
+      if (target.tagName === "INPUT") {
+        e.preventDefault();
+        if (!isPending) handleSave();
+      }
+    }
+  };
+
   const openEdit = (m: (typeof materials)[0]) => {
     setEditingId(m.id);
     setOriginalDescricao(m.descricao);
-    setForm({
+    const next = {
       descricao: m.descricao,
       bitola: m.bitola,
       unidade: m.unidade,
@@ -1074,9 +1109,12 @@ export default function BaseDadosPage() {
       notas: (m as any).notas || "",
       categoria: (m as any).categoria || "",
       fornecedor_id: (m as any).fornecedor_id ?? null,
-    });
+    };
+    setForm(next);
+    itemFormSnapshotRef.current = next;
     setErrors({});
     setTouched({});
+    setItemFocusTarget("bitola");
     setOpen(true);
   };
 
@@ -1175,7 +1213,7 @@ export default function BaseDadosPage() {
     setEditingId(null);
     setOriginalDescricao("");
     const inheritedCategoria = familiaDescricao ? familyCategoria.get(familiaDescricao) || "" : "";
-    setForm({
+    const next = {
       descricao: familiaDescricao ?? "",
       bitola: "",
       unidade: "m",
@@ -1184,9 +1222,12 @@ export default function BaseDadosPage() {
       notas: "",
       categoria: categoria ?? inheritedCategoria,
       fornecedor_id: null,
-    });
+    };
+    setForm(next);
+    itemFormSnapshotRef.current = next;
     setErrors({});
     setTouched({});
+    setItemFocusTarget(familiaDescricao ? "bitola" : "descricao");
     setOpen(true);
   };
 
@@ -1914,8 +1955,19 @@ export default function BaseDadosPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg">
+      <Dialog open={open} onOpenChange={handleItemDialogOpenChange}>
+        <DialogContent
+          className="max-w-lg"
+          onOpenAutoFocus={(e) => {
+            e.preventDefault();
+            if (itemFocusTarget === "bitola") {
+              bitolaInputRef.current?.focus();
+            } else {
+              descricaoInputRef.current?.focus();
+            }
+          }}
+          onKeyDown={handleItemDialogKeyDown}
+        >
           <DialogHeader>
             <DialogTitle>{editingId ? "Editar Item" : "Novo Item"}</DialogTitle>
           </DialogHeader>
@@ -2080,12 +2132,25 @@ export default function BaseDadosPage() {
                   <SelectValue placeholder="Selecione a categoria" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">{SEM_CATEGORIA_LABEL}</SelectItem>
+                  <SelectItem value="__none__">
+                    {!form.categoria && form.descricao && familyCategoria.get(form.descricao) ? (
+                      <span className="text-muted-foreground">
+                        Herdada da família: {familyCategoria.get(form.descricao)}
+                      </span>
+                    ) : (
+                      SEM_CATEGORIA_LABEL
+                    )}
+                  </SelectItem>
                   {categorias.map((c) => (
                     <SelectItem key={c} value={c}>{c}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {!form.categoria && form.descricao && familyCategoria.get(form.descricao) && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Sem seleção, o item herda a categoria da família.
+                </p>
+              )}
             </div>
             <div>
               <Label htmlFor="material-fornecedor">Fornecedor</Label>
@@ -2122,6 +2187,21 @@ export default function BaseDadosPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={discardChangesOpen} onOpenChange={setDiscardChangesOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Descartar alterações?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Há alterações não salvas neste item. Se continuar, elas serão perdidas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Continuar editando</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDiscardChanges}>Descartar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {canModifyBaseDados && selectedFamilies.size > 0 && (
         <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-3 rounded-lg border bg-accent/40 px-4 py-3">
