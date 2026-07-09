@@ -68,7 +68,7 @@ export function useBomNodes(versionId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await sb
         .from('bom_node')
-        .select('*')
+        .select('*, fornecedor:fornecedores(id, nome)')
         .eq('version_id', versionId)
         .order('position');
       if (error) throw error;
@@ -199,6 +199,7 @@ export function useAddBomNode() {
       quantity?: number | null;
       position?: number | null;
       notes?: string | null;
+      fornecedorId?: string | null;
     }) => {
       const { data, error } = await sb.rpc('bom_add_node', {
         p_version_id: args.versionId,
@@ -209,6 +210,7 @@ export function useAddBomNode() {
         p_quantity: args.quantity ?? null,
         p_position: args.position ?? null,
         p_notes: args.notes ?? null,
+        p_fornecedor_id: args.fornecedorId ?? null,
       });
       if (error) throw error;
       return data as string;
@@ -230,6 +232,8 @@ export function useUpdateBomNode() {
       clearNotes?: boolean;
       materialId?: string | null;
       clearName?: boolean;
+      fornecedorId?: string | null;
+      clearFornecedor?: boolean;
     }) => {
       const { error } = await sb.rpc('bom_update_node', {
         p_node_id: args.nodeId,
@@ -240,6 +244,8 @@ export function useUpdateBomNode() {
         p_clear_notes: args.clearNotes ?? false,
         p_material_id: args.materialId ?? null,
         p_clear_name: args.clearName ?? false,
+        p_fornecedor_id: args.fornecedorId ?? null,
+        p_clear_fornecedor: args.clearFornecedor ?? false,
       });
       if (error) throw error;
     },
