@@ -207,7 +207,7 @@ export default function BomTreePage() {
 
       const { data: nData, error: nErr } = await sb
         .from('bom_node')
-        .select('*')
+        .select('*, fornecedor:fornecedores(id, nome)')
         .eq('version_id', bestVersion.id)
         .order('position');
       if (nErr) throw nErr;
