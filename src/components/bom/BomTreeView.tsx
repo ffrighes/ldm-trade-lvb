@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import {
   DndContext,
   PointerSensor,
@@ -15,7 +15,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ChevronDown, ChevronRight, MoreVertical, Package, FolderPlus, Edit3, Copy, Trash2, ArrowUp, ArrowDown, Check, Plus } from 'lucide-react';
+import { ChevronDown, ChevronRight, MoreVertical, Package, FolderPlus, Edit3, Copy, Trash2, ArrowUp, ArrowDown, Check, Plus, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -50,6 +50,8 @@ import { highlightMatch } from '@/lib/highlight';
 import { useCategorias } from '@/hooks/useCategorias';
 import { computeBomNodeDisplay } from '@/lib/bomDisplayCount';
 import { BomBatchActions, type MoveTarget } from './BomBatchActions';
+import { BOM_TABLE_COLUMNS, bomColumnCssVar, type BomTableColumnDef } from './bomTableColumns';
+import { BomColumnWidthsProvider, useBomColumnWidths } from './useBomColumnWidths';
 
 type DraftEntry = { id: string; categoria: string };
 
@@ -313,12 +315,13 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
   };
 
   return (
-    <>
+    <BomColumnWidthsProvider>
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span>{totalNodeCount} nó(s)</span>
         </div>
         <div className="flex items-center gap-2">
+          <ResetColumnWidthsButton />
           {!readOnly && (
             <>
               <Button
@@ -454,7 +457,21 @@ export function BomTreeView({ versionId, projectId, rootId, readOnly, search = '
       />
       <EditNodeDialog open={!!editNode} onOpenChange={(o) => { if (!o) setEditNode(null); }} node={editNode} />
       <DeleteConfirm node={confirmDelete} versionId={versionId} onClose={() => setConfirmDelete(null)} />
-    </>
+    </BomColumnWidthsProvider>
+  );
+}
+
+function ResetColumnWidthsButton() {
+  const { resetAll } = useBomColumnWidths();
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={resetAll}
+      title="Restaurar larguras padrão das colunas"
+    >
+      <RotateCcw className="h-3.5 w-3.5 mr-1" /> Larguras padrão
+    </Button>
   );
 }
 
@@ -806,6 +823,104 @@ function parseBitolaValue(b: string): number {
   return parseFloat(trimmed) || 0;
 }
 
+const BOM_TH_CLASS: Record<string, string> = {
+  index: 'py-2 px-2 font-normal',
+  tag: 'py-2 px-2 font-mono font-normal',
+  descricao: 'py-2 px-2 font-normal',
+  bitola: 'py-2 px-2 font-mono font-normal',
+  erp: 'py-2 px-2 font-mono font-normal',
+  fornecedor: 'py-2 px-2 font-normal',
+  qtd: 'py-2 px-2 font-normal text-right',
+  un: 'py-2 px-2 font-normal',
+  notas: 'py-2 px-2 font-normal',
+  actions: 'py-2 px-2 font-normal',
+};
+
+function BomColumnHeaderCell({ column }: { column: BomTableColumnDef }) {
+  return (
+    <th className={`relative ${BOM_TH_CLASS[column.id] ?? 'py-2 px-2 font-normal'}`}>
+      {column.label}
+      {column.resizable && <ColumnResizeHandle column={column} />}
+    </th>
+  );
+}
+
+/**
+ * Drag updates the shared --bom-col-* CSS var directly (via rAF) so every category
+ * card's <colgroup> repaints in lockstep without a React re-render per pixel; the
+ * width is only committed to state (and persisted) on pointerup.
+ */
+function ColumnResizeHandle({ column }: { column: BomTableColumnDef }) {
+  const { widths, containerRef, setColumnWidth, resetColumn } = useBomColumnWidths();
+  const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const pendingRef = useRef<number | null>(null);
+
+  const scheduleVarUpdate = (px: number) => {
+    pendingRef.current = px;
+    if (rafRef.current != null) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      const el = containerRef.current;
+      const value = pendingRef.current;
+      if (el && value != null) el.style.setProperty(bomColumnCssVar(column.id), `${value}px`);
+    });
+  };
+
+  const onPointerDown = (e: ReactPointerEvent<HTMLSpanElement>) => {
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragRef.current = { startX: e.clientX, startWidth: widths[column.id] ?? column.defaultWidth };
+  };
+
+  const onPointerMove = (e: ReactPointerEvent<HTMLSpanElement>) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const next = Math.max(drag.startWidth + (e.clientX - drag.startX), column.minWidth);
+    scheduleVarUpdate(next);
+  };
+
+  const endDrag = (e: ReactPointerEvent<HTMLSpanElement>) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    dragRef.current = null;
+    if (rafRef.current != null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+    const final = pendingRef.current ?? drag.startWidth;
+    pendingRef.current = null;
+    setColumnWidth(column.id, final);
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+  };
+
+  const onKeyDown = (e: ReactKeyboardEvent<HTMLSpanElement>) => {
+    const step = e.shiftKey ? 32 : 8;
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      setColumnWidth(column.id, (widths[column.id] ?? column.defaultWidth) - step);
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      setColumnWidth(column.id, (widths[column.id] ?? column.defaultWidth) + step);
+    }
+  };
+
+  return (
+    <span
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={`Redimensionar coluna ${column.label}`}
+      tabIndex={0}
+      className="group absolute inset-y-0 right-0 z-10 flex w-2 cursor-col-resize touch-none select-none items-stretch justify-center outline-none focus-visible:ring-1 focus-visible:ring-ring"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+      onDoubleClick={() => resetColumn(column.id)}
+      onKeyDown={onKeyDown}
+    >
+      <span className="w-px bg-border transition-colors group-hover:bg-foreground/60 group-focus-visible:bg-foreground/60" />
+    </span>
+  );
+}
+
 function ItemsByCategoryTable({
   parentId, versionId, items, drafts, depth, matById, materials, categoriaOrder,
   readOnly, showCumulative, editingItems, onToggleItemEdit, onOpenItemEdit, onAddDraft, onRemoveDraft, onDelete,
@@ -872,7 +987,17 @@ function ItemsByCategoryTable({
     return map;
   }, [grouped]);
 
-  const colCount = 9 + (readOnly ? 0 : 1) + (selectable ? 1 : 0);
+  const { widths } = useBomColumnWidths();
+  const visibleColumns = useMemo(
+    () => BOM_TABLE_COLUMNS.filter((c) => c.id !== 'actions' || !readOnly),
+    [readOnly],
+  );
+  const colCount = visibleColumns.length + (selectable ? 1 : 0);
+  const totalMinWidth = useMemo(() => {
+    let sum = selectable ? 32 : 0;
+    for (const col of visibleColumns) sum += col.flexible ? col.minWidth : (widths[col.id] ?? col.defaultWidth);
+    return sum;
+  }, [visibleColumns, widths, selectable]);
 
   return (
     <div style={{ paddingLeft: `${depth * 18 + 4}px` }} className="space-y-3 py-2">
@@ -906,20 +1031,22 @@ function ItemsByCategoryTable({
             )}
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm border-collapse">
+            <table className="w-full text-sm border-collapse" style={{ tableLayout: 'fixed', minWidth: `${totalMinWidth}px` }}>
+              <colgroup>
+                {selectable && <col style={{ width: 32 }} />}
+                {visibleColumns.map((col) => (
+                  <col
+                    key={col.id}
+                    style={col.flexible ? undefined : { width: `var(${bomColumnCssVar(col.id)}, ${col.defaultWidth}px)` }}
+                  />
+                ))}
+              </colgroup>
               <thead>
                 <tr className="border-b text-left text-xs font-normal text-muted-foreground">
-                  {selectable && <th className="py-2 px-2 font-normal w-8" aria-label="Selecionar"></th>}
-                  <th className="py-2 px-2 font-normal w-10">#</th>
-                  <th className="py-2 px-2 font-mono font-normal">TAG</th>
-                  <th className="py-2 px-2 font-normal">Descrição</th>
-                  <th className="py-2 px-2 font-mono font-normal">Bitola</th>
-                  <th className="py-2 px-2 font-mono font-normal">ERP</th>
-                  <th className="py-2 px-2 font-normal">Fornecedor</th>
-                  <th className="py-2 px-2 font-normal text-right">Qtd</th>
-                  <th className="py-2 px-2 font-normal">Un.</th>
-                  <th className="py-2 px-2 font-normal">Notas</th>
-                  {!readOnly && <th className="py-2 px-2 font-normal w-1"></th>}
+                  {selectable && <th className="py-2 px-2 font-normal" aria-label="Selecionar"></th>}
+                  {visibleColumns.map((col) => (
+                    <BomColumnHeaderCell key={col.id} column={col} />
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -979,12 +1106,12 @@ function ItemsByCategoryTable({
                         )}
                         <td className="py-2 px-2 align-middle">{startIndex + idx + 1}</td>
                         <td className="py-2 px-2 align-middle font-mono text-xs text-muted-foreground">{highlightMatch(tag, search)}</td>
-                        <td className="py-2 px-2 align-middle max-w-[20rem]">
+                        <td className="py-2 px-2 align-middle">
                           <span className="block truncate" title={descricao}>{highlightMatch(descricao, search)}</span>
                         </td>
                         <td className="py-2 px-2 align-middle font-mono text-xs text-muted-foreground">{highlightMatch(bitola, search)}</td>
                         <td className="py-2 px-2 align-middle font-mono text-xs text-muted-foreground">{erp}</td>
-                        <td className="py-2 px-2 align-middle max-w-[200px]">
+                        <td className="py-2 px-2 align-middle">
                           {it.fornecedor?.nome ? (
                             <span className="block truncate" title={it.fornecedor.nome}>{it.fornecedor.nome}</span>
                           ) : (
@@ -993,7 +1120,7 @@ function ItemsByCategoryTable({
                         </td>
                         <td className="py-2 px-2 align-middle text-right tabular-nums">{qty}</td>
                         <td className="py-2 px-2 align-middle">{unidade}</td>
-                        <td className="py-2 px-2 align-middle max-w-[14rem]">
+                        <td className="py-2 px-2 align-middle">
                           <span className="block truncate" title={notas}>{notas}</span>
                         </td>
                         {!readOnly && (
