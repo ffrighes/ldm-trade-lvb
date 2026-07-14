@@ -44,7 +44,7 @@ interface LinhaIsolamentoUI {
   id: string;
   linha: string;
   bitola: string;
-  comprimentoM: number;
+  comprimentoMm: number;
   espessuraIsolMm: number;
   materialChapa: string;
   espessuraChapaMm: number;
@@ -62,7 +62,7 @@ function linhaVazia(indice: number): LinhaIsolamentoUI {
     id: novoId(),
     linha: `Linha ${indice}`,
     bitola: BITOLAS_ORDENADAS[0] ?? '',
-    comprimentoM: 0,
+    comprimentoMm: 0,
     espessuraIsolMm: 0,
     materialChapa: MATERIAIS_CHAPA[0] ?? '',
     espessuraChapaMm: 0,
@@ -84,7 +84,7 @@ export default function IsolamentoTermicoPage() {
         linha: l,
         resultado: calcularLinha({
           bitola: l.bitola,
-          comprimentoM: l.comprimentoM,
+          comprimentoMm: l.comprimentoMm,
           espessuraIsolMm: l.espessuraIsolMm,
           materialChapa: l.materialChapa,
           espessuraChapaMm: l.espessuraChapaMm,
@@ -146,17 +146,16 @@ export default function IsolamentoTermicoPage() {
                   <TableHead>Linha</TableHead>
                   <TableHead>Ø</TableHead>
                   <TableHead className="text-right text-muted-foreground/70">Diâmetro (mm)</TableHead>
-                  <TableHead className="text-right">Compr. (m)</TableHead>
-                  <TableHead className="text-right">Espessura Isol. (mm)</TableHead>
+                  <TableHead className="text-right">Compr. (mm)</TableHead>
+                  <TableHead className="text-right">Esp. Isol. (mm)</TableHead>
+                  <TableHead>Material Isol.</TableHead>
                   <TableHead className="text-right text-muted-foreground/70">Diâmetro Isol. (mm)</TableHead>
                   <TableHead className="text-right text-muted-foreground/70">Volume Isol. (m³)</TableHead>
-                  <TableHead className="text-right text-muted-foreground/70">Perímetro (mm)</TableHead>
-                  <TableHead className="text-right text-muted-foreground/70">Área de chapa (m²)</TableHead>
-                  <TableHead>Material Chapa</TableHead>
-                  <TableHead className="text-right">Espessura Chapa (mm)</TableHead>
-                  <TableHead className="text-right text-muted-foreground/70">Peso da chapa (Kg)</TableHead>
                   <TableHead className="text-right text-muted-foreground/70">Peso Isol (Kg)</TableHead>
-                  <TableHead>Material do Isolamento</TableHead>
+                  <TableHead className="text-right">Esp. Chapa (mm)</TableHead>
+                  <TableHead>Mat. Chapa</TableHead>
+                  <TableHead className="text-right text-muted-foreground/70">Área Chapa (m²)</TableHead>
+                  <TableHead className="text-right text-muted-foreground/70">Peso da chapa (Kg)</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -205,15 +204,15 @@ export default function IsolamentoTermicoPage() {
 
                     <TableCell>
                       <Label htmlFor={`${linha.id}-compr`} className="sr-only">
-                        Comprimento em metros
+                        Comprimento em milímetros
                       </Label>
                       <Input
                         id={`${linha.id}-compr`}
                         type="number"
                         className="h-8 w-20 text-right"
-                        value={linha.comprimentoM}
+                        value={linha.comprimentoMm}
                         onChange={(e) =>
-                          updateLinha(linha.id, { comprimentoM: parseFloat(e.target.value) || 0 })
+                          updateLinha(linha.id, { comprimentoMm: parseFloat(e.target.value) || 0 })
                         }
                       />
                     </TableCell>
@@ -233,6 +232,27 @@ export default function IsolamentoTermicoPage() {
                       />
                     </TableCell>
 
+                    <TableCell>
+                      <Label htmlFor={`${linha.id}-mat-isol`} className="sr-only">
+                        Material do isolamento
+                      </Label>
+                      <Select
+                        value={linha.materialIsol}
+                        onValueChange={(v) => updateLinha(linha.id, { materialIsol: v })}
+                      >
+                        <SelectTrigger id={`${linha.id}-mat-isol`} className="h-8 w-24">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {MATERIAIS_ISOLAMENTO.map((m) => (
+                            <SelectItem key={m} value={m}>
+                              {m}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+
                     <TableCell className="text-right font-mono text-muted-foreground">
                       {fmt(resultado.diametroIsolMm, 2)}
                     </TableCell>
@@ -242,11 +262,22 @@ export default function IsolamentoTermicoPage() {
                     </TableCell>
 
                     <TableCell className="text-right font-mono text-muted-foreground">
-                      {fmt(resultado.erro ? null : resultado.perimetroMm, 2)}
+                      {fmt(resultado.erro ? null : resultado.pesoIsolKg, 1)}
                     </TableCell>
 
-                    <TableCell className="text-right font-mono text-muted-foreground">
-                      {fmt(resultado.erro ? null : resultado.areaChapaM2, 2)}
+                    <TableCell>
+                      <Label htmlFor={`${linha.id}-esp-chapa`} className="sr-only">
+                        Espessura da chapa em milímetros
+                      </Label>
+                      <Input
+                        id={`${linha.id}-esp-chapa`}
+                        type="number"
+                        className="h-8 w-20 text-right"
+                        value={linha.espessuraChapaMm}
+                        onChange={(e) =>
+                          updateLinha(linha.id, { espessuraChapaMm: parseFloat(e.target.value) || 0 })
+                        }
+                      />
                     </TableCell>
 
                     <TableCell>
@@ -270,48 +301,12 @@ export default function IsolamentoTermicoPage() {
                       </Select>
                     </TableCell>
 
-                    <TableCell>
-                      <Label htmlFor={`${linha.id}-esp-chapa`} className="sr-only">
-                        Espessura da chapa em milímetros
-                      </Label>
-                      <Input
-                        id={`${linha.id}-esp-chapa`}
-                        type="number"
-                        className="h-8 w-20 text-right"
-                        value={linha.espessuraChapaMm}
-                        onChange={(e) =>
-                          updateLinha(linha.id, { espessuraChapaMm: parseFloat(e.target.value) || 0 })
-                        }
-                      />
+                    <TableCell className="text-right font-mono text-muted-foreground">
+                      {fmt(resultado.erro ? null : resultado.areaChapaM2, 2)}
                     </TableCell>
 
                     <TableCell className="text-right font-mono text-muted-foreground">
                       {fmt(resultado.erro ? null : resultado.pesoChapaKg, 1)}
-                    </TableCell>
-
-                    <TableCell className="text-right font-mono text-muted-foreground">
-                      {fmt(resultado.erro ? null : resultado.pesoIsolKg, 1)}
-                    </TableCell>
-
-                    <TableCell>
-                      <Label htmlFor={`${linha.id}-mat-isol`} className="sr-only">
-                        Material do isolamento
-                      </Label>
-                      <Select
-                        value={linha.materialIsol}
-                        onValueChange={(v) => updateLinha(linha.id, { materialIsol: v })}
-                      >
-                        <SelectTrigger id={`${linha.id}-mat-isol`} className="h-8 w-24">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {MATERIAIS_ISOLAMENTO.map((m) => (
-                            <SelectItem key={m} value={m}>
-                              {m}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
                     </TableCell>
 
                     <TableCell>
@@ -351,7 +346,7 @@ export default function IsolamentoTermicoPage() {
 
                 {linhas.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={15} className="py-8 text-center text-sm text-muted-foreground">
+                    <TableCell colSpan={14} className="py-8 text-center text-sm text-muted-foreground">
                       Nenhuma linha. Adicione a primeira linha.
                     </TableCell>
                   </TableRow>
@@ -360,12 +355,13 @@ export default function IsolamentoTermicoPage() {
               {linhas.length > 0 && (
                 <tfoot>
                   <TableRow className="border-t bg-muted/30 font-medium hover:bg-muted/30">
-                    <TableCell colSpan={11} className="text-right text-muted-foreground">
+                    <TableCell colSpan={8} className="text-right text-muted-foreground">
                       Totais
                     </TableCell>
-                    <TableCell className="text-right font-mono">{fmt(totais.totalChapaKg, 1)}</TableCell>
                     <TableCell className="text-right font-mono">{fmt(totais.totalIsolKg, 1)}</TableCell>
-                    <TableCell colSpan={2} />
+                    <TableCell colSpan={3} />
+                    <TableCell className="text-right font-mono">{fmt(totais.totalChapaKg, 1)}</TableCell>
+                    <TableCell />
                   </TableRow>
                 </tfoot>
               )}
