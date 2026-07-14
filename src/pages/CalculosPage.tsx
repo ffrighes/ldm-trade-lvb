@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Calculator, Plus, Pencil, Trash2, Eye, Droplets } from 'lucide-react';
+import { Calculator, Plus, Pencil, Trash2, Eye, Droplets, Thermometer } from 'lucide-react';
 import 'katex/dist/katex.min.css';
 import { InlineMath } from 'react-katex';
 
@@ -265,6 +265,14 @@ export default function CalculosPage() {
             >
               <Droplets className="h-4 w-4 mr-2" />
               Perda de Carga
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/projetos/${projetoId}/calculos/isolamento-termico`)}
+            >
+              <Thermometer className="h-4 w-4 mr-2" />
+              Isolamento Térmico
             </Button>
             <Button onClick={openCreate} size="sm">
               <Plus className="h-4 w-4 mr-2" />
