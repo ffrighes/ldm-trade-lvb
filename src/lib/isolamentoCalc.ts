@@ -6,7 +6,7 @@ import { BITOLAS, DENSIDADES } from './isolamentoData';
 
 export interface LinhaIsolamentoInput {
   bitola: string;
-  comprimentoM: number;
+  comprimentoMm: number;
   espessuraIsolMm: number;
   materialChapa: string;
   espessuraChapaMm: number;
@@ -17,7 +17,6 @@ export interface LinhaIsolamentoResult {
   diametroTuboMm: number | null;
   diametroIsolMm: number | null;
   volumeIsolM3: number;
-  perimetroMm: number;
   areaChapaM2: number;
   pesoChapaKg: number;
   pesoIsolKg: number;
@@ -29,7 +28,6 @@ function resultadoComErro(erro: string): LinhaIsolamentoResult {
     diametroTuboMm: null,
     diametroIsolMm: null,
     volumeIsolM3: 0,
-    perimetroMm: 0,
     areaChapaM2: 0,
     pesoChapaKg: 0,
     pesoIsolKg: 0,
@@ -57,9 +55,9 @@ export function calcularLinha(input: LinhaIsolamentoInput): LinhaIsolamentoResul
   const diametroIsolMm = diametroTuboMm + 2 * input.espessuraIsolMm;
   const volumeIsolM3 =
     (Math.PI * (diametroIsolMm / 2000) ** 2 - Math.PI * (diametroTuboMm / 2000) ** 2) *
-    input.comprimentoM;
-  const perimetroMm = diametroIsolMm * Math.PI;
-  const areaChapaM2 = (perimetroMm * input.comprimentoM) / 1000;
+    (input.comprimentoMm / 1000);
+  const areaChapaM2 =
+    ((diametroIsolMm / 2) * 2 * Math.PI * input.comprimentoMm) / 1_000_000;
   const pesoChapaKg = (input.espessuraChapaMm / 1000) * areaChapaM2 * densidadeChapa;
   const pesoIsolKg = volumeIsolM3 * densidadeIsol;
 
@@ -67,7 +65,6 @@ export function calcularLinha(input: LinhaIsolamentoInput): LinhaIsolamentoResul
     diametroTuboMm,
     diametroIsolMm,
     volumeIsolM3,
-    perimetroMm,
     areaChapaM2,
     pesoChapaKg,
     pesoIsolKg,
