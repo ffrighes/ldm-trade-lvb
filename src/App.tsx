@@ -15,6 +15,7 @@ import OrcamentoDetailPage from "@/pages/OrcamentoDetailPage";
 import AdminUsersPage from "@/pages/AdminUsersPage";
 import CalculosPage from "@/pages/CalculosPage";
 import PerdaCargaPage from "@/pages/PerdaCargaPage";
+import IsolamentoTermicoPage from "@/pages/IsolamentoTermicoPage";
 import LoginPage from "@/pages/LoginPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import UpdatePasswordPage from "@/pages/UpdatePasswordPage";
@@ -49,6 +50,7 @@ const App = () => (
                       <Route path="/projetos/:projetoId/calculos" element={<CalculosPage />} />
                       <Route path="/projetos/:projetoId/calculos/perda-carga/novo" element={<PerdaCargaPage />} />
                       <Route path="/projetos/:projetoId/calculos/perda-carga/:calculoId" element={<PerdaCargaPage />} />
+                      <Route path="/projetos/:projetoId/calculos/isolamento-termico" element={<IsolamentoTermicoPage />} />
                       <Route path="/base-dados" element={<BaseDadosPage />} />
                       <Route path="/orcamentos" element={<OrcamentosPage />} />
                       <Route path="/orcamentos/:orcamentoId" element={<OrcamentoDetailPage />} />
